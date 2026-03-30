@@ -1,0 +1,26 @@
+# Build output
+main.js
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# npm debug
+npm-debug.log*
+
+# Hidden files and folders (except .gitignore)
+.*
+!.gitignore
+
+# Data files
+data.json
+
+# Plan
+plan.txt

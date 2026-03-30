@@ -1,0 +1,9 @@
+{
+  "id": "ttrpg-maps",
+  "name": "TTRPG Maps",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Interactive TTRPG map plugin with markers, templates, and distance measurement tools",
+  "author": "",
+  "isDesktopOnly": true
+}

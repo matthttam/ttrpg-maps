@@ -47,6 +47,7 @@ describe("Marker template resolution", () => {
     color: "#ff0000",
     icon: "castle",
     iconColor: "#ffffff",
+    useBaseMarker: true,
   };
 
   it("marker overrides take precedence over template", () => {
@@ -62,6 +63,7 @@ describe("Marker template resolution", () => {
       color: "#00ff00",
       icon: null,
       iconColor: null,
+      useBaseMarker: null,
     };
 
     // Simulate resolution logic (same as MapRenderer.renderMarkers)
@@ -91,6 +93,7 @@ describe("Marker template resolution", () => {
       color: null,
       icon: null,
       iconColor: null,
+      useBaseMarker: null,
     };
 
     const color = marker.color ?? defaultTemplate.color;

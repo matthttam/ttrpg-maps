@@ -28,6 +28,9 @@ function createMockPlugin(mapState?: Partial<MapState>) {
       saveSettings: vi.fn(),
     },
     manifest: { id: "ttrpg-maps" },
+    onMapRefresh: vi.fn(),
+    offMapRefresh: vi.fn(),
+    triggerMapRefresh: vi.fn(),
   } as any;
 }
 
@@ -57,6 +60,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     color: "#ffffff",
     icon: null,
     iconColor: "#000000",
+    useBaseMarker: true,
     ...overrides,
   };
 }
@@ -77,6 +81,7 @@ describe("MapRenderer DOM", () => {
     expect(container.classList.contains("ttrpgmap-root")).toBe(true);
     expect(container.querySelector(".ttrpgmap-wrapper")).not.toBeNull();
     expect(container.querySelector(".ttrpgmap-container")).not.toBeNull();
+    expect(container.querySelector(".ttrpgmap-marker-overlay")).not.toBeNull();
     expect(container.querySelector(".ttrpgmap-image")).not.toBeNull();
     expect(container.querySelector(".ttrpgmap-svg-overlay")).not.toBeNull();
   });
@@ -117,7 +122,7 @@ describe("MapRenderer DOM", () => {
   });
 
   it("renders markers with pin SVG", async () => {
-    const marker = createMarker({ color: "#ff0000", icon: "sword" });
+    const marker = createMarker({ color: "#ff0000", icon: "star" });
     const plugin = createMockPlugin({ markers: [marker] });
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
@@ -135,11 +140,12 @@ describe("MapRenderer DOM", () => {
     const path = svg!.querySelector("path");
     expect(path!.getAttribute("fill")).toBe("#ff0000");
 
-    // Icon
+    // Icon (FA icon renders as inline SVG)
     const iconEl = pin!.querySelector(".ttrpgmap-marker-icon");
     expect(iconEl).not.toBeNull();
-    const iconSvg = iconEl!.querySelector("svg[data-icon='sword']");
+    const iconSvg = iconEl!.querySelector("svg");
     expect(iconSvg).not.toBeNull();
+    expect(iconSvg!.getAttribute("fill")).toBe("currentColor");
   });
 
   it("does not render label when no note or description", async () => {
@@ -192,14 +198,14 @@ describe("MapRenderer DOM", () => {
     expect(markerEls[2].getAttribute("data-direction")).toBe("left");
   });
 
-  it("sets marker-scale CSS variable", async () => {
-    const marker = createMarker();
+  it("sets marker CSS variables", async () => {
+    const marker = createMarker({ color: "#ff0000" });
     const plugin = createMockPlugin({ markers: [marker] });
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
     const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
-    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1");
+    expect(markerEl.style.getPropertyValue("--marker-color")).toBe("#ff0000");
   });
 
   it("shows error when image not found", async () => {

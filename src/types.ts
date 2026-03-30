@@ -14,6 +14,7 @@ export interface MarkerTemplate {
   color: string;
   icon: string | null;
   iconColor: string;
+  useBaseMarker: boolean;
 }
 
 /** A single marker placed on a map */
@@ -30,6 +31,7 @@ export interface MapMarker {
   color: string | null;
   icon: string | null;
   iconColor: string | null;
+  useBaseMarker: boolean | null;
 }
 
 /** A point used in distance scale or measurement */
@@ -81,6 +83,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
       color: "#ffffff",
       icon: null,
       iconColor: "#000000",
+      useBaseMarker: true,
     },
   ],
 };

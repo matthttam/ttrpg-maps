@@ -11,6 +11,13 @@ export default class TTRPGMapsPlugin extends Plugin {
   settings: TTRPGMapsSettings = DEFAULT_SETTINGS;
   dataManager: DataManager = null!;
 
+  /** Callbacks registered by active MapRenderers to refresh when marker data changes */
+  private mapRefreshCallbacks: Set<() => void> = new Set();
+
+  onMapRefresh(cb: () => void): void { this.mapRefreshCallbacks.add(cb); }
+  offMapRefresh(cb: () => void): void { this.mapRefreshCallbacks.delete(cb); }
+  triggerMapRefresh(): void { this.mapRefreshCallbacks.forEach((cb) => cb()); }
+
   async onload(): Promise<void> {
     this.dataManager = new DataManager(this.app, this);
     this.settings = await this.dataManager.loadSettings();

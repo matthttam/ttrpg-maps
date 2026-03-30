@@ -8,6 +8,7 @@ export class DataManager {
   private app: App;
   private plugin: TTRPGMapsPlugin;
   private saveTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private pendingStates: Map<string, MapState> = new Map();
 
   constructor(app: App, plugin: TTRPGMapsPlugin) {
     this.app = app;
@@ -58,18 +59,51 @@ export class DataManager {
   /** Save per-map state to sidecar file (debounced 300ms) */
   saveMapState(mapId: string, state: MapState): void {
     const existing = this.saveTimeouts.get(mapId);
-    if (existing) {
-      clearTimeout(existing);
-    }
+    if (existing) clearTimeout(existing);
+
+    this.pendingStates.set(mapId, state);
 
     const timeout = setTimeout(async () => {
       this.saveTimeouts.delete(mapId);
+      this.pendingStates.delete(mapId);
       await this.ensureDir();
       const path = this.getMapStatePath(mapId);
       await this.app.vault.adapter.write(path, JSON.stringify(state, null, 2));
     }, 300);
 
     this.saveTimeouts.set(mapId, timeout);
+  }
+
+  /** Flush any pending debounced saves immediately */
+  async flushSaves(): Promise<void> {
+    for (const [mapId, timeout] of this.saveTimeouts) {
+      clearTimeout(timeout);
+      const state = this.pendingStates.get(mapId);
+      if (state) {
+        await this.ensureDir();
+        const path = this.getMapStatePath(mapId);
+        await this.app.vault.adapter.write(path, JSON.stringify(state, null, 2));
+      }
+    }
+    this.saveTimeouts.clear();
+    this.pendingStates.clear();
+  }
+
+  /** Load all map states from the sidecar directory (flushes pending saves first) */
+  async loadAllMapStates(): Promise<MapState[]> {
+    await this.flushSaves();
+
+    const adapter = this.app.vault.adapter;
+    if (!(await adapter.exists(TTRPGMAP_DIR))) return [];
+
+    const listing = await adapter.list(TTRPGMAP_DIR);
+    const states: MapState[] = [];
+    for (const file of listing.files) {
+      if (!file.endsWith(".json")) continue;
+      const raw = await adapter.read(file);
+      states.push(JSON.parse(raw) as MapState);
+    }
+    return states;
   }
 
   /** Delete per-map state sidecar file */

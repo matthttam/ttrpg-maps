@@ -1,9 +1,11 @@
-import { setIcon } from "obsidian";
+import { getFAIcon } from "./faIcon";
 
-export const PIN_PATH = "M320 64C214 64 128 148.4 128 252.6C128 371.9 248.2 514.9 298.4 569.4C310.2 582.2 329.8 582.2 341.6 569.4C391.8 514.9 512 371.9 512 252.6C512 148.4 426 64 320 64z";
-export const PIN_VIEWBOX = "0 0 640 640";
+// FA map-marker as the default pin shape
+const MAP_MARKER = getFAIcon("map-marker");
+export const PIN_VIEWBOX = MAP_MARKER?.viewBox ?? "0 0 384 512";
+export const PIN_PATH = MAP_MARKER?.path ?? "M192 0C86 0 0 84.4 0 188.6 0 307.9 120.2 450.9 170.4 505.4 182.2 518.2 201.8 518.2 213.6 505.4 263.8 450.9 384 307.9 384 188.6 384 84.4 298 0 192 0z";
 export const PIN_STROKE = "#000000";
-export const PIN_STROKE_WIDTH = "16";
+export const PIN_STROKE_WIDTH = "8";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -21,26 +23,52 @@ export function createPinSvg(fillColor: string, cssClass: string): SVGSVGElement
   return svg;
 }
 
-/** Create a full pin element with SVG and optional icon overlay */
-export function createPinElement(
-  container: HTMLElement,
-  opts: {
-    pinClass: string;
-    svgClass: string;
-    color: string;
-    icon?: string | null;
-    iconColor?: string;
-    iconClass: string;
-  }
-): HTMLElement {
-  const pin = container.createDiv({ cls: `ttrpgmap-pin ${opts.pinClass}` });
-  pin.appendChild(createPinSvg(opts.color, opts.svgClass));
+/** Render an FA icon SVG into a container */
+function renderIcon(container: HTMLElement, iconName: string): void {
+  const icon = getFAIcon(iconName);
+  if (!icon) return;
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", icon.viewBox);
+  svg.setAttribute("fill", "currentColor");
+  svg.setAttribute("class", "ttrpgmap-fa-icon");
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", icon.path);
+  svg.appendChild(path);
+  container.appendChild(svg);
+}
 
-  if (opts.icon) {
-    const iconEl = pin.createDiv({ cls: `ttrpgmap-pin-icon ${opts.iconClass}` });
-    if (opts.iconColor) iconEl.style.color = opts.iconColor;
-    setIcon(iconEl, opts.icon);
+export interface PinElementOpts {
+  pinClass: string;
+  svgClass: string;
+  color: string;
+  icon?: string | null;
+  iconColor?: string;
+  iconClass: string;
+  useBaseMarker?: boolean;
+}
+
+/** Create a full pin element — either base pin with icon overlay, or standalone icon */
+export function createPinElement(container: HTMLElement, opts: PinElementOpts): HTMLElement {
+  const useBase = opts.useBaseMarker ?? true;
+
+  if (useBase || !opts.icon) {
+    const pin = container.createDiv({ cls: `ttrpgmap-pin ${opts.pinClass}` });
+    pin.appendChild(createPinSvg(opts.color, opts.svgClass));
+
+    if (opts.icon) {
+      const iconEl = pin.createDiv({ cls: `ttrpgmap-pin-icon ${opts.iconClass}` });
+      if (opts.iconColor) iconEl.style.color = opts.iconColor;
+      renderIcon(iconEl, opts.icon);
+    }
+
+    return pin;
   }
+
+  // Standalone icon mode — don't use the small iconClass, use standalone sizing
+  const pin = container.createDiv({ cls: `ttrpgmap-pin ttrpgmap-pin--standalone ${opts.pinClass}` });
+  const iconEl = pin.createDiv({ cls: "ttrpgmap-pin-standalone-icon" });
+  if (opts.iconColor) iconEl.style.color = opts.iconColor;
+  renderIcon(iconEl, opts.icon);
 
   return pin;
 }

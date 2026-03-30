@@ -14,6 +14,7 @@ function createMarkerPreview(container: HTMLElement, template: MarkerTemplate): 
     icon: template.icon,
     iconColor: template.iconColor,
     iconClass: "ttrpgmap-preview-icon",
+    useBaseMarker: template.useBaseMarker,
   });
   return preview;
 }
@@ -44,6 +45,7 @@ export function renderTemplateManager(
       color: "#ffffff",
       icon: null,
       iconColor: "#000000",
+      useBaseMarker: true,
     };
     plugin.settings.markerTemplates.push(newTemplate);
     plugin.dataManager.saveSettings(plugin.settings);

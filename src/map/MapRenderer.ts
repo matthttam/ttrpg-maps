@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
+import { MarkdownRenderChild, Menu, Notice } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MapMarker, MapPoint } from "../types";
 import { MapSettingsModal } from "../modals/MapSettingsModal";
@@ -20,6 +20,7 @@ export class MapRenderer extends MarkdownRenderChild {
   // DOM elements
   private wrapper!: HTMLDivElement;
   private mapContainer!: HTMLDivElement;
+  private markerOverlay!: HTMLDivElement;
   private imageEl!: HTMLImageElement;
   private svgOverlay!: SVGSVGElement;
   private toolbar!: HTMLDivElement;
@@ -54,12 +55,20 @@ export class MapRenderer extends MarkdownRenderChild {
     this.sectionInfo = sectionInfo;
   }
 
+  private refreshCallback = async () => {
+    this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+    this.renderMarkers();
+  };
+
   async onload(): Promise<void> {
     this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+    this.plugin.onMapRefresh(this.refreshCallback);
     this.buildDOM();
   }
 
-  onunload(): void {}
+  onunload(): void {
+    this.plugin.offMapRefresh(this.refreshCallback);
+  }
 
   // ──────────────────── DOM Setup ────────────────────
 
@@ -79,6 +88,9 @@ export class MapRenderer extends MarkdownRenderChild {
     this.svgOverlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.svgOverlay.addClass("ttrpgmap-svg-overlay");
     this.mapContainer.appendChild(this.svgOverlay);
+
+    // Marker overlay sits outside the scaled container for crisp rendering
+    this.markerOverlay = this.wrapper.createDiv({ cls: "ttrpgmap-marker-overlay" });
 
     this.imageEl.addEventListener("load", () => {
       this.svgOverlay.setAttribute("width", String(this.imageEl.naturalWidth));
@@ -208,6 +220,7 @@ export class MapRenderer extends MarkdownRenderChild {
   private applyTransform(): void {
     const scale = this.zoom / 100;
     this.mapContainer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${scale})`;
+    this.updateMarkerPositions();
   }
 
   private getImageScale(): { sx: number; sy: number } {
@@ -220,7 +233,7 @@ export class MapRenderer extends MarkdownRenderChild {
     if (newZoom === this.zoom) return;
     this.zoom = newZoom;
     this.applyTransform();
-    this.updateMarkerScales();
+    this.updateMarkerPositions();
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
   }
@@ -248,10 +261,13 @@ export class MapRenderer extends MarkdownRenderChild {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.hasDragged = true;
       const scale = this.zoom / 100;
       const { sx, sy } = this.getImageScale();
+      // Update natural coords
       this.draggingMarker.x = this.dragOrigX + dx / scale / sx;
       this.draggingMarker.y = this.dragOrigY + dy / scale / sy;
-      this.dragMarkerEl.style.left = `${this.draggingMarker.x * sx}px`;
-      this.dragMarkerEl.style.top = `${this.draggingMarker.y * sy}px`;
+      // Position in screen coords (marker is in the overlay, not the scaled container)
+      const screen = this.toScreenCoords(this.draggingMarker.x, this.draggingMarker.y);
+      this.dragMarkerEl.style.left = `${screen.x}px`;
+      this.dragMarkerEl.style.top = `${screen.y}px`;
       return;
     }
     if (!this.isPanning) return;
@@ -290,7 +306,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.panY = cursorY - mapY * newScale;
     this.zoom = newZoom;
     this.applyTransform();
-    this.updateMarkerScales();
+    this.updateMarkerPositions();
 
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
@@ -298,18 +314,32 @@ export class MapRenderer extends MarkdownRenderChild {
 
   // ──────────────────── Markers ────────────────────
 
-  private updateMarkerScales(): void {
-    const inverseScale = 100 / this.zoom;
-    this.mapContainer.querySelectorAll<HTMLElement>(".ttrpgmap-marker").forEach((el) => {
-      el.style.setProperty("--marker-scale", String(inverseScale));
+  /** Convert natural image coords to screen coords within the wrapper */
+  private toScreenCoords(natX: number, natY: number): { x: number; y: number } {
+    const { sx, sy } = this.getImageScale();
+    const scale = this.zoom / 100;
+    return {
+      x: natX * sx * scale + this.panX,
+      y: natY * sy * scale + this.panY,
+    };
+  }
+
+  /** Reposition all marker elements to current pan/zoom without re-creating them */
+  private updateMarkerPositions(): void {
+    if (!this.state) return;
+    const markers = this.state.markers;
+    const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
+    els.forEach((el, i) => {
+      if (i >= markers.length) return;
+      const { x, y } = this.toScreenCoords(markers[i].x, markers[i].y);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
     });
   }
 
   private renderMarkers(): void {
     if (!this.state) return;
-    this.mapContainer.querySelectorAll(".ttrpgmap-marker").forEach((el) => el.remove());
-
-    const { sx, sy } = this.getImageScale();
+    this.markerOverlay.querySelectorAll(".ttrpgmap-marker").forEach((el) => el.remove());
 
     for (const marker of this.state.markers) {
       const color = marker.color ?? "#ffffff";
@@ -317,17 +347,18 @@ export class MapRenderer extends MarkdownRenderChild {
       const direction = marker.direction ?? "down";
       const textPlacement = marker.textPlacement ?? "above";
 
-      const markerEl = this.mapContainer.createDiv({ cls: "ttrpgmap-marker" });
-      markerEl.style.left = `${marker.x * sx}px`;
-      markerEl.style.top = `${marker.y * sy}px`;
+      const { x, y } = this.toScreenCoords(marker.x, marker.y);
+      const markerEl = this.markerOverlay.createDiv({ cls: "ttrpgmap-marker" });
+      markerEl.style.left = `${x}px`;
+      markerEl.style.top = `${y}px`;
       markerEl.style.setProperty("--marker-color", color);
       markerEl.style.setProperty("--marker-icon-color", iconColor);
-      markerEl.style.setProperty("--marker-scale", String(100 / this.zoom));
       markerEl.dataset.direction = direction;
       markerEl.dataset.textPlacement = textPlacement;
       markerEl.dataset.markerId = marker.id;
 
       // Pin with icon
+      const useBaseMarker = marker.useBaseMarker ?? true;
       createPinElement(markerEl, {
         pinClass: "ttrpgmap-marker-pin",
         svgClass: "ttrpgmap-pin-svg",
@@ -335,6 +366,7 @@ export class MapRenderer extends MarkdownRenderChild {
         icon: marker.icon,
         iconColor,
         iconClass: "ttrpgmap-marker-icon",
+        useBaseMarker,
       });
 
       // Label (only if there's text to show)
@@ -393,6 +425,7 @@ export class MapRenderer extends MarkdownRenderChild {
       color: template?.color ?? "#ffffff",
       icon: template?.icon ?? null,
       iconColor: template?.iconColor ?? "#000000",
+      useBaseMarker: template?.useBaseMarker ?? true,
     };
 
     new MarkerEditModal(this.plugin.app, this.plugin, marker, (updated) => {

@@ -4,8 +4,9 @@
   "description": "Interactive TTRPG map plugin for Obsidian with markers, templates, and distance tools",
   "main": "main.js",
   "scripts": {
-    "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "icons": "node scripts/build-icons.mjs",
+    "dev": "node scripts/build-icons.mjs && node esbuild.config.mjs",
+    "build": "node scripts/build-icons.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "test": "vitest run",
     "test:watch": "vitest"
   },

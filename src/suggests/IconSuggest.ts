@@ -1,4 +1,5 @@
-import { App, AbstractInputSuggest, setIcon, getIconIds } from "obsidian";
+import { App, AbstractInputSuggest } from "obsidian";
+import { setFAIcon, searchFAIcons } from "../utils/faIcon";
 
 export class IconSuggest extends AbstractInputSuggest<string> {
   private textInputEl: HTMLInputElement;
@@ -11,22 +12,13 @@ export class IconSuggest extends AbstractInputSuggest<string> {
   }
 
   getSuggestions(query: string): string[] {
-    if (!query) return [];
-    const lowerQuery = query.toLowerCase();
-    return getIconIds()
-      .filter((id) => id.toLowerCase().includes(lowerQuery))
-      .sort((a, b) => {
-        const aStart = a.toLowerCase().startsWith(lowerQuery) ? 0 : 1;
-        const bStart = b.toLowerCase().startsWith(lowerQuery) ? 0 : 1;
-        return aStart - bStart || a.localeCompare(b);
-      })
-      .slice(0, 30);
+    return searchFAIcons(query, 30);
   }
 
   renderSuggestion(value: string, el: HTMLElement): void {
     const row = el.createDiv({ cls: "ttrpgmap-icon-suggest-row" });
     const iconEl = row.createDiv({ cls: "ttrpgmap-icon-suggest-icon" });
-    setIcon(iconEl, value);
+    setFAIcon(iconEl, value);
     row.createDiv({ cls: "ttrpgmap-icon-suggest-name", text: value });
   }
 

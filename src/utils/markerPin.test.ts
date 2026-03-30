@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createPinSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "./markerPin";
+import { getFAIcon, getFAIconNames } from "./faIcon";
 
 describe("createPinSvg", () => {
   it("creates an SVG element with correct viewBox", () => {
@@ -39,13 +40,20 @@ describe("createPinElement", () => {
     expect(pin.querySelector(".my-icon")).toBeNull(); // No icon when not specified
   });
 
+  it("FA icon registry loads correctly", () => {
+    const names = getFAIconNames();
+    expect(names.length).toBeGreaterThan(0);
+    expect(getFAIcon("star")).toBeDefined();
+    expect(getFAIcon("map-marker")).toBeDefined();
+  });
+
   it("adds an icon element when icon is provided", () => {
     const container = document.createElement("div");
     const pin = createPinElement(container, {
       pinClass: "my-pin",
       svgClass: "my-svg",
       color: "#ffffff",
-      icon: "sword",
+      icon: "star",
       iconColor: "#ff0000",
       iconClass: "my-icon",
     });
@@ -54,10 +62,10 @@ describe("createPinElement", () => {
     expect(iconEl).not.toBeNull();
     expect(iconEl!.classList.contains("ttrpgmap-pin-icon")).toBe(true);
     expect((iconEl as HTMLElement).style.color).toBe("rgb(255, 0, 0)");
-    // setIcon mock inserts an SVG with data-icon attribute
+    // FA icon renders as inline SVG with fill="currentColor"
     const iconSvg = iconEl!.querySelector("svg");
     expect(iconSvg).not.toBeNull();
-    expect(iconSvg!.getAttribute("data-icon")).toBe("sword");
+    expect(iconSvg!.getAttribute("fill")).toBe("currentColor");
   });
 
   it("does not add icon when icon is null", () => {

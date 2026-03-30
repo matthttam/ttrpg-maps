@@ -61,6 +61,7 @@ export class Setting {
   constructor(containerEl: HTMLElement) {}
   setName(name: string) { return this; }
   setDesc(desc: string) { return this; }
+  setClass(cls: string) { return this; }
   addText(cb: (text: any) => void) {
     const text = {
       inputEl: document.createElement("input"),
@@ -76,6 +77,7 @@ export class Setting {
       addOption(v: string, l: string) { return dd; },
       setValue(v: string) { return dd; },
       onChange(cb: (v: string) => void) { return dd; },
+      setDisabled(d: boolean) { return dd; },
     };
     cb(dd);
     return this;
@@ -99,7 +101,14 @@ export class Setting {
     cb(btn);
     return this;
   }
-  addToggle(cb: (toggle: any) => void) { return this; }
+  addToggle(cb: (toggle: any) => void) {
+    const toggle = {
+      setValue(v: boolean) { return toggle; },
+      onChange(cb: (v: boolean) => void) { return toggle; },
+    };
+    cb(toggle);
+    return this;
+  }
 }
 
 export class FuzzySuggestModal<T> {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseMapConfig } from "./MapRenderer";
+import { parseMapConfig } from "./utils/configSerializer";
 
 describe("parseMapConfig", () => {
   it("parses a full config", () => {

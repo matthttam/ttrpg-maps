@@ -1,8 +1,11 @@
 import { Plugin } from "obsidian";
 import { TTRPGMapsSettings, DEFAULT_SETTINGS } from "./types";
 import { DataManager } from "./DataManager";
-import { MapRenderer, EmptyMapRenderer, parseMapConfig } from "./MapRenderer";
-import { TTRPGMapsSettingTab } from "./SettingsModal";
+import { MapRenderer } from "./map/MapRenderer";
+import { EmptyMapRenderer } from "./map/EmptyMapRenderer";
+import { TTRPGMapsSettingTab } from "./settings/TTRPGMapsSettingTab";
+import { parseMapConfig } from "./utils/configSerializer";
+import { generateMapId } from "./utils/mapId";
 
 export default class TTRPGMapsPlugin extends Plugin {
   settings: TTRPGMapsSettings = DEFAULT_SETTINGS;
@@ -29,7 +32,7 @@ export default class TTRPGMapsPlugin extends Plugin {
       }
 
       const config = {
-        id: partial.id || this.generateMapId(partial.image),
+        id: partial.id || generateMapId(partial.image),
         image: partial.image,
         height: partial.height ?? null,
         width: partial.width ?? null,
@@ -51,14 +54,4 @@ export default class TTRPGMapsPlugin extends Plugin {
   }
 
   onunload(): void {}
-
-  private generateMapId(imagePath: string): string {
-    let hash = 0;
-    for (let i = 0; i < imagePath.length; i++) {
-      const char = imagePath.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash |= 0;
-    }
-    return "map_" + Math.abs(hash).toString(36);
-  }
 }

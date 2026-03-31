@@ -101,6 +101,15 @@ export class Setting {
     cb(btn);
     return this;
   }
+  addTextArea(cb: (textArea: any) => void) {
+    const ta = {
+      inputEl: document.createElement("textarea"),
+      setValue(v: string) { return ta; },
+      onChange(cb: (v: string) => void) { return ta; },
+    };
+    cb(ta);
+    return this;
+  }
   addToggle(cb: (toggle: any) => void) {
     const toggle = {
       setValue(v: boolean) { return toggle; },
@@ -111,6 +120,21 @@ export class Setting {
   }
 }
 
+export class SuggestModal<T> {
+  app: App;
+  inputEl: HTMLInputElement = document.createElement("input");
+  resultContainerEl: HTMLElement = document.createElement("div");
+  constructor(app: App) { this.app = app; }
+  open() {}
+  close() {}
+  setPlaceholder(p: string) {}
+  setInstructions(instructions: any[]) {}
+  getSuggestions(query: string): T[] { return []; }
+  renderSuggestion(item: T, el: HTMLElement): void {}
+  onChooseSuggestion(item: T, evt: any): void {}
+  selectSuggestion(item: T): void {}
+}
+export function prepareFuzzySearch(query: string): (text: string) => any { return () => null; }
 export class FuzzySuggestModal<T> {
   app: App;
   constructor(app: App) { this.app = app; }

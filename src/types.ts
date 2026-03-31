@@ -6,6 +6,7 @@ export type TextPlacement = "above" | "below" | "left" | "right";
 
 /** A reusable preset for marker styling */
 export interface MarkerTemplate {
+  id: string;
   name: string;
   note: string | null;
   description: string | null;
@@ -15,15 +16,16 @@ export interface MarkerTemplate {
   icon: string | null;
   iconColor: string;
   useBaseMarker: boolean;
+  shape: "pin" | "circle";
 }
 
 /** A single marker placed on a map */
 export interface MapMarker {
   id: string;
-  templateName: string;
+  templateId: string;
   x: number;
   y: number;
-  /** Overrides from template — only set fields override */
+  /** Overrides from template. Only set fields override. */
   note: string | null;
   description: string | null;
   direction: MarkerDirection | null;
@@ -32,6 +34,7 @@ export interface MapMarker {
   icon: string | null;
   iconColor: string | null;
   useBaseMarker: boolean | null;
+  shape: "pin" | "circle" | null;
 }
 
 /** A point used in distance scale or measurement */
@@ -75,6 +78,7 @@ export interface TTRPGMapsSettings {
 export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
   markerTemplates: [
     {
+      id: "default",
       name: "Default",
       note: null,
       description: null,
@@ -84,6 +88,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
       icon: null,
       iconColor: "#000000",
       useBaseMarker: true,
+      shape: "pin",
     },
   ],
 };

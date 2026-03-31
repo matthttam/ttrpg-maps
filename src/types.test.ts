@@ -39,6 +39,7 @@ describe("DEFAULT_MAP_CONFIG", () => {
 
 describe("Marker template resolution", () => {
   const defaultTemplate: MarkerTemplate = {
+    id: "castle",
     name: "Castle",
     note: null,
     description: null,
@@ -48,12 +49,13 @@ describe("Marker template resolution", () => {
     icon: "castle",
     iconColor: "#ffffff",
     useBaseMarker: true,
+    shape: "pin",
   };
 
   it("marker overrides take precedence over template", () => {
     const marker: MapMarker = {
       id: "test",
-      templateName: "Castle",
+      templateId: "castle",
       x: 100,
       y: 200,
       note: "My Castle",
@@ -64,6 +66,7 @@ describe("Marker template resolution", () => {
       icon: null,
       iconColor: null,
       useBaseMarker: null,
+      shape: null,
     };
 
     // Simulate resolution logic (same as MapRenderer.renderMarkers)
@@ -83,7 +86,7 @@ describe("Marker template resolution", () => {
   it("null marker fields fall through to template values", () => {
     const marker: MapMarker = {
       id: "test",
-      templateName: "Castle",
+      templateId: "castle",
       x: 0,
       y: 0,
       note: null,
@@ -94,6 +97,7 @@ describe("Marker template resolution", () => {
       icon: null,
       iconColor: null,
       useBaseMarker: null,
+      shape: null,
     };
 
     const color = marker.color ?? defaultTemplate.color;

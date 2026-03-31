@@ -6,6 +6,7 @@ import { EmptyMapRenderer } from "./map/EmptyMapRenderer";
 import { TTRPGMapsSettingTab } from "./settings/TTRPGMapsSettingTab";
 import { parseMapConfig } from "./utils/configSerializer";
 import { generateMapId } from "./utils/mapId";
+import { loadGameIcons } from "./utils/faIcon";
 
 export default class TTRPGMapsPlugin extends Plugin {
   settings: TTRPGMapsSettings = DEFAULT_SETTINGS;
@@ -22,6 +23,10 @@ export default class TTRPGMapsPlugin extends Plugin {
     this.dataManager = new DataManager(this.app, this);
     this.settings = await this.dataManager.loadSettings();
     this.addSettingTab(new TTRPGMapsSettingTab(this.app, this));
+
+    // Lazy-load Game Icons JSON from plugin directory
+    const pluginDir = `.obsidian/plugins/${this.manifest.id}`;
+    loadGameIcons(pluginDir, (p) => this.app.vault.adapter.read(p));
 
     this.registerMarkdownCodeBlockProcessor("ttrpgmap", (source, el, ctx) => {
       const partial = parseMapConfig(source);

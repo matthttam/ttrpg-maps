@@ -1,25 +1,60 @@
 import { App, Modal, Setting, Notice } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MarkerTemplate } from "../types";
-import { IconSuggest } from "../suggests/IconSuggest";
-import { setFAIcon } from "../utils/faIcon";
+import { MarkerTemplate, MapMarker } from "../types";
 import { createPinElement } from "../utils/markerPin";
+import { buildTextPlacementField, buildPinSelectorField, buildIconField, buildIconColorField } from "./sharedFields";
+
+/** Fields on a template that can be pushed to markers */
+const APPLY_FIELDS: (keyof MarkerTemplate)[] = [
+  "direction", "textPlacement", "color", "icon", "iconColor", "useBaseMarker", "shape",
+];
+
+/** Human-readable labels for each field */
+const FIELD_LABELS: Record<string, string> = {
+  direction: "Pin Direction",
+  textPlacement: "Text Placement",
+  color: "Pin Color",
+  icon: "Icon",
+  iconColor: "Icon Color",
+  useBaseMarker: "Use Pin Shape",
+  shape: "Pin Shape",
+};
+
+/** Get the fields that changed between snapshot and current template */
+function getChangedFields(snapshot: Partial<MarkerTemplate>, current: MarkerTemplate): (keyof MarkerTemplate)[] {
+  return APPLY_FIELDS.filter((key) => {
+    const oldVal = snapshot[key];
+    const newVal = current[key];
+    return oldVal !== newVal;
+  });
+}
 
 export class TemplateEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private template: MarkerTemplate;
+  private snapshot: Partial<MarkerTemplate>;
   private onSaved: () => void;
+  private changedIndicators: Map<string, HTMLElement> = new Map();
 
   constructor(app: App, plugin: TTRPGMapsPlugin, template: MarkerTemplate, onSaved: () => void) {
     super(app);
     this.plugin = plugin;
     this.template = template;
     this.onSaved = onSaved;
+    // Snapshot current values for dirty tracking
+    this.snapshot = {};
+    for (const key of APPLY_FIELDS) {
+      (this.snapshot as any)[key] = template[key];
+    }
   }
 
   private renderPreview(container: HTMLElement): void {
     container.empty();
-    createPinElement(container, {
+    const wrapper = container.createDiv({ cls: "ttrpgmap-edit-preview-wrapper" });
+    wrapper.dataset.direction = this.template.direction;
+    wrapper.dataset.textPlacement = this.template.textPlacement;
+
+    createPinElement(wrapper, {
       pinClass: "ttrpgmap-edit-preview-pin",
       svgClass: "ttrpgmap-pin-svg",
       color: this.template.color,
@@ -27,21 +62,53 @@ export class TemplateEditModal extends Modal {
       iconColor: this.template.iconColor,
       iconClass: "ttrpgmap-edit-preview-icon",
       useBaseMarker: this.template.useBaseMarker,
+      shape: this.template.shape,
     });
+  }
+
+  /** Update dirty indicators on all tracked fields */
+  private updateDirtyIndicators(): void {
+    const changed = getChangedFields(this.snapshot, this.template);
+    for (const [key, el] of this.changedIndicators) {
+      if (changed.includes(key as keyof MarkerTemplate)) {
+        el.style.display = "";
+      } else {
+        el.style.display = "none";
+      }
+    }
+  }
+
+  /** Add a red dot indicator to a setting and track it */
+  private addDirtyIndicator(setting: Setting, ...fields: string[]): void {
+    const dot = setting.nameEl.createSpan({ cls: "ttrpgmap-dirty-indicator", text: " *" });
+    dot.style.display = "none";
+    for (const f of fields) {
+      this.changedIndicators.set(f, dot);
+    }
   }
 
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("ttrpgmap-modal");
-
-    const usePin = this.template.useBaseMarker;
+    this.changedIndicators.clear();
 
     contentEl.createEl("h2", { text: "Edit Template" });
 
-    // ── Preview ──
     const previewContainer = contentEl.createDiv({ cls: "ttrpgmap-edit-preview" });
     this.renderPreview(previewContainer);
+
+    const onChanged = () => {
+      this.renderPreview(previewContainer);
+      this.updateDirtyIndicators();
+    };
+
+    const ctx = {
+      app: this.app,
+      contentEl,
+      state: this.template,
+      onChanged,
+    };
 
     // ── Name ──
     new Setting(contentEl)
@@ -52,144 +119,78 @@ export class TemplateEditModal extends Modal {
         })
       );
 
-    // ── Icon ──
-    const iconSetting = new Setting(contentEl)
-      .setName("Icon")
-      .setDesc("Font Awesome icon (leave blank for none)")
-      .addText((text) => {
-        text
-          .setPlaceholder("Search for an icon...")
-          .setValue(this.template.icon ?? "")
-          .onChange((value) => {
-            this.template.icon = value || null;
-            this.renderPreview(previewContainer);
-          });
-        new IconSuggest(this.app, text.inputEl, (value) => {
-          this.template.icon = value || null;
-          tplIconPreview.empty();
-          if (value) setFAIcon(tplIconPreview, value);
-          this.renderPreview(previewContainer);
-        });
-      });
-    const tplIconPreview = iconSetting.controlEl.createDiv({ cls: "ttrpgmap-icon-preview" });
-    if (this.template.icon) setFAIcon(tplIconPreview, this.template.icon);
+    // ── Shared fields ──
+    const tpSetting = buildTextPlacementField(ctx);
+    this.addDirtyIndicator(tpSetting, "textPlacement");
 
-    // ── Icon Color ──
-    const iconColorSetting = new Setting(contentEl).setName("Icon Color");
-    const iconColorInput = iconColorSetting.controlEl.createEl("input", { cls: "ttrpgmap-color-picker" });
-    iconColorInput.type = "color";
-    iconColorInput.value = this.template.iconColor;
-    iconColorInput.addEventListener("input", (e) => {
-      this.template.iconColor = (e.target as HTMLInputElement).value;
-      this.renderPreview(previewContainer);
-    });
+    const pinSetting = buildPinSelectorField(ctx);
+    this.addDirtyIndicator(pinSetting, "direction", "color", "useBaseMarker", "shape");
 
-    // ── Text Placement ──
-    new Setting(contentEl)
-      .setName("Text Placement")
-      .addDropdown((dropdown) => {
-        dropdown.addOption("above", "Above");
-        dropdown.addOption("below", "Below");
-        dropdown.addOption("left", "Left");
-        dropdown.addOption("right", "Right");
-        dropdown.setValue(this.template.textPlacement);
-        dropdown.onChange((value) => {
-          this.template.textPlacement = value as MarkerTemplate["textPlacement"];
-        });
-      });
+    const { setting: iconSetting, updatePreview } = buildIconField(ctx);
+    this.addDirtyIndicator(iconSetting, "icon");
 
-    // ── Use Pin Shape + Pin-specific settings ──
-    new Setting(contentEl)
-      .setName("Use Pin Shape")
-      .setDesc("Display the icon inside a map pin. When off, the icon itself is the marker.")
-      .addToggle((toggle) => {
-        toggle
-          .setValue(usePin)
-          .onChange((value) => {
-            this.template.useBaseMarker = value;
-            this.onOpen(); // Re-render to toggle pin settings
-          });
-      });
-
-    // Pin Direction
-    const dirSetting = new Setting(contentEl)
-      .setName("Pin Direction")
-      .addDropdown((dropdown) => {
-        dropdown.addOption("up", "Up");
-        dropdown.addOption("down", "Down");
-        dropdown.addOption("left", "Left");
-        dropdown.addOption("right", "Right");
-        dropdown.setValue(this.template.direction);
-        dropdown.onChange((value) => {
-          this.template.direction = value as MarkerTemplate["direction"];
-        });
-        if (!usePin) dropdown.setDisabled(true);
-      });
-    if (!usePin) dirSetting.setClass("ttrpgmap-setting-disabled");
-
-    // Pin Color
-    const pinColorSetting = new Setting(contentEl).setName("Pin Color");
-    const pinColorInput = pinColorSetting.controlEl.createEl("input", { cls: "ttrpgmap-color-picker" });
-    pinColorInput.type = "color";
-    pinColorInput.value = this.template.color;
-    pinColorInput.addEventListener("input", (e) => {
-      this.template.color = (e.target as HTMLInputElement).value;
-      this.renderPreview(previewContainer);
-    });
-    if (!usePin) {
-      pinColorInput.disabled = true;
-      pinColorSetting.setClass("ttrpgmap-setting-disabled");
-    }
+    const { setting: iconColorSetting } = buildIconColorField(ctx, updatePreview);
+    this.addDirtyIndicator(iconColorSetting, "iconColor");
 
     // ── Actions ──
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Save")
-        .setCta()
-        .onClick(() => {
-          this.plugin.dataManager.saveSettings(this.plugin.settings);
-          this.onSaved();
-          this.close();
-        })
-    );
+    const actionSetting = new Setting(contentEl);
+    actionSetting.controlEl.addClass("ttrpgmap-action-row");
 
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Save & Apply to Markers")
-        .setWarning()
-        .onClick(() => {
-          new ConfirmApplyModal(this.app, this.template.name, async () => {
-            // Save template first
-            this.plugin.dataManager.saveSettings(this.plugin.settings);
-
-            // Update all markers using this template across all maps
-            const allStates = await this.plugin.dataManager.loadAllMapStates();
-            let count = 0;
-            for (const state of allStates) {
-              let changed = false;
-              for (const marker of state.markers) {
-                if (marker.templateName !== this.template.name) continue;
-                marker.direction = this.template.direction;
-                marker.textPlacement = this.template.textPlacement;
-                marker.color = this.template.color;
-                marker.icon = this.template.icon;
-                marker.iconColor = this.template.iconColor;
-                marker.useBaseMarker = this.template.useBaseMarker;
-                changed = true;
-                count++;
-              }
-              if (changed) {
-                this.plugin.dataManager.saveMapState(state.mapId, state);
-              }
+    actionSetting
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save & Apply Changes to Markers")
+          .setWarning()
+          .onClick(() => {
+            const changed = getChangedFields(this.snapshot, this.template);
+            if (changed.length === 0) {
+              new Notice("No changes to apply.");
+              return;
             }
+            new ConfirmApplyModal(
+              this.app,
+              this.template.name,
+              changed.map((f) => FIELD_LABELS[f] || f),
+              async () => {
+                this.plugin.dataManager.saveSettings(this.plugin.settings);
 
-            new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.template.name}".`);
-            this.plugin.triggerMapRefresh();
+                const allStates = await this.plugin.dataManager.loadAllMapStates();
+                let count = 0;
+                for (const state of allStates) {
+                  let stateChanged = false;
+                  for (const marker of state.markers) {
+                    if (marker.templateId !== this.template.id) continue;
+                    // Only push changed fields
+                    for (const field of changed) {
+                      (marker as any)[field] = (this.template as any)[field];
+                    }
+                    stateChanged = true;
+                    count++;
+                  }
+                  if (stateChanged) {
+                    this.plugin.dataManager.saveMapState(state.mapId, state);
+                  }
+                }
+
+                await this.plugin.dataManager.flushSaves();
+                new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.template.name}".`);
+                this.plugin.triggerMapRefresh();
+                this.onSaved();
+                this.close();
+              }
+            ).open();
+          })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save")
+          .setCta()
+          .onClick(() => {
+            this.plugin.dataManager.saveSettings(this.plugin.settings);
             this.onSaved();
             this.close();
-          }).open();
-        })
-    );
+          })
+      );
   }
 
   onClose(): void {
@@ -197,14 +198,15 @@ export class TemplateEditModal extends Modal {
   }
 }
 
-/** Confirmation modal before applying template to all markers */
 class ConfirmApplyModal extends Modal {
   private templateName: string;
+  private fieldLabels: string[];
   private onConfirm: () => void;
 
-  constructor(app: App, templateName: string, onConfirm: () => void) {
+  constructor(app: App, templateName: string, fieldLabels: string[], onConfirm: () => void) {
     super(app);
     this.templateName = templateName;
+    this.fieldLabels = fieldLabels;
     this.onConfirm = onConfirm;
   }
 
@@ -215,7 +217,17 @@ class ConfirmApplyModal extends Modal {
 
     contentEl.createEl("h2", { text: "Confirm Apply" });
     contentEl.createEl("p", {
-      text: `This will override any custom settings on all markers using the "${this.templateName}" template. Are you sure?`,
+      text: `The following changes will be applied to all markers using the "${this.templateName}" template:`,
+    });
+
+    const list = contentEl.createEl("ul", { cls: "ttrpgmap-confirm-list" });
+    for (const label of this.fieldLabels) {
+      list.createEl("li", { text: label });
+    }
+
+    contentEl.createEl("p", {
+      text: "This will override custom values on those fields. Are you sure?",
+      cls: "ttrpgmap-muted",
     });
 
     new Setting(contentEl)

@@ -52,6 +52,7 @@ export function resolveConfig(partial: Partial<MapConfig>): MapConfig | null {
 
 /** Serialize map config fields to YAML lines (only non-default values) */
 export function serializeMapConfig(config: {
+  id?: string;
   image: string;
   height?: string | null;
   width?: string | null;
@@ -60,6 +61,7 @@ export function serializeMapConfig(config: {
   zoomStep?: number;
 }): string[] {
   const lines: string[] = [];
+  if (config.id) lines.push(`id: ${config.id}`);
   lines.push(`image: ${config.image}`);
   if (config.height) lines.push(`height: ${config.height}`);
   if (config.width) lines.push(`width: ${config.width}`);

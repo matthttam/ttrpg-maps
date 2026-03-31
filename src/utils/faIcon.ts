@@ -1,11 +1,27 @@
-import { FA_ICONS, FA_ICON_NAMES } from "../generated/fa-icons";
-import type { FAIcon } from "../generated/fa-icons";
+import { FA_ICONS, ALL_ICON_NAMES, GI_ICON_NAMES, GI_ICON_TERMS } from "../generated/fa-icons";
+import type { IconEntry } from "../generated/fa-icons";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/** Render a Font Awesome icon as inline SVG into a container */
+// Lazy-loaded Game Icons cache
+let giIconsLoaded = false;
+let giIcons: Record<string, IconEntry> = {};
+
+/** Load Game Icons JSON from the plugin's directory */
+export async function loadGameIcons(pluginDir: string, readFile: (path: string) => Promise<string>): Promise<void> {
+  if (giIconsLoaded) return;
+  try {
+    const json = await readFile(`${pluginDir}/gi-icons.json`);
+    giIcons = JSON.parse(json);
+    giIconsLoaded = true;
+  } catch {
+    // JSON not available. GI icons won't render but search still works via names/terms.
+  }
+}
+
+/** Render an icon as inline SVG into a container */
 export function setFAIcon(parent: HTMLElement, iconName: string): void {
-  const icon = FA_ICONS[iconName];
+  const icon = getFAIcon(iconName);
   if (!icon) return;
 
   parent.innerHTML = "";
@@ -19,42 +35,31 @@ export function setFAIcon(parent: HTMLElement, iconName: string): void {
   parent.appendChild(svg);
 }
 
-/** Get the FA icon data (viewBox + path) by name */
-export function getFAIcon(name: string): FAIcon | undefined {
-  return FA_ICONS[name];
+/** Get icon data by name (FA inline, GI from lazy cache) */
+export function getFAIcon(name: string): IconEntry | undefined {
+  return FA_ICONS[name] ?? giIcons[name];
 }
 
-/** Search FA icons by name and search terms */
+/** Search icons by name and search terms */
 export function searchFAIcons(query: string, limit = 30): string[] {
   if (!query) return [];
   const lowerQuery = query.toLowerCase();
 
   const scored: { name: string; score: number }[] = [];
 
-  for (const name of FA_ICON_NAMES) {
+  for (const name of ALL_ICON_NAMES) {
+    // For FA icons, get terms from the bundled data
+    // For GI icons, get terms from the bundled terms index
     const icon = FA_ICONS[name];
+    const terms = icon ? icon.terms : (GI_ICON_TERMS[name] || []);
     let score = -1;
 
-    // Exact name match
-    if (name === lowerQuery) {
-      score = 0;
-    }
-    // Name starts with query
-    else if (name.startsWith(lowerQuery)) {
-      score = 1;
-    }
-    // Name contains query
-    else if (name.includes(lowerQuery)) {
-      score = 2;
-    }
-    // Search terms match
-    else if (icon.terms.some((t) => t.toLowerCase().includes(lowerQuery))) {
-      score = 3;
-    }
+    if (name === lowerQuery) score = 0;
+    else if (name.startsWith(lowerQuery)) score = 1;
+    else if (name.includes(lowerQuery)) score = 2;
+    else if (terms.some((t) => t.toLowerCase().includes(lowerQuery))) score = 3;
 
-    if (score >= 0) {
-      scored.push({ name, score });
-    }
+    if (score >= 0) scored.push({ name, score });
   }
 
   return scored
@@ -63,7 +68,7 @@ export function searchFAIcons(query: string, limit = 30): string[] {
     .map((s) => s.name);
 }
 
-/** Get all FA icon names */
+/** Get all icon names */
 export function getFAIconNames(): string[] {
-  return FA_ICON_NAMES;
+  return ALL_ICON_NAMES;
 }

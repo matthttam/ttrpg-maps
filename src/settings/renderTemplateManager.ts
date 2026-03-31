@@ -15,6 +15,7 @@ function createMarkerPreview(container: HTMLElement, template: MarkerTemplate): 
     iconColor: template.iconColor,
     iconClass: "ttrpgmap-preview-icon",
     useBaseMarker: template.useBaseMarker,
+    shape: template.shape,
   });
   return preview;
 }
@@ -37,6 +38,7 @@ export function renderTemplateManager(
   const addBtn = headerControl.createEl("button", { cls: "mod-cta", text: "Add Template" });
   addBtn.addEventListener("click", () => {
     const newTemplate: MarkerTemplate = {
+      id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: `Template ${plugin.settings.markerTemplates.length}`,
       note: null,
       description: null,
@@ -46,6 +48,7 @@ export function renderTemplateManager(
       icon: null,
       iconColor: "#000000",
       useBaseMarker: true,
+      shape: "pin",
     };
     plugin.settings.markerTemplates.push(newTemplate);
     plugin.dataManager.saveSettings(plugin.settings);
@@ -53,7 +56,7 @@ export function renderTemplateManager(
   });
 
   for (const template of plugin.settings.markerTemplates) {
-    const isDefault = template.name === "Default";
+    const isDefault = template.id === "default";
 
     const row = container.createDiv({ cls: "setting-item" });
     const info = row.createDiv({ cls: "setting-item-info" });

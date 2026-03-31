@@ -63,6 +63,15 @@ export class MapSettingsModal extends Modal {
     this.loadImageDimensions(imageDimsEl);
 
     new Setting(contentEl)
+      .setName("Map ID")
+      .setDesc("Unique identifier. Use different IDs to have separate markers on the same image.")
+      .addText((text) =>
+        text
+          .setValue(this.config.id)
+          .onChange((value) => (this.config.id = value))
+      );
+
+    new Setting(contentEl)
       .setName("Height")
       .setDesc("Display height (blank = auto from width/image)")
       .addText((text) =>

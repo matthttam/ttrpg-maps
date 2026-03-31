@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, Menu, Notice } from "obsidian";
+import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MapMarker, MapPoint } from "../types";
 import { MapSettingsModal } from "../modals/MapSettingsModal";
@@ -6,6 +6,8 @@ import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
 import { serializeMapConfig, writeConfigToCodeBlock } from "../utils/configSerializer";
 import { createPinElement } from "../utils/markerPin";
+import { buildMarkerLabel, linkPath, displayTitle } from "../utils/markerLabel";
+import { setFAIcon } from "../utils/faIcon";
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance } from "../distance";
 
 type InteractionMode = "pan" | "calibrate" | "measure";
@@ -24,6 +26,7 @@ export class MapRenderer extends MarkdownRenderChild {
   private imageEl!: HTMLImageElement;
   private svgOverlay!: SVGSVGElement;
   private toolbar!: HTMLDivElement;
+  private markerListScroll: HTMLElement | null = null;
 
   // Pan/zoom state
   private zoom = 100;
@@ -58,6 +61,7 @@ export class MapRenderer extends MarkdownRenderChild {
   private refreshCallback = async () => {
     this.state = await this.plugin.dataManager.loadMapState(this.config.id);
     this.renderMarkers();
+    this.refreshMarkerList();
   };
 
   async onload(): Promise<void> {
@@ -102,6 +106,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.buildZoomControls();
     this.buildToolbar();
     this.buildSettingsButton();
+    this.buildMarkerListPanel();
     this.bindEvents();
     this.renderMarkers();
   }
@@ -155,6 +160,128 @@ export class MapRenderer extends MarkdownRenderChild {
     btn.setText("⚙");
     btn.setAttribute("aria-label", "Map Settings");
     btn.addEventListener("click", () => this.openSettings());
+  }
+
+  private buildMarkerListPanel(): void {
+    const panel = this.wrapper.createDiv({ cls: "ttrpgmap-marker-list-panel" });
+    let pinned = false;
+
+    // Wrapper for pin tab + list (sits above toggle)
+    const listWrapper = panel.createDiv({ cls: "ttrpgmap-marker-list-wrapper" });
+    listWrapper.style.display = "none";
+
+    // Pin tab attached to top-left of list
+    const pinBtn = listWrapper.createDiv({ cls: "ttrpgmap-marker-list-pin-tab" });
+    setIcon(pinBtn, "pin-off");
+    pinBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pinned = !pinned;
+      pinBtn.empty();
+      setIcon(pinBtn, pinned ? "pin" : "pin-off");
+      panel.toggleClass("ttrpgmap-marker-list-pinned", pinned);
+      listWrapper.toggleClass("ttrpgmap-marker-list-wrapper-pinned", pinned);
+    });
+
+    // List container
+    const listContainer = listWrapper.createDiv({ cls: "ttrpgmap-marker-list-container" });
+
+    // Scrollable list area
+    const listScroll = listContainer.createDiv({ cls: "ttrpgmap-marker-list-scroll" });
+    this.markerListScroll = listScroll;
+
+    // Toggle button at the bottom
+    const toggleBtn = panel.createDiv({ cls: "ttrpgmap-marker-list-toggle" });
+    setIcon(toggleBtn, "list");
+    toggleBtn.setAttribute("aria-label", "Marker List");
+
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = listWrapper.style.display !== "none";
+      if (isOpen && !pinned) {
+        listWrapper.style.display = "none";
+      } else {
+        listWrapper.style.display = "flex";
+        this.renderMarkerList(listScroll);
+      }
+    });
+  }
+
+  /** Refresh the marker list if it's currently visible */
+  private refreshMarkerList(): void {
+    if (this.markerListScroll) {
+      const wrapper = this.markerListScroll.closest(".ttrpgmap-marker-list-wrapper") as HTMLElement | null;
+      if (wrapper && wrapper.style.display !== "none") {
+        this.renderMarkerList(this.markerListScroll);
+      }
+    }
+  }
+
+  private renderMarkerList(container: HTMLElement): void {
+    container.empty();
+    if (!this.state || this.state.markers.length === 0) {
+      container.createDiv({ cls: "ttrpgmap-marker-list-empty", text: "No markers" });
+      return;
+    }
+
+    const sorted = [...this.state.markers].sort((a, b) => {
+      const nameA = a.note ? displayTitle(a.note) : "";
+      const nameB = b.note ? displayTitle(b.note) : "";
+      return nameA.localeCompare(nameB);
+    });
+
+    for (const marker of sorted) {
+      const row = container.createDiv({ cls: "ttrpgmap-marker-list-row" });
+
+      // Mini icon preview
+      const preview = row.createDiv({ cls: "ttrpgmap-marker-list-preview" });
+      const shape = marker.shape ?? "pin";
+      createPinElement(preview, {
+        pinClass: "ttrpgmap-marker-list-pin",
+        svgClass: "ttrpgmap-pin-svg",
+        color: marker.color ?? "#ffffff",
+        icon: marker.icon,
+        iconColor: marker.iconColor ?? "#000000",
+        iconClass: "ttrpgmap-marker-list-icon",
+        useBaseMarker: marker.useBaseMarker ?? true,
+        shape,
+      });
+
+      // Name
+      const name = marker.note ? displayTitle(marker.note) : "Unnamed";
+      row.createDiv({ cls: "ttrpgmap-marker-list-name", text: name });
+
+      // Description tooltip on hover
+      if (marker.description) {
+        row.setAttribute("aria-label", marker.description);
+        row.addClass("ttrpgmap-marker-list-has-desc");
+      }
+
+      // Edit button
+      const editBtn = row.createDiv({ cls: "ttrpgmap-marker-list-action", attr: { "aria-label": "Edit" } });
+      setIcon(editBtn, "pencil");
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.editMarker(marker);
+      });
+
+      // Delete button
+      const deleteBtn = row.createDiv({ cls: "ttrpgmap-marker-list-action ttrpgmap-marker-list-delete", attr: { "aria-label": "Delete" } });
+      setIcon(deleteBtn, "trash-2");
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteMarker(marker);
+        this.renderMarkerList(container);
+      });
+
+      // Click row to pan to marker
+      row.addEventListener("click", () => {
+        const { x, y } = this.toScreenCoords(marker.x, marker.y);
+        const rect = this.wrapper.getBoundingClientRect();
+        this.panX += rect.width / 2 - x;
+        this.panY += rect.height / 2 - y;
+        this.applyTransform();
+      });
+    }
   }
 
   private bindEvents(): void {
@@ -359,6 +486,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
       // Pin with icon
       const useBaseMarker = marker.useBaseMarker ?? true;
+      const shape = marker.shape ?? "pin";
       createPinElement(markerEl, {
         pinClass: "ttrpgmap-marker-pin",
         svgClass: "ttrpgmap-pin-svg",
@@ -367,22 +495,19 @@ export class MapRenderer extends MarkdownRenderChild {
         iconColor,
         iconClass: "ttrpgmap-marker-icon",
         useBaseMarker,
+        shape,
       });
 
-      // Label (only if there's text to show)
-      const noteName = marker.note;
-      if (noteName || marker.description) {
-        const label = markerEl.createDiv({ cls: "ttrpgmap-marker-label" });
-        if (noteName) label.createSpan({ cls: "ttrpgmap-marker-title", text: noteName.split("/").pop() ?? noteName });
-        if (marker.description) label.createSpan({ cls: "ttrpgmap-marker-desc", text: marker.description });
-      }
+      // Label
+      buildMarkerLabel(markerEl, marker.note, marker.description, "ttrpgmap-marker-label");
 
       // Click to navigate
-      if (noteName) {
+      if (marker.note) {
+        const navPath = linkPath(marker.note);
         markerEl.addEventListener("click", (e) => {
           if (this.hasDragged) return;
           e.stopPropagation();
-          this.plugin.app.workspace.openLinkText(noteName, "");
+          this.plugin.app.workspace.openLinkText(navPath, "");
         });
       }
 
@@ -412,13 +537,13 @@ export class MapRenderer extends MarkdownRenderChild {
     }
   }
 
-  private placeMarker(x: number, y: number, templateName: string): void {
+  private placeMarker(x: number, y: number, templateId: string): void {
     if (!this.state) return;
-    const template = this.plugin.settings.markerTemplates.find((t) => t.name === templateName);
+    const template = this.plugin.settings.markerTemplates.find((t) => t.id === templateId);
 
     const marker: MapMarker = {
       id: `marker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      templateName, x, y,
+      templateId, x, y,
       note: null, description: null,
       direction: template?.direction ?? "down",
       textPlacement: template?.textPlacement ?? "above",
@@ -426,6 +551,7 @@ export class MapRenderer extends MarkdownRenderChild {
       icon: template?.icon ?? null,
       iconColor: template?.iconColor ?? "#000000",
       useBaseMarker: template?.useBaseMarker ?? true,
+      shape: template?.shape ?? "pin",
     };
 
     new MarkerEditModal(this.plugin.app, this.plugin, marker, (updated) => {
@@ -433,6 +559,7 @@ export class MapRenderer extends MarkdownRenderChild {
       this.state!.markers.push(marker);
       this.plugin.dataManager.saveMapState(this.config.id, this.state!);
       this.renderMarkers();
+      this.refreshMarkerList();
     }).open();
   }
 
@@ -441,6 +568,7 @@ export class MapRenderer extends MarkdownRenderChild {
       Object.assign(marker, updated);
       this.plugin.dataManager.saveMapState(this.config.id, this.state!);
       this.renderMarkers();
+      this.refreshMarkerList();
     }).open();
   }
 
@@ -449,6 +577,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.state.markers = this.state.markers.filter((m) => m.id !== marker.id);
     this.plugin.dataManager.saveMapState(this.config.id, this.state);
     this.renderMarkers();
+    this.refreshMarkerList();
   }
 
   // ──────────────────── Context Menu ────────────────────
@@ -470,7 +599,7 @@ export class MapRenderer extends MarkdownRenderChild {
     for (const template of this.plugin.settings.markerTemplates) {
       menu.addItem((item) => {
         item.setTitle(`Place: ${template.name}`);
-        item.onClick(() => this.placeMarker(mapX, mapY, template.name));
+        item.onClick(() => this.placeMarker(mapX, mapY, template.id));
       });
     }
 

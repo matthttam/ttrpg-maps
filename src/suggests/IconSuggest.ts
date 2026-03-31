@@ -1,5 +1,5 @@
 import { App, AbstractInputSuggest } from "obsidian";
-import { setFAIcon, searchFAIcons } from "../utils/faIcon";
+import { setFAIcon, searchFAIcons, getFAIcon } from "../utils/faIcon";
 
 export class IconSuggest extends AbstractInputSuggest<string> {
   private textInputEl: HTMLInputElement;
@@ -20,6 +20,10 @@ export class IconSuggest extends AbstractInputSuggest<string> {
     const iconEl = row.createDiv({ cls: "ttrpgmap-icon-suggest-icon" });
     setFAIcon(iconEl, value);
     row.createDiv({ cls: "ttrpgmap-icon-suggest-name", text: value });
+    const icon = getFAIcon(value);
+    if (icon) {
+      row.createDiv({ cls: "ttrpgmap-icon-suggest-set", text: icon.set === "gi" ? "Game Icons" : "FA" });
+    }
   }
 
   selectSuggestion(value: string): void {

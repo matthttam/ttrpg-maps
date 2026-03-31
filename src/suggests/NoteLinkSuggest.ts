@@ -1,5 +1,9 @@
-import { App, AbstractInputSuggest } from "obsidian";
+import { App, AbstractInputSuggest, TFile, prepareFuzzySearch } from "obsidian";
 
+/**
+ * Inline suggest for note links attached to a text input.
+ * Supports Page, Page#Header, Page#^blockId, and Page|Alias syntax.
+ */
 export class NoteLinkSuggest extends AbstractInputSuggest<string> {
   private textInputEl: HTMLInputElement;
   private onChange: (value: string) => void;
@@ -11,60 +15,81 @@ export class NoteLinkSuggest extends AbstractInputSuggest<string> {
   }
 
   getSuggestions(query: string): string[] {
-    const lowerQuery = query.toLowerCase();
-    const hashIdx = lowerQuery.indexOf("#");
+    // Strip alias for search purposes
+    const pipeIdx = query.indexOf("|");
+    const searchPart = pipeIdx >= 0 ? query.slice(0, pipeIdx) : query;
+    const alias = pipeIdx >= 0 ? query.slice(pipeIdx) : ""; // includes the |
+
+    const hashIdx = searchPart.indexOf("#");
 
     if (hashIdx >= 0) {
-      const filePart = query.slice(0, hashIdx);
-      const subQuery = query.slice(hashIdx + 1).toLowerCase();
-      const file = this.app.metadataCache.getFirstLinkpathDest(filePart, "");
-      if (!file) return [];
-
-      const cache = this.app.metadataCache.getFileCache(file);
-      if (!cache) return [];
-
-      const results: string[] = [];
-
-      if (cache.headings) {
-        for (const h of cache.headings) {
-          const link = `${filePart}#${h.heading}`;
-          if (h.heading.toLowerCase().includes(subQuery)) {
-            results.push(link);
-          }
-        }
-      }
-
-      if (cache.blocks && subQuery.startsWith("^")) {
-        const blockQuery = subQuery.slice(1);
-        for (const id of Object.keys(cache.blocks)) {
-          const link = `${filePart}#^${id}`;
-          if (id.toLowerCase().includes(blockQuery)) {
-            results.push(link);
-          }
-        }
-      }
-
-      return results.slice(0, 20);
+      return this.getSubpathSuggestions(searchPart, hashIdx, alias);
     }
 
+    return this.getFileSuggestions(searchPart, alias);
+  }
+
+  private getFileSuggestions(query: string, aliasSuffix: string): string[] {
+    if (!query) return [];
     const files = this.app.vault.getMarkdownFiles();
-    return files
-      .filter((f) => {
-        const name = f.basename.toLowerCase();
-        const path = f.path.toLowerCase();
-        return name.includes(lowerQuery) || path.includes(lowerQuery);
-      })
-      .sort((a, b) => {
-        const aName = a.basename.toLowerCase().startsWith(lowerQuery) ? 0 : 1;
-        const bName = b.basename.toLowerCase().startsWith(lowerQuery) ? 0 : 1;
-        return aName - bName || a.basename.localeCompare(b.basename);
-      })
-      .map((f) => f.path.replace(/\.md$/, ""))
-      .slice(0, 20);
+    const fuzzy = prepareFuzzySearch(query);
+    const results: { text: string; score: number }[] = [];
+
+    for (const file of files) {
+      const match = fuzzy(file.basename) || fuzzy(file.path);
+      if (!match) continue;
+
+      const linkText = file.path.replace(/\.md$/, "");
+      results.push({ text: linkText + aliasSuffix, score: match.score });
+    }
+
+    return results
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
+      .map((r) => r.text);
+  }
+
+  private getSubpathSuggestions(searchPart: string, hashIdx: number, aliasSuffix: string): string[] {
+    const filePart = searchPart.slice(0, hashIdx);
+    const subQuery = searchPart.slice(hashIdx + 1).toLowerCase();
+    const file = this.app.metadataCache.getFirstLinkpathDest(filePart, "");
+    if (!file) return [];
+
+    const cache = this.app.metadataCache.getFileCache(file);
+    if (!cache) return [];
+
+    const results: string[] = [];
+
+    // Headings
+    if (cache.headings && !subQuery.startsWith("^")) {
+      for (const h of cache.headings) {
+        if (subQuery && !h.heading.toLowerCase().includes(subQuery)) continue;
+        results.push(`${filePart}#${h.heading}${aliasSuffix}`);
+      }
+    }
+
+    // Block IDs
+    if (cache.blocks && (subQuery.startsWith("^") || !subQuery)) {
+      const blockQuery = subQuery.startsWith("^") ? subQuery.slice(1) : subQuery;
+      for (const id of Object.keys(cache.blocks)) {
+        if (blockQuery && !id.toLowerCase().includes(blockQuery)) continue;
+        results.push(`${filePart}#^${id}${aliasSuffix}`);
+      }
+    }
+
+    return results.slice(0, 20);
   }
 
   renderSuggestion(value: string, el: HTMLElement): void {
-    el.setText(value);
+    // Strip alias for display, show it separately
+    const pipeIdx = value.indexOf("|");
+    const display = pipeIdx >= 0 ? value.slice(0, pipeIdx) : value;
+    const alias = pipeIdx >= 0 ? value.slice(pipeIdx + 1) : null;
+
+    el.createDiv({ text: display });
+    if (alias) {
+      el.createDiv({ cls: "ttrpgmap-note-suggest-alias", text: `→ ${alias}` });
+    }
   }
 
   selectSuggestion(value: string): void {

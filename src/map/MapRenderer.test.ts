@@ -50,7 +50,7 @@ function createConfig(overrides?: Partial<MapConfig>): MapConfig {
 function createMarker(overrides?: Partial<MapMarker>): MapMarker {
   return {
     id: "marker_1",
-    templateName: "Default",
+    templateId: "default",
     x: 100,
     y: 200,
     note: null,
@@ -61,6 +61,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     icon: null,
     iconColor: "#000000",
     useBaseMarker: true,
+    shape: "pin",
     ...overrides,
   };
 }

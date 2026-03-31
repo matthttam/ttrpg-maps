@@ -23,6 +23,21 @@ export function createPinSvg(fillColor: string, cssClass: string): SVGSVGElement
   return svg;
 }
 
+/** Create an SVG circle shape for a marker using FA's circle icon */
+export function createCircleSvg(fillColor: string, cssClass: string): SVGSVGElement {
+  const faCircle = getFAIcon("circle");
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", faCircle?.viewBox ?? "0 0 512 512");
+  svg.setAttribute("class", cssClass);
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", faCircle?.path ?? "M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z");
+  path.setAttribute("fill", fillColor);
+  path.setAttribute("stroke", PIN_STROKE);
+  path.setAttribute("stroke-width", "12");
+  svg.appendChild(path);
+  return svg;
+}
+
 /** Render an FA icon SVG into a container */
 function renderIcon(container: HTMLElement, iconName: string): void {
   const icon = getFAIcon(iconName);
@@ -45,15 +60,22 @@ export interface PinElementOpts {
   iconColor?: string;
   iconClass: string;
   useBaseMarker?: boolean;
+  /** Pin shape: "pin" (default teardrop) or "circle" */
+  shape?: "pin" | "circle";
 }
 
-/** Create a full pin element — either base pin with icon overlay, or standalone icon */
+/** Create a full pin element: pin shape, circle shape, or standalone icon */
 export function createPinElement(container: HTMLElement, opts: PinElementOpts): HTMLElement {
   const useBase = opts.useBaseMarker ?? true;
+  const shape = opts.shape ?? "pin";
 
   if (useBase || !opts.icon) {
-    const pin = container.createDiv({ cls: `ttrpgmap-pin ${opts.pinClass}` });
-    pin.appendChild(createPinSvg(opts.color, opts.svgClass));
+    const cls = `ttrpgmap-pin ${opts.pinClass}` + (shape === "circle" ? " ttrpgmap-pin--circle" : "");
+    const pin = container.createDiv({ cls });
+    pin.appendChild(shape === "circle"
+      ? createCircleSvg(opts.color, opts.svgClass)
+      : createPinSvg(opts.color, opts.svgClass)
+    );
 
     if (opts.icon) {
       const iconEl = pin.createDiv({ cls: `ttrpgmap-pin-icon ${opts.iconClass}` });
@@ -64,7 +86,7 @@ export function createPinElement(container: HTMLElement, opts: PinElementOpts): 
     return pin;
   }
 
-  // Standalone icon mode — don't use the small iconClass, use standalone sizing
+  // Standalone icon mode: don't use the small iconClass, use standalone sizing
   const pin = container.createDiv({ cls: `ttrpgmap-pin ttrpgmap-pin--standalone ${opts.pinClass}` });
   const iconEl = pin.createDiv({ cls: "ttrpgmap-pin-standalone-icon" });
   if (opts.iconColor) iconEl.style.color = opts.iconColor;

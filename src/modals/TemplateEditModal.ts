@@ -1,8 +1,8 @@
 import { App, Modal, Setting, Notice } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MarkerTemplate, MapMarker } from "../types";
+import { MarkerTemplate, MapMarker, PREDEFINED_TEMPLATE_IDS } from "../types";
 import { createPinElement } from "../utils/markerPin";
-import { buildTextPlacementField, buildPinSelectorField, buildIconField, buildIconColorField } from "./sharedFields";
+import { buildTextPlacementField, buildPinSelectorField, buildIconField } from "./sharedFields";
 
 /** Fields on a template that can be pushed to markers */
 const APPLY_FIELDS: (keyof MarkerTemplate)[] = [
@@ -31,7 +31,8 @@ function getChangedFields(snapshot: Partial<MarkerTemplate>, current: MarkerTemp
 
 export class TemplateEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
-  private template: MarkerTemplate;
+  private original: MarkerTemplate;
+  private draft: MarkerTemplate;
   private snapshot: Partial<MarkerTemplate>;
   private onSaved: () => void;
   private changedIndicators: Map<string, HTMLElement> = new Map();
@@ -39,42 +40,59 @@ export class TemplateEditModal extends Modal {
   constructor(app: App, plugin: TTRPGMapsPlugin, template: MarkerTemplate, onSaved: () => void) {
     super(app);
     this.plugin = plugin;
-    this.template = template;
+    this.original = template;
+    this.draft = { ...template };
     this.onSaved = onSaved;
-    // Snapshot current values for dirty tracking
+    // Snapshot original values for dirty tracking
     this.snapshot = {};
     for (const key of APPLY_FIELDS) {
       (this.snapshot as any)[key] = template[key];
     }
   }
 
+  /** Return an error message if the name is invalid, or null if valid */
+  private validateName(name: string): string | null {
+    const trimmed = name.trim();
+    if (!trimmed) return "Name cannot be empty.";
+    const duplicate = this.plugin.settings.markerTemplates.find(
+      (t) => t.id !== this.draft.id && t.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) return "A template with this name already exists.";
+    return null;
+  }
+
   private renderPreview(container: HTMLElement): void {
     container.empty();
     const wrapper = container.createDiv({ cls: "ttrpgmap-edit-preview-wrapper" });
-    wrapper.dataset.direction = this.template.direction;
-    wrapper.dataset.textPlacement = this.template.textPlacement;
+    wrapper.dataset.direction = this.draft.direction;
+    wrapper.dataset.textPlacement = this.draft.textPlacement;
 
     createPinElement(wrapper, {
       pinClass: "ttrpgmap-edit-preview-pin",
       svgClass: "ttrpgmap-pin-svg",
-      color: this.template.color,
-      icon: this.template.icon,
-      iconColor: this.template.iconColor,
+      color: this.draft.color,
+      icon: this.draft.icon,
+      iconColor: this.draft.iconColor,
       iconClass: "ttrpgmap-edit-preview-icon",
-      useBaseMarker: this.template.useBaseMarker,
-      shape: this.template.shape,
+      useBaseMarker: this.draft.useBaseMarker,
+      shape: this.draft.shape,
     });
   }
 
   /** Update dirty indicators on all tracked fields */
   private updateDirtyIndicators(): void {
-    const changed = getChangedFields(this.snapshot, this.template);
+    const changed = getChangedFields(this.snapshot, this.draft);
+    // Group fields by their shared indicator element
+    const elements = new Map<HTMLElement, string[]>();
     for (const [key, el] of this.changedIndicators) {
-      if (changed.includes(key as keyof MarkerTemplate)) {
-        el.style.display = "";
-      } else {
-        el.style.display = "none";
-      }
+      let keys = elements.get(el);
+      if (!keys) { keys = []; elements.set(el, keys); }
+      keys.push(key);
+    }
+    // Show indicator if any of its fields changed
+    for (const [el, keys] of elements) {
+      const dirty = keys.some((k) => changed.includes(k as keyof MarkerTemplate));
+      el.style.display = dirty ? "" : "none";
     }
   }
 
@@ -90,12 +108,15 @@ export class TemplateEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("ttrpgmap-modal-container");
     contentEl.addClass("ttrpgmap-modal");
     this.changedIndicators.clear();
 
     contentEl.createEl("h2", { text: "Edit Template" });
 
-    const previewContainer = contentEl.createDiv({ cls: "ttrpgmap-edit-preview" });
+    const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
+    const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
+    const previewContainer = layout.createDiv({ cls: "ttrpgmap-edit-preview" });
     this.renderPreview(previewContainer);
 
     const onChanged = () => {
@@ -105,19 +126,33 @@ export class TemplateEditModal extends Modal {
 
     const ctx = {
       app: this.app,
-      contentEl,
-      state: this.template,
+      contentEl: mainCol,
+      state: this.draft,
       onChanged,
     };
 
     // ── Name ──
-    new Setting(contentEl)
+    const isPredefined = PREDEFINED_TEMPLATE_IDS.has(this.draft.id);
+    let nameError: HTMLElement;
+    new Setting(mainCol)
       .setName("Name")
-      .addText((text) =>
-        text.setValue(this.template.name).onChange((value) => {
-          this.template.name = value;
-        })
-      );
+      .addText((text) => {
+        text.setValue(this.draft.name);
+        if (isPredefined) {
+          text.setDisabled(true);
+        } else {
+          text.onChange((value) => {
+            this.draft.name = value;
+            const err = this.validateName(value);
+            nameError.setText(err ?? "");
+            nameError.style.display = err ? "" : "none";
+          });
+        }
+      })
+      .then((s) => {
+        nameError = s.controlEl.createDiv({ cls: "ttrpgmap-field-error" });
+        nameError.style.display = "none";
+      });
 
     // ── Shared fields ──
     const tpSetting = buildTextPlacementField(ctx);
@@ -126,32 +161,37 @@ export class TemplateEditModal extends Modal {
     const pinSetting = buildPinSelectorField(ctx);
     this.addDirtyIndicator(pinSetting, "direction", "color", "useBaseMarker", "shape");
 
-    const { setting: iconSetting, updatePreview } = buildIconField(ctx);
-    this.addDirtyIndicator(iconSetting, "icon");
-
-    const { setting: iconColorSetting } = buildIconColorField(ctx, updatePreview);
-    this.addDirtyIndicator(iconColorSetting, "iconColor");
+    const { setting: iconSetting } = buildIconField(ctx);
+    this.addDirtyIndicator(iconSetting, "icon", "iconColor");
 
     // ── Actions ──
-    const actionSetting = new Setting(contentEl);
+    const actionSetting = new Setting(mainCol);
     actionSetting.controlEl.addClass("ttrpgmap-action-row");
+
+    /** Apply draft to the original template in settings */
+    const commitDraft = () => {
+      Object.assign(this.original, this.draft);
+    };
 
     actionSetting
       .addButton((btn) =>
         btn
-          .setButtonText("Save & Apply Changes to Markers")
+          .setButtonText("Save & Update Markers")
           .setWarning()
           .onClick(() => {
-            const changed = getChangedFields(this.snapshot, this.template);
+            const nameErr = this.validateName(this.draft.name);
+            if (nameErr) { new Notice(nameErr); return; }
+            const changed = getChangedFields(this.snapshot, this.draft);
             if (changed.length === 0) {
               new Notice("No changes to apply.");
               return;
             }
             new ConfirmApplyModal(
               this.app,
-              this.template.name,
+              this.draft.name,
               changed.map((f) => FIELD_LABELS[f] || f),
               async () => {
+                commitDraft();
                 this.plugin.dataManager.saveSettings(this.plugin.settings);
 
                 const allStates = await this.plugin.dataManager.loadAllMapStates();
@@ -159,10 +199,9 @@ export class TemplateEditModal extends Modal {
                 for (const state of allStates) {
                   let stateChanged = false;
                   for (const marker of state.markers) {
-                    if (marker.templateId !== this.template.id) continue;
-                    // Only push changed fields
+                    if (marker.templateId !== this.draft.id) continue;
                     for (const field of changed) {
-                      (marker as any)[field] = (this.template as any)[field];
+                      (marker as any)[field] = (this.draft as any)[field];
                     }
                     stateChanged = true;
                     count++;
@@ -173,7 +212,7 @@ export class TemplateEditModal extends Modal {
                 }
 
                 await this.plugin.dataManager.flushSaves();
-                new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.template.name}".`);
+                new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.draft.name}".`);
                 this.plugin.triggerMapRefresh();
                 this.onSaved();
                 this.close();
@@ -186,10 +225,16 @@ export class TemplateEditModal extends Modal {
           .setButtonText("Save")
           .setCta()
           .onClick(() => {
+            const nameErr = this.validateName(this.draft.name);
+            if (nameErr) { new Notice(nameErr); return; }
+            commitDraft();
             this.plugin.dataManager.saveSettings(this.plugin.settings);
             this.onSaved();
             this.close();
           })
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => this.close())
       );
   }
 

@@ -631,8 +631,24 @@
 }
 
 /* ===== Modal styles ===== */
+.ttrpgmap-modal-container {
+  width: 950px;
+  max-width: 90vw;
+}
+
 .ttrpgmap-modal {
-  max-width: 600px;
+  overflow-x: hidden;
+}
+
+.ttrpgmap-modal-layout {
+  display: flex;
+  gap: 24px;
+}
+
+.ttrpgmap-modal-main {
+  flex: 1;
+  min-width: 0;
+  z-index: 1;
 }
 
 /* ===== Template List ===== */
@@ -671,6 +687,12 @@
 .ttrpgmap-muted {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.ttrpgmap-field-error {
+  color: var(--text-error);
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 /* ===== Image dimensions display ===== */
@@ -770,20 +792,56 @@
   height: 100%;
 }
 
-/* Inline icon preview (uses theme text color) */
-.ttrpgmap-icon-inline-preview {
-  width: 24px;
-  height: 24px;
+.ttrpgmap-icon-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--input-radius);
+  padding: 0 8px;
+  background: var(--background-modifier-form-field);
+}
+
+.ttrpgmap-icon-input-wrap input[type="text"] {
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding-left: 0;
+  min-width: 80px;
+  flex: 0 1 auto;
+}
+
+.ttrpgmap-icon-input-preview {
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 4px;
+  flex-shrink: 0;
   color: var(--text-normal);
 }
 
-.ttrpgmap-icon-inline-preview svg {
+.ttrpgmap-icon-input-preview svg {
   width: 100%;
   height: 100%;
+}
+
+.ttrpgmap-icon-input-source {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ttrpgmap-icon-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ttrpgmap-icon-color-label {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
 }
 
 /* Icon color circle picker */
@@ -817,8 +875,15 @@
 .ttrpgmap-edit-preview {
   display: flex;
   justify-content: center;
-  padding: 40px 80px;
-  margin-bottom: 8px;
+  align-items: center;
+  min-width: 305px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  align-self: stretch;
+  overflow: visible;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
 }
 
 .ttrpgmap-edit-preview-wrapper {
@@ -892,11 +957,23 @@
   margin-top: 4px;
 }
 
+/* Text left: push pin to the right so label extends leftward into space */
+.ttrpgmap-edit-preview-wrapper[data-text-placement="left"] {
+  margin-left: auto;
+  margin-right: 24px;
+}
+
 .ttrpgmap-edit-preview-wrapper[data-text-placement="left"] .ttrpgmap-edit-preview-label {
   right: 100%;
   top: 50%;
   transform: translateY(-50%);
   margin-right: 6px;
+}
+
+/* Text right: push pin to the left so label extends rightward into space */
+.ttrpgmap-edit-preview-wrapper[data-text-placement="right"] {
+  margin-right: auto;
+  margin-left: 24px;
 }
 
 .ttrpgmap-edit-preview-wrapper[data-text-placement="right"] .ttrpgmap-edit-preview-label {
@@ -1003,7 +1080,15 @@
 }
 
 .ttrpgmap-pin-selector-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: 4px;
+}
+
+.ttrpgmap-pin-selector-color-label {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
 }
 
 .ttrpgmap-pin-selector-color {

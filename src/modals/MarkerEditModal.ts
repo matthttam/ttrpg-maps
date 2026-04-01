@@ -4,7 +4,7 @@ import { MarkerTemplate, MarkerDirection, TextPlacement } from "../types";
 import { NoteLinkSuggest } from "../suggests/NoteLinkSuggest";
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel } from "../utils/markerLabel";
-import { buildTextPlacementField, buildPinSelectorField, buildIconField, buildIconColorField, MarkerFieldState } from "./sharedFields";
+import { buildTextPlacementField, buildPinSelectorField, buildIconField, MarkerFieldState } from "./sharedFields";
 
 export class MarkerEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
@@ -105,17 +105,20 @@ export class MarkerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("ttrpgmap-modal-container");
     contentEl.addClass("ttrpgmap-modal");
 
     const template = this.getTemplate();
 
     contentEl.createEl("h2", { text: "Edit Marker" });
 
-    const previewContainer = contentEl.createDiv({ cls: "ttrpgmap-edit-preview" });
+    const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
+    const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
+    const previewContainer = layout.createDiv({ cls: "ttrpgmap-edit-preview" });
     this.renderPreview(previewContainer);
 
     // ── Template ──
-    new Setting(contentEl)
+    new Setting(mainCol)
       .setName("Template")
       .addDropdown((dropdown) => {
         for (const t of this.plugin.settings.markerTemplates) {
@@ -139,7 +142,7 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Note ──
-    new Setting(contentEl)
+    new Setting(mainCol)
       .setName("Note")
       .setDesc("Link to a note. Type # for headings, #^ for blocks, | for alias.")
       .addText((text) => {
@@ -157,7 +160,7 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Description ──
-    new Setting(contentEl)
+    new Setting(mainCol)
       .setName("Description")
       .setDesc("Additional text shown below the note name")
       .addTextArea((textArea) => {
@@ -171,11 +174,11 @@ export class MarkerEditModal extends Modal {
         textArea.inputEl.rows = 3;
       });
 
-    // ── Shared fields (text placement, pin, icon, icon color) ──
+    // ── Shared fields (text placement, pin, icon) ──
     const fieldState = this.getFieldState();
     const ctx = {
       app: this.app,
-      contentEl,
+      contentEl: mainCol,
       state: fieldState,
       onChanged: () => {
         this.syncFromFieldState(fieldState);
@@ -195,27 +198,27 @@ export class MarkerEditModal extends Modal {
       this.marker.color = template?.color ?? "#ffffff";
     });
 
-    const { setting: iconSetting, updatePreview } = buildIconField(ctx);
+    const { setting: iconSetting, colorPicker: iconColorPicker } = buildIconField(ctx);
     this.addResetButton(iconSetting, () => {
       this.marker.icon = template?.icon ?? null;
-    });
-
-    const { setting: iconColorSetting, picker: iconColorPicker } = buildIconColorField(ctx, updatePreview);
-    this.addResetButton(iconColorSetting, () => {
       this.marker.iconColor = template?.iconColor ?? "#000000";
       iconColorPicker.setValue(this.marker.iconColor);
     });
 
-    // ── Save ──
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Save")
-        .setCta()
-        .onClick(() => {
-          this.onSave(this.marker);
-          this.close();
-        })
-    );
+    // ── Save / Cancel ──
+    new Setting(mainCol)
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save")
+          .setCta()
+          .onClick(() => {
+            this.onSave(this.marker);
+            this.close();
+          })
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => this.close())
+      );
   }
 
   onClose(): void {

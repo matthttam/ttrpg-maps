@@ -1,7 +1,8 @@
 import { App, Setting } from "obsidian";
 import { MarkerDirection, TextPlacement } from "../types";
 import { IconSuggest } from "../suggests/IconSuggest";
-import { setFAIcon } from "../utils/faIcon";
+import { setFAIcon, getFAIcon } from "../utils/faIcon";
+
 import { createPinSelector, PinSelection } from "../utils/pinSelector";
 import { createColorPicker } from "../utils/colorPicker";
 
@@ -81,53 +82,91 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
   return setting;
 }
 
-/** Icon search + inline preview. Returns { setting, updatePreview }. */
-export function buildIconField(ctx: FieldContext): { setting: Setting; updatePreview: () => void } {
-  const setting = new Setting(ctx.contentEl)
-    .setName("Icon")
-    .addText((text) => {
-      text
-        .setPlaceholder("Search for an icon...")
-        .setValue(ctx.state.icon ?? "")
-        .onChange((value) => {
-          ctx.state.icon = value || null;
-          updatePreview();
-          ctx.onChanged();
-        });
-      new IconSuggest(ctx.app, text.inputEl, (value) => {
+/** Icon search + color picker. Returns { setting, colorPicker }. */
+export function buildIconField(ctx: FieldContext): {
+  setting: Setting;
+  colorPicker: { setValue: (hex: string) => void };
+} {
+  const setting = new Setting(ctx.contentEl).setName("Icon");
+
+  // Wrapper that looks like a dropdown with icon + text + source badge
+  const inputWrap = setting.controlEl.createDiv({ cls: "ttrpgmap-icon-input-wrap" });
+  const iconPreview = inputWrap.createDiv({ cls: "ttrpgmap-icon-input-preview" });
+  let sourceEl: HTMLElement;
+
+  function updateInputPreview() {
+    iconPreview.empty();
+    if (ctx.state.icon) {
+      setFAIcon(iconPreview, ctx.state.icon);
+      iconPreview.style.display = "";
+      const icon = getFAIcon(ctx.state.icon);
+      sourceEl.setText(icon ? (icon.set === "gi" ? "Game Icons" : "FA") : "");
+      sourceEl.style.display = icon ? "" : "none";
+    } else {
+      iconPreview.style.display = "none";
+      sourceEl.setText("");
+      sourceEl.style.display = "none";
+    }
+  }
+
+  setting.addText((text) => {
+    const inputEl = text.inputEl;
+
+    // Auto-size input to content width
+    function autoSize() {
+      inputEl.style.width = "0";
+      inputEl.style.width = Math.max(inputEl.scrollWidth, 80) + "px";
+    }
+
+    text
+      .setPlaceholder("Search for an icon...")
+      .setValue(ctx.state.icon ?? "")
+      .onChange((value) => {
         ctx.state.icon = value || null;
-        updatePreview();
+        updateInputPreview();
+        autoSize();
         ctx.onChanged();
       });
+    // Move the input element inside our styled wrapper
+    inputWrap.appendChild(inputEl);
+    autoSize();
+
+    // Select all text on focus, but not on subsequent clicks
+    let justFocused = false;
+    inputEl.addEventListener("focus", () => {
+      justFocused = true;
+      inputEl.select();
+    });
+    inputEl.addEventListener("mouseup", (e) => {
+      if (justFocused) {
+        e.preventDefault();
+        justFocused = false;
+      }
     });
 
-  const preview = setting.controlEl.createDiv({ cls: "ttrpgmap-icon-inline-preview" });
-  preview.style.color = ctx.state.iconColor;
+    new IconSuggest(ctx.app, text.inputEl, (value) => {
+      ctx.state.icon = value || null;
+      text.setValue(value || "");
+      updateInputPreview();
+      autoSize();
+      ctx.onChanged();
+    });
+  });
 
-  function updatePreview() {
-    preview.empty();
-    preview.style.color = ctx.state.iconColor;
-    if (ctx.state.icon) setFAIcon(preview, ctx.state.icon);
-  }
-  updatePreview();
+  sourceEl = inputWrap.createSpan({ cls: "ttrpgmap-icon-input-source" });
+  updateInputPreview();
 
-  return { setting, updatePreview };
-}
-
-/** Icon color picker with hex + RGB. Returns { setting, picker }. */
-export function buildIconColorField(
-  ctx: FieldContext,
-  updateIconPreview: () => void
-): { setting: Setting; picker: { setValue: (hex: string) => void } } {
-  const setting = new Setting(ctx.contentEl).setName("Icon Color");
-  const picker = createColorPicker({
-    container: setting.controlEl,
+  // Inline color picker
+  const colorWrap = setting.controlEl.createDiv({ cls: "ttrpgmap-icon-color-wrap" });
+  colorWrap.createSpan({ cls: "ttrpgmap-icon-color-label", text: "Color:" });
+  const colorPicker = createColorPicker({
+    container: colorWrap,
     value: ctx.state.iconColor,
     onChange: (hex) => {
       ctx.state.iconColor = hex;
-      updateIconPreview();
       ctx.onChanged();
     },
   });
-  return { setting, picker };
+
+  return { setting, colorPicker };
 }

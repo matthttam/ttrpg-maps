@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MarkerTemplate } from "../types";
+import { MarkerTemplate, PREDEFINED_TEMPLATE_IDS, DEFAULT_SETTINGS } from "../types";
 import { createPinElement } from "../utils/markerPin";
 import { TemplateEditModal } from "../modals/TemplateEditModal";
 
@@ -37,18 +37,17 @@ export function renderTemplateManager(
   const headerControl = header.createDiv({ cls: "setting-item-control" });
   const addBtn = headerControl.createEl("button", { cls: "mod-cta", text: "Add Template" });
   addBtn.addEventListener("click", () => {
+    const existingNames = new Set(
+      plugin.settings.markerTemplates.map((t) => t.name.toLowerCase())
+    );
+    let n = plugin.settings.markerTemplates.length;
+    while (existingNames.has(`template ${n}`.toLowerCase())) n++;
+
+    const base = DEFAULT_SETTINGS.markerTemplates[0];
     const newTemplate: MarkerTemplate = {
+      ...base,
       id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: `Template ${plugin.settings.markerTemplates.length}`,
-      note: null,
-      description: null,
-      direction: "down",
-      textPlacement: "above",
-      color: "#ffffff",
-      icon: null,
-      iconColor: "#000000",
-      useBaseMarker: true,
-      shape: "pin",
+      name: `Template ${n}`,
     };
     plugin.settings.markerTemplates.push(newTemplate);
     plugin.dataManager.saveSettings(plugin.settings);
@@ -56,7 +55,7 @@ export function renderTemplateManager(
   });
 
   for (const template of plugin.settings.markerTemplates) {
-    const isDefault = template.id === "default";
+    const isDefault = PREDEFINED_TEMPLATE_IDS.has(template.id);
 
     const row = container.createDiv({ cls: "setting-item" });
     const info = row.createDiv({ cls: "setting-item-info" });
@@ -65,15 +64,26 @@ export function renderTemplateManager(
     createMarkerPreview(nameRow, template);
     nameRow.createSpan({ text: template.name });
 
-    if (!isDefault) {
-      const control = row.createDiv({ cls: "setting-item-control" });
+    const control = row.createDiv({ cls: "setting-item-control" });
 
-      const editBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Edit template" } });
-      setIcon(editBtn, "pencil");
-      editBtn.addEventListener("click", () => {
-        new TemplateEditModal(plugin.app, plugin, template, rerender).open();
+    const editBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Edit template" } });
+    setIcon(editBtn, "pencil");
+    editBtn.addEventListener("click", () => {
+      new TemplateEditModal(plugin.app, plugin, template, rerender).open();
+    });
+
+    if (isDefault) {
+      const resetBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Reset to defaults" } });
+      setIcon(resetBtn, "rotate-ccw");
+      resetBtn.addEventListener("click", () => {
+        const defaults = DEFAULT_SETTINGS.markerTemplates.find((t) => t.id === template.id);
+        if (defaults) {
+          Object.assign(template, { ...defaults });
+          plugin.dataManager.saveSettings(plugin.settings);
+          rerender();
+        }
       });
-
+    } else {
       const deleteBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Delete template" } });
       setIcon(deleteBtn, "trash-2");
       deleteBtn.addEventListener("click", () => {

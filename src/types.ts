@@ -74,6 +74,9 @@ export interface TTRPGMapsSettings {
   markerTemplates: MarkerTemplate[];
 }
 
+/** IDs of predefined templates that cannot be renamed or deleted */
+export const PREDEFINED_TEMPLATE_IDS = new Set(["default"]);
+
 /** Default plugin settings */
 export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
   markerTemplates: [

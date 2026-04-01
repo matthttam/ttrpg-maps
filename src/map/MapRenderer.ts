@@ -609,7 +609,7 @@ export class MapRenderer extends MarkdownRenderChild {
       menu.addSeparator();
       for (const template of templates) {
         menu.addItem((item) => {
-          item.setTitle(`Place: ${template.name}`);
+          item.setTitle(template.name);
           item.onClick(() => this.placeMarker(mapX, mapY, template.id));
         });
       }

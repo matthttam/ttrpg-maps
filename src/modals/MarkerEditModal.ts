@@ -129,11 +129,12 @@ export class MarkerEditModal extends Modal {
             this.marker.direction = newTemplate.direction;
             this.marker.textPlacement = newTemplate.textPlacement;
             this.marker.color = newTemplate.color;
+            this.marker.icon = newTemplate.icon;
             this.marker.iconColor = newTemplate.iconColor;
             this.marker.useBaseMarker = newTemplate.useBaseMarker;
             this.marker.shape = newTemplate.shape;
           }
-          this.onOpen();
+          activeWindow.requestAnimationFrame(() => this.onOpen());
         });
       });
 

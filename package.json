@@ -1,8 +1,12 @@
 {
   "name": "obsidian-ttrpg-maps",
   "version": "0.1.0",
-  "description": "Interactive TTRPG map plugin for Obsidian with markers, templates, and distance tools",
+  "description": "Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.",
   "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthttam/ttrpg-maps.git"
+  },
   "scripts": {
     "icons": "node scripts/build-icons.mjs",
     "dev": "node scripts/build-icons.mjs && node esbuild.config.mjs",
@@ -16,7 +20,7 @@
     "maps",
     "rpg"
   ],
-  "author": "",
+  "author": "matthttam",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -25,6 +25,7 @@ gi-icons.json
 # Hidden files and folders (except .gitignore)
 .*
 !.gitignore
+!.github
 
 # Data files
 data.json

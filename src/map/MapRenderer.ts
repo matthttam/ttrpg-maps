@@ -596,11 +596,23 @@ export class MapRenderer extends MarkdownRenderChild {
     const mapY = (e.clientY - rect.top) / scale / sy;
 
     const menu = new Menu();
-    for (const template of this.plugin.settings.markerTemplates) {
+    const templates = this.plugin.settings.markerTemplates;
+    const defaultTemplate = templates.find((t) => t.id === "default") ?? templates[0];
+    if (defaultTemplate) {
       menu.addItem((item) => {
-        item.setTitle(`Place: ${template.name}`);
-        item.onClick(() => this.placeMarker(mapX, mapY, template.id));
+        item.setTitle("Place Marker");
+        item.setIcon("map-pin");
+        item.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id));
       });
+    }
+    if (templates.length > 1) {
+      menu.addSeparator();
+      for (const template of templates) {
+        menu.addItem((item) => {
+          item.setTitle(`Place: ${template.name}`);
+          item.onClick(() => this.placeMarker(mapX, mapY, template.id));
+        });
+      }
     }
 
     menu.addSeparator();

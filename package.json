@@ -23,6 +23,8 @@
   "author": "matthttam",
   "license": "MIT",
   "devDependencies": {
+    "@iconify-json/fa6-solid": "^1.2.4",
+    "@iconify-json/game-icons": "^1.2.3",
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "^4.1.2",
     "builtin-modules": "^3.3.0",

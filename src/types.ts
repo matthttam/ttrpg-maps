@@ -4,6 +4,23 @@ export type MarkerDirection = "up" | "down" | "left" | "right";
 /** Where text is placed relative to the marker icon */
 export type TextPlacement = "above" | "below" | "left" | "right";
 
+/** A visibility layer that controls marker show/hide based on zoom level */
+export interface MarkerLayer {
+  id: string;
+  name: string;
+  zoomMin: number | null; // null = no lower bound (treat as 0)
+  zoomMax: number | null; // null = no upper bound (treat as Infinity)
+}
+
+export const DEFAULT_LAYER_ID = "default";
+
+export const DEFAULT_LAYER: MarkerLayer = {
+  id: "default",
+  name: "Default Marker",
+  zoomMin: null,
+  zoomMax: null,
+};
+
 /** A reusable preset for marker styling */
 export interface MarkerTemplate {
   id: string;
@@ -25,6 +42,7 @@ export interface MapMarker {
   templateId: string;
   x: number;
   y: number;
+  layerId: string | null; // null = default layer
   /** Overrides from template. Only set fields override. */
   note: string | null;
   description: string | null;
@@ -66,6 +84,7 @@ export interface MapConfig {
 export interface MapState {
   mapId: string;
   markers: MapMarker[];
+  layers: MarkerLayer[];
   distanceScale: DistanceScale | null;
 }
 

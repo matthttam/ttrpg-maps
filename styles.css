@@ -315,6 +315,38 @@
   background: var(--background-modifier-hover);
 }
 
+.ttrpgmap-marker-list-row--hidden {
+  opacity: 0.5;
+}
+
+.ttrpgmap-marker-list-hidden-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.ttrpgmap-marker-list-hidden-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── Layer rows ── */
+.ttrpgmap-layer-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ttrpgmap-layer-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+.ttrpgmap-layer-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Description tooltip */
 .ttrpgmap-marker-list-has-desc::after {
   content: attr(aria-label);

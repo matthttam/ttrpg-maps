@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import type TTRPGMapsPlugin from "./main";
-import { MapState, TTRPGMapsSettings, DEFAULT_SETTINGS } from "./types";
+import { MapState, TTRPGMapsSettings, DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID } from "./types";
 
 const TTRPGMAP_DIR = ".ttrpgmap";
 
@@ -36,6 +36,16 @@ export class DataManager {
     await this.plugin.saveData(settings);
   }
 
+  /** Ensure a MapState has a valid layers array with the default layer present */
+  private ensureLayers(state: MapState): void {
+    if (!Array.isArray(state.layers)) {
+      state.layers = [];
+    }
+    if (!state.layers.some((l) => l.id === DEFAULT_LAYER_ID)) {
+      state.layers.unshift({ ...DEFAULT_LAYER });
+    }
+  }
+
   /** Ensure .ttrpgmap directory exists */
   private async ensureDir(): Promise<void> {
     const adapter = this.app.vault.adapter;
@@ -56,12 +66,15 @@ export class DataManager {
 
     if (await adapter.exists(path)) {
       const raw = await adapter.read(path);
-      return JSON.parse(raw) as MapState;
+      const state = JSON.parse(raw) as MapState;
+      this.ensureLayers(state);
+      return state;
     }
 
     return {
       mapId,
       markers: [],
+      layers: [{ ...DEFAULT_LAYER }],
       distanceScale: null,
     };
   }
@@ -111,7 +124,9 @@ export class DataManager {
     for (const file of listing.files) {
       if (!file.endsWith(".json")) continue;
       const raw = await adapter.read(file);
-      states.push(JSON.parse(raw) as MapState);
+      const state = JSON.parse(raw) as MapState;
+      this.ensureLayers(state);
+      states.push(state);
     }
     return states;
   }

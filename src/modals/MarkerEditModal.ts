@@ -1,6 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MarkerTemplate, MarkerDirection, TextPlacement } from "../types";
+import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID } from "../types";
 import { NoteLinkSuggest } from "../suggests/NoteLinkSuggest";
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel } from "../utils/markerLabel";
@@ -8,10 +8,12 @@ import { buildTextPlacementField, buildPinSelectorField, buildIconField, MarkerF
 
 export class MarkerEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
+  private layers: MarkerLayer[];
   private marker: {
     note: string | null;
     description: string | null;
     templateId: string;
+    layerId: string | null;
     direction: string | null;
     textPlacement: string | null;
     color: string | null;
@@ -26,11 +28,13 @@ export class MarkerEditModal extends Modal {
     app: App,
     plugin: TTRPGMapsPlugin,
     marker: typeof MarkerEditModal.prototype.marker,
+    layers: MarkerLayer[],
     onSave: (marker: typeof MarkerEditModal.prototype.marker) => void
   ) {
     super(app);
     this.plugin = plugin;
     this.marker = { ...marker };
+    this.layers = layers;
     this.onSave = onSave;
   }
 
@@ -140,6 +144,22 @@ export class MarkerEditModal extends Modal {
           activeWindow.requestAnimationFrame(() => this.onOpen());
         });
       });
+
+    // ── Layer ──
+    if (this.layers.length > 1) {
+      new Setting(mainCol)
+        .setName("Layer")
+        .setDesc("Visibility layer for zoom-based show/hide")
+        .addDropdown((dropdown) => {
+          for (const layer of this.layers) {
+            dropdown.addOption(layer.id, layer.name);
+          }
+          dropdown.setValue(this.marker.layerId ?? DEFAULT_LAYER_ID);
+          dropdown.onChange((value) => {
+            this.marker.layerId = value === DEFAULT_LAYER_ID ? null : value;
+          });
+        });
+    }
 
     // ── Note ──
     new Setting(mainCol)

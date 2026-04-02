@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MapConfig, MapState, MapMarker, MapPoint } from "../types";
+import { MapConfig, MapState, MapMarker, MapPoint, DEFAULT_LAYER_ID } from "../types";
 import { MapSettingsModal } from "../modals/MapSettingsModal";
 import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
@@ -230,7 +230,9 @@ export class MapRenderer extends MarkdownRenderChild {
     });
 
     for (const marker of sorted) {
+      const visible = this.isMarkerVisible(marker);
       const row = container.createDiv({ cls: "ttrpgmap-marker-list-row" });
+      if (!visible) row.addClass("ttrpgmap-marker-list-row--hidden");
 
       // Mini icon preview
       const preview = row.createDiv({ cls: "ttrpgmap-marker-list-preview" });
@@ -249,6 +251,12 @@ export class MapRenderer extends MarkdownRenderChild {
       // Name
       const name = marker.note ? displayTitle(marker.note) : "Unnamed";
       row.createDiv({ cls: "ttrpgmap-marker-list-name", text: name });
+
+      // Hidden indicator
+      if (!visible) {
+        const hiddenIcon = row.createDiv({ cls: "ttrpgmap-marker-list-hidden-icon" });
+        setIcon(hiddenIcon, "eye-off");
+      }
 
       // Description tooltip on hover
       if (marker.description) {
@@ -360,7 +368,8 @@ export class MapRenderer extends MarkdownRenderChild {
     if (newZoom === this.zoom) return;
     this.zoom = newZoom;
     this.applyTransform();
-    this.updateMarkerPositions();
+    this.renderMarkers();
+    this.refreshMarkerList();
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
   }
@@ -433,13 +442,25 @@ export class MapRenderer extends MarkdownRenderChild {
     this.panY = cursorY - mapY * newScale;
     this.zoom = newZoom;
     this.applyTransform();
-    this.updateMarkerPositions();
+    this.renderMarkers();
+    this.refreshMarkerList();
 
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
   }
 
   // ──────────────────── Markers ────────────────────
+
+  /** Check if a marker is visible at the current zoom level based on its layer */
+  private isMarkerVisible(marker: MapMarker): boolean {
+    if (!this.state) return false;
+    const layerId = marker.layerId ?? DEFAULT_LAYER_ID;
+    const layer = this.state.layers.find((l) => l.id === layerId);
+    if (!layer) return true; // orphaned layer ref = show marker
+    const min = layer.zoomMin ?? 0;
+    const max = layer.zoomMax ?? Infinity;
+    return this.zoom >= min && this.zoom <= max;
+  }
 
   /** Convert natural image coords to screen coords within the wrapper */
   private toScreenCoords(natX: number, natY: number): { x: number; y: number } {
@@ -454,11 +475,14 @@ export class MapRenderer extends MarkdownRenderChild {
   /** Reposition all marker elements to current pan/zoom without re-creating them */
   private updateMarkerPositions(): void {
     if (!this.state) return;
-    const markers = this.state.markers;
+    const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
     const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
-    els.forEach((el, i) => {
-      if (i >= markers.length) return;
-      const { x, y } = this.toScreenCoords(markers[i].x, markers[i].y);
+    els.forEach((el) => {
+      const id = el.dataset.markerId;
+      if (!id) return;
+      const marker = markerMap.get(id);
+      if (!marker) return;
+      const { x, y } = this.toScreenCoords(marker.x, marker.y);
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
     });
@@ -469,6 +493,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.markerOverlay.querySelectorAll(".ttrpgmap-marker").forEach((el) => el.remove());
 
     for (const marker of this.state.markers) {
+      if (!this.isMarkerVisible(marker)) continue;
       const color = marker.color ?? "#ffffff";
       const iconColor = marker.iconColor ?? "#000000";
       const direction = marker.direction ?? "down";
@@ -537,13 +562,14 @@ export class MapRenderer extends MarkdownRenderChild {
     }
   }
 
-  private placeMarker(x: number, y: number, templateId: string): void {
+  private placeMarker(x: number, y: number, templateId: string, layerId: string | null = null): void {
     if (!this.state) return;
     const template = this.plugin.settings.markerTemplates.find((t) => t.id === templateId);
 
     const marker: MapMarker = {
       id: `marker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       templateId, x, y,
+      layerId,
       note: null, description: null,
       direction: template?.direction ?? "down",
       textPlacement: template?.textPlacement ?? "above",
@@ -554,7 +580,7 @@ export class MapRenderer extends MarkdownRenderChild {
       shape: template?.shape ?? "pin",
     };
 
-    new MarkerEditModal(this.plugin.app, this.plugin, marker, (updated) => {
+    new MarkerEditModal(this.plugin.app, this.plugin, marker, this.state.layers, (updated) => {
       Object.assign(marker, updated);
       this.state!.markers.push(marker);
       this.plugin.dataManager.saveMapState(this.config.id, this.state!);
@@ -564,7 +590,7 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private editMarker(marker: MapMarker): void {
-    new MarkerEditModal(this.plugin.app, this.plugin, marker, (updated) => {
+    new MarkerEditModal(this.plugin.app, this.plugin, marker, this.state?.layers ?? [], (updated) => {
       Object.assign(marker, updated);
       this.plugin.dataManager.saveMapState(this.config.id, this.state!);
       this.renderMarkers();
@@ -597,12 +623,25 @@ export class MapRenderer extends MarkdownRenderChild {
 
     const menu = new Menu();
     const templates = this.plugin.settings.markerTemplates;
+    const layers = this.state.layers;
+    const hasMultipleLayers = layers.length > 1;
     const defaultTemplate = templates.find((t) => t.id === "default") ?? templates[0];
+
     if (defaultTemplate) {
       menu.addItem((item) => {
         item.setTitle("Place Marker");
         item.setIcon("map-pin");
-        item.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id));
+        if (hasMultipleLayers) {
+          const sub = (item as any).setSubmenu();
+          for (const layer of layers) {
+            sub.addItem((subItem: any) => {
+              subItem.setTitle(layer.name);
+              subItem.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
+            });
+          }
+        } else {
+          item.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id));
+        }
       });
     }
     if (templates.length > 1) {
@@ -610,7 +649,17 @@ export class MapRenderer extends MarkdownRenderChild {
       for (const template of templates) {
         menu.addItem((item) => {
           item.setTitle(template.name);
-          item.onClick(() => this.placeMarker(mapX, mapY, template.id));
+          if (hasMultipleLayers) {
+            const sub = (item as any).setSubmenu();
+            for (const layer of layers) {
+              sub.addItem((subItem: any) => {
+                subItem.setTitle(layer.name);
+                subItem.onClick(() => this.placeMarker(mapX, mapY, template.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
+              });
+            }
+          } else {
+            item.onClick(() => this.placeMarker(mapX, mapY, template.id));
+          }
         });
       }
     }
@@ -747,12 +796,24 @@ export class MapRenderer extends MarkdownRenderChild {
   // ──────────────────── Settings Persistence ────────────────────
 
   private openSettings(): void {
-    new MapSettingsModal(this.plugin.app, this.plugin, this.config, (updated) => {
-      this.config = updated;
-      this.applyWrapperSize();
-      if (this.sectionInfo) {
-        writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
-      }
-    }).open();
+    new MapSettingsModal(
+      this.plugin.app,
+      this.plugin,
+      this.config,
+      this.state!,
+      (updated) => {
+        this.config = updated;
+        this.applyWrapperSize();
+        if (this.sectionInfo) {
+          writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
+        }
+      },
+      (updatedState) => {
+        this.state = updatedState;
+        this.plugin.dataManager.saveMapState(this.config.id, this.state);
+        this.renderMarkers();
+        this.refreshMarkerList();
+      },
+    ).open();
   }
 }

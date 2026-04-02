@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MapRenderer } from "./MapRenderer";
-import { MapConfig, MapState, MapMarker, DEFAULT_SETTINGS } from "../types";
+import { MapConfig, MapState, MapMarker, DEFAULT_SETTINGS, DEFAULT_LAYER } from "../types";
 import { App } from "obsidian";
 
 /** Create a mock plugin with controllable state */
@@ -8,6 +8,7 @@ function createMockPlugin(mapState?: Partial<MapState>) {
   const state: MapState = {
     mapId: "test-map",
     markers: [],
+    layers: [{ ...DEFAULT_LAYER }],
     distanceScale: null,
     ...mapState,
   };
@@ -53,6 +54,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     templateId: "default",
     x: 100,
     y: 200,
+    layerId: null,
     note: null,
     description: null,
     direction: "down",

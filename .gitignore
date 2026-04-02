@@ -30,5 +30,11 @@ gi-icons.json
 # Data files
 data.json
 
+# Vendored fonts (icons sourced from npm @iconify-json packages)
+fonts/
+
+# Deploy script (local only)
+deploy.bat
+
 # Plan
 plan.txt

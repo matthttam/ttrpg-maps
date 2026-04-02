@@ -18,7 +18,7 @@ npx vitest run src/utils/configSerializer.test.ts
 npx vitest run --coverage
 ```
 
-The build has a required pre-step: `scripts/build-icons.mjs` extracts SVG paths from `fonts/font-awesome/svgs/solid/` into `src/generated/fa-icons.ts`. This file is gitignored and must be generated before building or testing.
+The build has a required pre-step: `scripts/build-icons.mjs` reads icon data from the `@iconify-json/fa6-solid` and `@iconify-json/game-icons` npm packages and produces `src/generated/fa-icons.ts` (FA icons bundled inline + GI search index) and `gi-icons.json` (GI icon data loaded at runtime). These files are gitignored and must be generated before building or testing.
 
 ## Architecture
 
@@ -34,15 +34,15 @@ This is an Obsidian plugin that renders interactive TTRPG maps from `ttrpgmap` m
 
 Markers reference a template by name. On creation, template values are copied directly onto the marker. The template link is kept so "Save & Apply to Markers" can re-apply template changes. Individual marker properties can override template defaults; the marker edit modal has reset-to-template buttons.
 
-Markers can use a pin shape (FA `map-marker` SVG with an icon inside) or standalone mode (icon renders directly at full size). The `useBaseMarker` boolean controls this.
+Markers can use a pin shape (FA `location-dot` SVG with an icon inside) or standalone mode (icon renders directly at full size). The `useBaseMarker` boolean controls this.
 
 ### Rendering approach
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.
 
-### Font Awesome icons
+### Font Awesome & Game Icons
 
-Icons are bundled as a build-time TypeScript registry (not CSS webfonts). `scripts/build-icons.mjs` reads ~2000 SVG files and `metadata/icons.json` to produce `src/generated/fa-icons.ts` containing each icon's viewBox, path data, and search terms. Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance.
+Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/game-icons`) rather than vendored SVG files. `scripts/build-icons.mjs` reads the Iconify JSON format, extracts viewBox and path data (including alias resolution), and produces `src/generated/fa-icons.ts` (~1,408 FA icons bundled inline) and `gi-icons.json` (~4,126 Game Icons loaded at runtime). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance. The pin shape uses FA's `location-dot` icon.
 
 ### Plugin refresh system
 

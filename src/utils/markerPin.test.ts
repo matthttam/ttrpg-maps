@@ -44,7 +44,7 @@ describe("createPinElement", () => {
     const names = getFAIconNames();
     expect(names.length).toBeGreaterThan(0);
     expect(getFAIcon("star")).toBeDefined();
-    expect(getFAIcon("map-marker")).toBeDefined();
+    expect(getFAIcon("location-dot")).toBeDefined();
   });
 
   it("adds an icon element when icon is provided", () => {

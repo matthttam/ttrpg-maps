@@ -1,7 +1,7 @@
 import { getFAIcon } from "./faIcon";
 
-// FA map-marker as the default pin shape
-const MAP_MARKER = getFAIcon("map-marker");
+// FA location-pin (solid teardrop, no inner circle) as the default pin shape
+const MAP_MARKER = getFAIcon("location-pin");
 export const PIN_VIEWBOX = MAP_MARKER?.viewBox ?? "0 0 384 512";
 export const PIN_PATH = MAP_MARKER?.path ?? "M192 0C86 0 0 84.4 0 188.6 0 307.9 120.2 450.9 170.4 505.4 182.2 518.2 201.8 518.2 213.6 505.4 263.8 450.9 384 307.9 384 188.6 384 84.4 298 0 192 0z";
 export const PIN_STROKE = "#000000";

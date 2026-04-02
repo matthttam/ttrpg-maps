@@ -1,15 +1,18 @@
 /**
- * Extracts icon SVG data from Font Awesome and Game Icons into registries.
+ * Extracts icon SVG data from Iconify JSON packages into registries.
  * FA icons are bundled inline. Game Icons are written to a separate JSON file
  * loaded on demand to keep the main bundle small.
  *
+ * Sources: @iconify-json/fa6-solid, @iconify-json/game-icons
  * Run: node scripts/build-icons.mjs
  * Output: src/generated/fa-icons.ts, src/generated/gi-icons.json
  */
+import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, "../src/generated");
 const outFile = path.join(outDir, "fa-icons.ts");
@@ -18,70 +21,88 @@ const giJsonFile = path.join(__dirname, "../gi-icons.json");
 
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
+/**
+ * Extract the `d` attribute from a single-path Iconify body string.
+ */
+function extractPath(body) {
+  const match = body.match(/<path[^>]*\sd="([^"]+)"/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Build a viewBox string from Iconify icon dimensions.
+ * Per-icon width/height override the collection defaults.
+ */
+function viewBox(icon, defaultW, defaultH) {
+  const w = icon.width || defaultW;
+  const h = icon.height || defaultH;
+  return `0 0 ${w} ${h}`;
+}
+
+/**
+ * Resolve Iconify aliases into the icons map.
+ * Each alias points to a parent icon and may override width/height/body.
+ */
+function resolveAliases(data, icons, defaultW, defaultH, namePrefix, set) {
+  if (!data.aliases) return;
+  for (const [alias, def] of Object.entries(data.aliases)) {
+    const parent = icons[`${namePrefix}${def.parent}`];
+    if (!parent) continue;
+    const name = `${namePrefix}${alias}`;
+    if (icons[name]) continue; // don't overwrite a real icon
+    icons[name] = {
+      viewBox: def.width || def.height
+        ? `0 0 ${def.width || defaultW} ${def.height || defaultH}`
+        : parent.viewBox,
+      path: def.body ? extractPath(def.body) || parent.path : parent.path,
+      terms: alias.split("-").filter((t) => t.length > 1),
+      set,
+    };
+  }
+}
+
 // ── Font Awesome (solid), bundled inline ──
-const faSvgDir = path.join(__dirname, "../fonts/font-awesome/svgs/solid");
-const faMetadataPath = path.join(__dirname, "../fonts/font-awesome/metadata/icons.json");
-const faMetadata = JSON.parse(fs.readFileSync(faMetadataPath, "utf8"));
+const faData = require("@iconify-json/fa6-solid/icons.json");
+const faDefaultW = faData.width || 512;
+const faDefaultH = faData.height || 512;
 
 const faIcons = {};
 let faCount = 0;
-for (const file of fs.readdirSync(faSvgDir).filter((f) => f.endsWith(".svg"))) {
-  const name = file.replace(".svg", "");
-  const svg = fs.readFileSync(path.join(faSvgDir, file), "utf8");
-
-  const viewBoxMatch = svg.match(/viewBox="([^"]+)"/);
-  const pathMatch = svg.match(/<path[^>]*\sd="([^"]+)"/);
-  if (!viewBoxMatch || !pathMatch) continue;
-
+for (const [name, icon] of Object.entries(faData.icons)) {
+  const d = extractPath(icon.body);
+  if (!d) continue;
   faIcons[name] = {
-    viewBox: viewBoxMatch[1],
-    path: pathMatch[1],
-    terms: faMetadata[name]?.search?.terms || [],
+    viewBox: viewBox(icon, faDefaultW, faDefaultH),
+    path: d,
+    terms: name.split("-").filter((t) => t.length > 1),
     set: "fa",
   };
   faCount++;
 }
+resolveAliases(faData, faIcons, faDefaultW, faDefaultH, "", "fa");
+faCount = Object.keys(faIcons).length;
 
 // ── Game Icons, separate JSON file ──
-const giSvgDir = path.join(__dirname, "../fonts/game-icons/svgs");
+const giData = require("@iconify-json/game-icons/icons.json");
+const giDefaultW = giData.width || 512;
+const giDefaultH = giData.height || 512;
+
 const giIcons = {};
 let giCount = 0;
-
-if (fs.existsSync(giSvgDir)) {
-  for (const file of fs.readdirSync(giSvgDir).filter((f) => f.endsWith(".svg"))) {
-    const baseName = file.replace(".svg", "");
-    const prefixedName = `gi-${baseName}`;
-
-    const svg = fs.readFileSync(path.join(giSvgDir, file), "utf8");
-
-    const viewBoxMatch = svg.match(/viewBox="([^"]+)"/);
-    if (!viewBoxMatch) continue;
-
-    // Game icons have two paths: background rect + icon. Get the icon path.
-    const allPaths = [...svg.matchAll(/<path[^>]*\sd="([^"]+)"[^>]*/g)];
-    let iconPath = null;
-    for (const m of allPaths) {
-      if (m[0].includes('fill="#fff"') || m[0].includes("fill='#fff'")) {
-        iconPath = m[1];
-        break;
-      }
-    }
-    if (!iconPath && allPaths.length >= 2) {
-      iconPath = allPaths[1][1];
-    }
-    if (!iconPath) continue;
-
-    const terms = baseName.split("-").filter((t) => t.length > 1);
-
-    giIcons[prefixedName] = {
-      viewBox: viewBoxMatch[1],
-      path: iconPath,
-      terms,
-      set: "gi",
-    };
-    giCount++;
-  }
+for (const [name, icon] of Object.entries(giData.icons)) {
+  const d = extractPath(icon.body);
+  if (!d) continue;
+  const prefixedName = `gi-${name}`;
+  giIcons[prefixedName] = {
+    viewBox: viewBox(icon, giDefaultW, giDefaultH),
+    path: d,
+    terms: name.split("-").filter((t) => t.length > 1),
+    set: "gi",
+  };
+  giCount++;
 }
+resolveAliases(giData, giIcons, giDefaultW, giDefaultH, "gi-", "gi");
+giCount = Object.keys(giIcons).length;
 
 // Write Game Icons JSON (loaded at runtime by the plugin)
 fs.writeFileSync(giJsonFile, JSON.stringify(giIcons), "utf8");

@@ -581,6 +581,16 @@
   opacity: 0.8;
 }
 
+.ttrpgmap-marker-bounce {
+  animation: ttrpgmap-bounce 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  z-index: 15;
+}
+
+@keyframes ttrpgmap-bounce {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -12px; }
+}
+
 /* Resize mode */
 .ttrpgmap-marker-resizing {
   z-index: 20;

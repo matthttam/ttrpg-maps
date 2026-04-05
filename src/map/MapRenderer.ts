@@ -306,6 +306,16 @@ export class MapRenderer extends MarkdownRenderChild {
     const listScroll = listContainer.createDiv({ cls: "ttrpgmap-marker-list-scroll" });
     this.markerListScroll = listScroll;
 
+    // Prevent scroll from zooming the map when the list is scrollable
+    listScroll.addEventListener("wheel", (e) => {
+      const atTop = listScroll.scrollTop === 0;
+      const atBottom = listScroll.scrollTop + listScroll.clientHeight >= listScroll.scrollHeight;
+      const scrollingUp = e.deltaY < 0;
+      // Only let it through if fully scrolled in that direction
+      if ((scrollingUp && atTop) || (!scrollingUp && atBottom)) return;
+      e.stopPropagation();
+    });
+
     // Toggle button at the bottom
     const toggleBtn = panel.createDiv({ cls: "ttrpgmap-marker-list-toggle" });
     setIcon(toggleBtn, "list");
@@ -374,6 +384,16 @@ export class MapRenderer extends MarkdownRenderChild {
         const hiddenIcon = row.createDiv({ cls: "ttrpgmap-marker-list-hidden-icon" });
         setIcon(hiddenIcon, "eye-off");
       }
+
+      // Highlight map marker on hover
+      row.addEventListener("mouseenter", () => {
+        const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
+        if (el) el.addClass("ttrpgmap-marker-bounce");
+      });
+      row.addEventListener("mouseleave", () => {
+        const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
+        if (el) el.removeClass("ttrpgmap-marker-bounce");
+      });
 
       // Description tooltip on hover
       if (marker.description) {
@@ -488,8 +508,7 @@ export class MapRenderer extends MarkdownRenderChild {
     if (newZoom === this.zoom) return;
     this.zoom = newZoom;
     this.applyTransform();
-    this.renderMarkers();
-    this.refreshMarkerList();
+    this.updateMarkerScalesAndVisibility();
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
   }
@@ -677,8 +696,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.panY = cursorY - mapY * newScale;
     this.zoom = newZoom;
     this.applyTransform();
-    this.renderMarkers();
-    this.refreshMarkerList();
+    this.updateMarkerScalesAndVisibility();
 
     const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
     if (label) label.setText(`${this.zoom}%`);
@@ -746,6 +764,47 @@ export class MapRenderer extends MarkdownRenderChild {
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
     });
+  }
+
+  /** Update scale CSS vars and visibility on existing marker elements (no DOM rebuild) */
+  private updateMarkerScalesAndVisibility(): void {
+    if (!this.state) return;
+    const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
+    const mapScaleToZoom = this.getMarkerScaleToZoom();
+    const mapTextScaleToZoom = this.getTextScaleToZoom();
+    const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
+    let needsFullRender = false;
+
+    els.forEach((el) => {
+      const id = el.dataset.markerId;
+      if (!id) return;
+      const marker = markerMap.get(id);
+      if (!marker) return;
+
+      // Update visibility
+      const visible = this.isMarkerVisible(marker);
+      el.style.display = visible ? "" : "none";
+
+      // Update scales
+      const markerBaseScale = this.getMarkerBaseScale(marker);
+      const markerScaleToZoom = marker.scaleToZoom ?? mapScaleToZoom;
+      el.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
+
+      const textBaseScale = this.getTextBaseScale(marker);
+      const textScaleToZoom = marker.textScaleToZoom ?? mapTextScaleToZoom;
+      el.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
+    });
+
+    // Check if any markers became visible/hidden that weren't rendered
+    const renderedIds = new Set<string>();
+    els.forEach((el) => { if (el.dataset.markerId) renderedIds.add(el.dataset.markerId); });
+    for (const marker of this.state.markers) {
+      if (this.isMarkerVisible(marker) && !renderedIds.has(marker.id)) {
+        needsFullRender = true;
+        break;
+      }
+    }
+    if (needsFullRender) this.renderMarkers();
   }
 
   /** Update marker hover state during measurement modes */

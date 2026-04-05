@@ -14,7 +14,7 @@ export interface MarkerFieldState {
   textPlacement: TextPlacement;
   color: string;
   useBaseMarker: boolean;
-  shape: "pin" | "circle";
+  shape: "pin" | "circle" | "hotspot";
 }
 
 interface FieldContext {
@@ -50,6 +50,8 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
   let selected: PinSelection;
   if (!ctx.state.useBaseMarker) {
     selected = "none";
+  } else if (ctx.state.shape === "hotspot") {
+    selected = "hotspot";
   } else if (ctx.state.shape === "circle") {
     selected = "circle";
   } else {
@@ -63,6 +65,9 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
     onChange: (value) => {
       if (value === "none") {
         ctx.state.useBaseMarker = false;
+      } else if (value === "hotspot") {
+        ctx.state.useBaseMarker = true;
+        ctx.state.shape = "hotspot";
       } else if (value === "circle") {
         ctx.state.useBaseMarker = true;
         ctx.state.shape = "circle";

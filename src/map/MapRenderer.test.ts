@@ -64,6 +64,10 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     iconColor: "#000000",
     useBaseMarker: true,
     shape: "pin",
+    scale: null,
+    scaleToZoom: null,
+    textScale: null,
+    textScaleToZoom: null,
     ...overrides,
   };
 }
@@ -105,15 +109,17 @@ describe("MapRenderer DOM", () => {
     expect(label!.textContent).toBe("100%");
   });
 
-  it("renders toolbar with calibrate and measure buttons", async () => {
+  it("renders measurement drawer with calibrate, measure, and freehand buttons", async () => {
     const plugin = createMockPlugin();
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    const toolbar = container.querySelector(".ttrpgmap-toolbar");
-    expect(toolbar).not.toBeNull();
-    const btns = toolbar!.querySelectorAll(".ttrpgmap-toolbar-btn");
-    expect(btns.length).toBe(2);
+    const panel = container.querySelector(".ttrpgmap-measure-panel");
+    expect(panel).not.toBeNull();
+    const tools = panel!.querySelector(".ttrpgmap-measure-tools");
+    expect(tools).not.toBeNull();
+    const btns = tools!.querySelectorAll(".ttrpgmap-toolbar-btn");
+    expect(btns.length).toBe(3);
   });
 
   it("renders settings button", async () => {
@@ -220,6 +226,164 @@ describe("MapRenderer DOM", () => {
     const error = container.querySelector(".ttrpgmap-error");
     expect(error).not.toBeNull();
     expect(error!.textContent).toContain("Image not found");
+  });
+
+  it("renders total display element (hidden by default)", async () => {
+    const plugin = createMockPlugin();
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const total = container.querySelector(".ttrpgmap-measure-total");
+    expect(total).not.toBeNull();
+    expect((total as HTMLElement).style.display).toBe("none");
+  });
+
+  it("renders rounding controls in the measurement drawer", async () => {
+    const plugin = createMockPlugin();
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const rounding = container.querySelector(".ttrpgmap-measure-rounding");
+    expect(rounding).not.toBeNull();
+
+    const select = rounding!.querySelector("select");
+    expect(select).not.toBeNull();
+    const options = select!.querySelectorAll("option");
+    expect(options.length).toBe(3);
+    expect(options[0].value).toBe("none");
+    expect(options[1].value).toBe("up");
+    expect(options[2].value).toBe("down");
+
+    const input = rounding!.querySelector("input[type='number']");
+    expect(input).not.toBeNull();
+  });
+
+  it("measurement drawer is hidden by default", async () => {
+    const plugin = createMockPlugin();
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const drawer = container.querySelector(".ttrpgmap-measure-drawer");
+    expect(drawer).not.toBeNull();
+    expect((drawer as HTMLElement).style.display).toBe("none");
+  });
+
+  it("renders measurement toggle button", async () => {
+    const plugin = createMockPlugin();
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const toggle = container.querySelector(".ttrpgmap-measure-toggle");
+    expect(toggle).not.toBeNull();
+  });
+
+  it("initializes rounding select from state", async () => {
+    const plugin = createMockPlugin({ roundingMode: "up", roundingMultiple: 10 });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const select = container.querySelector(".ttrpgmap-measure-rounding-select") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("up");
+
+    const input = container.querySelector(".ttrpgmap-measure-rounding-input") as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.value).toBe("10");
+  });
+
+  it("sets --marker-scale to 1 on markers by default", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1");
+  });
+
+  it("sets --marker-scale from per-map state", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker], markerScale: 0.75 });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("0.75");
+  });
+
+  it("falls back to global defaultMarkerScale when per-map is not set", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    plugin.settings.defaultMarkerScale = 1.5;
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1.5");
+  });
+
+  it("per-map markerScale takes precedence over global default", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker], markerScale: 0.5 });
+    plugin.settings.defaultMarkerScale = 2.0;
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("0.5");
+  });
+
+  it("scaleMarkersToZoom defaults to true (screen-constant, no zoom factor)", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    // At 100% zoom with scaleToZoom=true: just baseScale, no zoom multiplication
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1");
+  });
+
+  it("scaleMarkersToZoom=false multiplies scale by zoom factor", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker], scaleMarkersToZoom: false, markerScale: 1.0 });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    // At 100% zoom: 1.0 * (100/100) = 1.0
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1");
+  });
+
+  it("per-marker scale override sets --marker-scale on element", async () => {
+    const marker = createMarker({ scale: 0.5 });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("0.5");
+  });
+
+  it("per-marker scaleToZoom=false applies zoom factor to that marker", async () => {
+    const marker = createMarker({ scaleToZoom: false });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    // At 100% zoom: 1.0 * 1.0 = 1.0 (fixed to map but zoom is 100%)
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1");
+  });
+
+  it("marker with null overrides inherits map-level scale", async () => {
+    const marker = createMarker({ scale: null, scaleToZoom: null });
+    const plugin = createMockPlugin({ markers: [marker], markerScale: 1.5 });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1.5");
   });
 });
 

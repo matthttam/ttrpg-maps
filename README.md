@@ -11,7 +11,8 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 
 - **Interactive maps** - Embed any image as a pannable, zoomable map inside a note
 - **Markers with templates** - Create reusable marker templates with custom colors, icons, shapes, and labels. Place markers on maps with a right-click
-- **Distance measurement** - Calibrate a distance scale, then measure distances along multi-point paths
+- **Distance measurement** - Calibrate a distance scale, then measure distances along multi-point or freehand paths with optional rounding
+- **Visibility layers** - Assign markers to zoom-based layers so they appear and disappear at different zoom levels
 - **Marker list panel** - Browse, search, and navigate to markers from a sidebar panel
 - **2,000+ icons** - Choose from Font Awesome and Game Icons libraries for marker icons
 - **Pin and circle shapes** - Markers can render as directional pins or circles, with or without a base shape
@@ -77,11 +78,13 @@ Right-click a marker to edit its properties or delete it. Drag a marker to repos
 
 ### Measuring distances
 
-1. Click the ruler button in the toolbar to calibrate
-2. Click two points on the map and enter the real-world distance between them (e.g., "100 feet")
-3. Click the measure button to start measuring
-4. Click points along a path to see segment and total distances
+1. Click the ruler icon in the top-right corner to open the measurement panel
+2. Click the **calibrate** button, click two points on the map, and enter the real-world distance between them (e.g., "100 feet")
+3. Click the **measure** button to start measuring -- click points along a path to see segment and total distances
+4. Click the **freehand** button to measure along a drawn curve instead of straight segments
 5. Press **Escape** to finish
+
+Optionally configure rounding in the measurement panel to snap distances to the nearest multiple (e.g., round up to the nearest 5 feet).
 
 ### Marker templates
 
@@ -93,6 +96,10 @@ Open **Settings** > **TTRPG Maps** to manage marker templates. Each template def
 - Optional linked note
 
 Individual markers can override any template property. Use the reset button in the marker edit modal to restore template defaults.
+
+### Visibility layers
+
+Layers let you control which markers are visible at different zoom levels. Open map settings to manage layers. Each layer defines a zoom range -- markers assigned to that layer only appear when the current zoom falls within the range. This is useful for showing overview markers when zoomed out and detailed markers when zoomed in.
 
 <!-- TODO: Add screenshot of the settings panel -->
 <!-- ![Settings panel](docs/settings.png) -->

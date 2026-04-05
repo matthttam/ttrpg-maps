@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MapConfig, MapState, MapMarker, MapPoint, DEFAULT_LAYER_ID } from "../types";
+import { MapConfig, MapState, MapMarker, MapPoint, RoundingMode, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
 import { MapSettingsModal } from "../modals/MapSettingsModal";
 import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
@@ -8,9 +8,9 @@ import { serializeMapConfig, writeConfigToCodeBlock } from "../utils/configSeria
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel, linkPath, displayTitle } from "../utils/markerLabel";
 import { setFAIcon } from "../utils/faIcon";
-import { pixelDistance, pixelsToUnits, polylineUnitsDistance } from "../distance";
+import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from "../distance";
 
-type InteractionMode = "pan" | "calibrate" | "measure";
+type InteractionMode = "pan" | "calibrate" | "measure" | "freehand";
 
 export class MapRenderer extends MarkdownRenderChild {
   private plugin: TTRPGMapsPlugin;
@@ -27,6 +27,11 @@ export class MapRenderer extends MarkdownRenderChild {
   private svgOverlay!: SVGSVGElement;
   private toolbar!: HTMLDivElement;
   private markerListScroll: HTMLElement | null = null;
+
+  // Measurement drawer elements
+  private drawerWrapper!: HTMLDivElement;
+  private drawerContent!: HTMLDivElement;
+  private totalDisplay: HTMLDivElement | null = null;
 
   // Pan/zoom state
   private zoom = 100;
@@ -49,6 +54,23 @@ export class MapRenderer extends MarkdownRenderChild {
   private mode: InteractionMode = "pan";
   private drawingPoints: MapPoint[] = [];
   private activeSvgElements: SVGElement[] = [];
+
+  // Freehand state
+  private isDrawingFreehand = false;
+  private freehandStrokes: MapPoint[][] = [];
+  private currentFreehandPolyline: SVGPolylineElement | null = null;
+  private freehandMinDistance = 5; // min pixels between sampled points
+
+  // Resize mode state
+  private resizingMarker: MapMarker | null = null;
+  private resizeMarkerEl: HTMLElement | null = null;
+  private resizeHandleEl: HTMLElement | null = null;
+  private resizeStartX = 0;
+  private resizeStartScale = 1;
+  private resizeTarget: "marker" | "text" = "marker";
+  private resizeHandleSide: "left" | "right" = "right";
+  private isDraggingHandle = false;
+  private _resizeSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(containerEl: HTMLElement, plugin: TTRPGMapsPlugin, config: MapConfig, sourcePath: string, sectionInfo: { lineStart: number; lineEnd: number } | null) {
     super(containerEl);
@@ -104,9 +126,10 @@ export class MapRenderer extends MarkdownRenderChild {
     });
 
     this.buildZoomControls();
-    this.buildToolbar();
+    this.buildMeasureDrawer();
     this.buildSettingsButton();
     this.buildMarkerListPanel();
+    this.buildTotalDisplay();
     this.bindEvents();
     this.renderMarkers();
   }
@@ -137,22 +160,111 @@ export class MapRenderer extends MarkdownRenderChild {
       .addEventListener("click", () => this.centerMap());
   }
 
-  private buildToolbar(): void {
-    this.toolbar = this.wrapper.createDiv({ cls: "ttrpgmap-toolbar" });
+  private buildMeasureDrawer(): void {
+    const panel = this.wrapper.createDiv({ cls: "ttrpgmap-measure-panel" });
 
-    const calibrateBtn = this.toolbar.createDiv({
+    // Toggle button (always visible)
+    const toggleBtn = panel.createDiv({ cls: "ttrpgmap-measure-toggle" });
+    setIcon(toggleBtn, "ruler");
+    toggleBtn.setAttribute("aria-label", "Measurement Tools");
+
+    // Drawer content (hidden by default)
+    this.drawerWrapper = panel.createDiv({ cls: "ttrpgmap-measure-drawer" });
+    this.drawerWrapper.style.display = "none";
+
+    // Tool buttons row
+    const toolRow = this.drawerWrapper.createDiv({ cls: "ttrpgmap-measure-tools" });
+
+    const calibrateBtn = toolRow.createDiv({
       cls: "ttrpgmap-toolbar-btn",
       attr: { "aria-label": "Set Distance Scale" },
     });
-    calibrateBtn.setText("📏");
+    setIcon(calibrateBtn, "scaling");
     calibrateBtn.addEventListener("click", (e) => { e.stopPropagation(); this.setMode("calibrate"); });
 
-    const measureBtn = this.toolbar.createDiv({
+    const measureBtn = toolRow.createDiv({
       cls: "ttrpgmap-toolbar-btn",
       attr: { "aria-label": "Measure Distance" },
     });
-    measureBtn.setText("📐");
+    setIcon(measureBtn, "route");
     measureBtn.addEventListener("click", (e) => { e.stopPropagation(); this.setMode("measure"); });
+
+    const freehandBtn = toolRow.createDiv({
+      cls: "ttrpgmap-toolbar-btn",
+      attr: { "aria-label": "Freehand Measure" },
+    });
+    setIcon(freehandBtn, "pencil");
+    freehandBtn.addEventListener("click", (e) => { e.stopPropagation(); this.setMode("freehand"); });
+
+    // Store toolbar reference for updateToolbarState
+    this.toolbar = toolRow;
+
+    // Rounding settings section
+    const roundingSection = this.drawerWrapper.createDiv({ cls: "ttrpgmap-measure-rounding" });
+    roundingSection.createDiv({ cls: "ttrpgmap-measure-rounding-label", text: "Rounding" });
+
+    const roundingRow = roundingSection.createDiv({ cls: "ttrpgmap-measure-rounding-row" });
+
+    // Mode dropdown
+    const modeSelect = roundingRow.createEl("select", { cls: "ttrpgmap-measure-rounding-select" });
+    const modeNone = modeSelect.createEl("option", { text: "None", value: "none" });
+    const modeUp = modeSelect.createEl("option", { text: "Up to", value: "up" });
+    const modeDown = modeSelect.createEl("option", { text: "Down to", value: "down" });
+
+    const currentMode = this.state?.roundingMode ?? "none";
+    modeNone.selected = currentMode === "none";
+    modeUp.selected = currentMode === "up";
+    modeDown.selected = currentMode === "down";
+
+    // "multiple of" label
+    const multipleLabel = roundingRow.createEl("span", { cls: "ttrpgmap-measure-rounding-of", text: "multiple of" });
+
+    // Multiple input
+    const multipleInput = roundingRow.createEl("input", {
+      cls: "ttrpgmap-measure-rounding-input",
+      type: "number",
+      attr: { min: "0", step: "any" },
+      value: String(this.state?.roundingMultiple ?? 5),
+    });
+
+    // Show/hide multiple controls based on mode
+    const updateMultipleVisibility = () => {
+      const isNone = modeSelect.value === "none";
+      multipleLabel.style.display = isNone ? "none" : "";
+      multipleInput.style.display = isNone ? "none" : "";
+    };
+    updateMultipleVisibility();
+
+    modeSelect.addEventListener("change", () => {
+      if (!this.state) return;
+      this.state.roundingMode = modeSelect.value as RoundingMode;
+      this.plugin.dataManager.saveMapState(this.config.id, this.state);
+      updateMultipleVisibility();
+    });
+
+    multipleInput.addEventListener("change", () => {
+      if (!this.state) return;
+      const val = parseFloat(multipleInput.value);
+      if (!isNaN(val) && val > 0) {
+        this.state.roundingMultiple = val;
+        this.plugin.dataManager.saveMapState(this.config.id, this.state);
+      }
+    });
+
+    // Drawer content ref for updateToolbarState
+    this.drawerContent = this.drawerWrapper;
+
+    // Toggle drawer
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = this.drawerWrapper.style.display !== "none";
+      this.drawerWrapper.style.display = isOpen ? "none" : "flex";
+    });
+  }
+
+  private buildTotalDisplay(): void {
+    this.totalDisplay = this.wrapper.createDiv({ cls: "ttrpgmap-measure-total" });
+    this.totalDisplay.style.display = "none";
   }
 
   private buildSettingsButton(): void {
@@ -302,10 +414,13 @@ export class MapRenderer extends MarkdownRenderChild {
     this.wrapper.addEventListener("contextmenu", this.onContextMenu.bind(this));
     this.wrapper.setAttribute("tabindex", "0");
     this.wrapper.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.mode !== "pan") this.cancelDrawing();
+      if (e.key === "Escape") {
+        if (this.resizingMarker) { this.cancelResize(); return; }
+        if (this.mode !== "pan") this.cancelDrawing();
+      }
     });
     this.wrapper.addEventListener("dblclick", (e) => {
-      if (this.mode === "measure" && this.drawingPoints.length >= 2) {
+      if ((this.mode === "measure" || this.mode === "freehand") && this.getMeasurePointCount() >= 2) {
         e.preventDefault();
         this.finishMeasuring();
       }
@@ -383,7 +498,33 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private onMouseDown(e: MouseEvent): void {
-    if (e.button !== 0 || this.mode !== "pan") return;
+    if (e.button !== 0) return;
+
+    // Resize mode: only start drag if clicking the handle
+    if (this.resizingMarker && this.resizeHandleEl) {
+      const handle = (e.target as HTMLElement).closest(".ttrpgmap-resize-handle");
+      if (handle) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.isDraggingHandle = true;
+        this.resizeStartX = e.clientX;
+        this.resizeStartScale = this.resizeTarget === "marker"
+          ? this.resizingMarker.scale!
+          : this.resizingMarker.textScale!;
+      } else {
+        // Clicked outside handle: commit resize
+        this.commitResize();
+      }
+      return;
+    }
+
+    // Freehand mode: start drawing
+    if (this.mode === "freehand") {
+      this.startFreehand(e);
+      return;
+    }
+
+    if (this.mode !== "pan") return;
     this.isPanning = true;
     this.panStartX = e.clientX - this.panX;
     this.panStartY = e.clientY - this.panY;
@@ -391,6 +532,36 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private onMouseMove(e: MouseEvent): void {
+    // Marker hover proximity for measurement modes
+    if (this.mode !== "pan") {
+      this.updateMarkerMeasureHover(e);
+    }
+
+    // Resize drag (only when actively dragging the handle)
+    if (this.isDraggingHandle && this.resizingMarker && this.resizeMarkerEl) {
+      const rawDx = e.clientX - this.resizeStartX;
+      // Dragging away from the marker = bigger (invert when handle is on the left)
+      const dx = this.resizeHandleSide === "left" ? -rawDx : rawDx;
+      const newScale = Math.max(0.1, Math.min(5.0, this.resizeStartScale + dx * 0.005));
+      if (this.resizeTarget === "marker") {
+        this.resizingMarker.scale = newScale;
+        const stz = this.resizingMarker.scaleToZoom ?? this.getMarkerScaleToZoom();
+        this.resizeMarkerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(newScale, stz)));
+      } else {
+        this.resizingMarker.textScale = newScale;
+        const stz = this.resizingMarker.textScaleToZoom ?? this.getTextScaleToZoom();
+        this.resizeMarkerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(newScale, stz)));
+      }
+      this.updateResizeLabel(newScale);
+      return;
+    }
+
+    // Freehand drawing
+    if (this.isDrawingFreehand) {
+      this.continueFreehand(e);
+      return;
+    }
+
     if (this.draggingMarker && this.dragMarkerEl) {
       const dx = e.clientX - this.dragStartX;
       const dy = e.clientY - this.dragStartY;
@@ -412,12 +583,28 @@ export class MapRenderer extends MarkdownRenderChild {
     this.applyTransform();
   }
 
-  private onMouseUp(): void {
+  private onMouseUp(e: MouseEvent): void {
+    // Resize: end handle drag (but stay in resize mode)
+    if (this.isDraggingHandle) {
+      this.isDraggingHandle = false;
+      // Suppress the click event that fires after mouseup so it doesn't navigate
+      this.hasDragged = true;
+      return;
+    }
+
+    // Freehand: finish current stroke
+    if (this.isDrawingFreehand) {
+      this.endFreehand();
+      return;
+    }
+
     if (this.draggingMarker) {
       this.dragMarkerEl?.removeClass("ttrpgmap-marker-dragging");
       if (this.hasDragged) this.plugin.dataManager.saveMapState(this.config.id, this.state!);
       this.draggingMarker = null;
       this.dragMarkerEl = null;
+      // Suppress the click event that fires after mouseup on the marker
+      this.hasDragged = true;
       return;
     }
     this.isPanning = false;
@@ -426,6 +613,35 @@ export class MapRenderer extends MarkdownRenderChild {
 
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
+
+    // Alt+scroll on a marker: resize it
+    if (e.altKey && this.state) {
+      const markerEl = (e.target as HTMLElement).closest<HTMLElement>(".ttrpgmap-marker");
+      if (markerEl) {
+        const markerId = markerEl.dataset.markerId;
+        const marker = this.state.markers.find((m) => m.id === markerId);
+        if (marker) {
+          // Materialize inherited scale if null
+          if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
+          const SCALE_STEP = 0.05;
+          const scaleDelta = e.deltaY < 0 ? SCALE_STEP : -SCALE_STEP;
+          marker.scale = Math.max(0.1, Math.min(5.0, marker.scale + scaleDelta));
+          // Update CSS variable in-place
+          const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
+          markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(marker.scale, stz)));
+          // Show hotspot markers visibly while resizing
+          markerEl.addClass("ttrpgmap-marker-resizing");
+          // Debounced save + remove resizing class
+          if (this._resizeSaveTimeout) clearTimeout(this._resizeSaveTimeout);
+          this._resizeSaveTimeout = setTimeout(() => {
+            markerEl.removeClass("ttrpgmap-marker-resizing");
+            this.plugin.dataManager.saveMapState(this.config.id, this.state!);
+          }, 300);
+          return;
+        }
+      }
+    }
+
     const delta = e.deltaY < 0 ? this.config.zoomStep : -this.config.zoomStep;
     const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
     if (newZoom === this.zoom) return;
@@ -462,6 +678,31 @@ export class MapRenderer extends MarkdownRenderChild {
     return this.zoom >= min && this.zoom <= max;
   }
 
+  /** Resolve the effective base scale for a marker (walking the 3-tier hierarchy) */
+  private getMarkerBaseScale(marker: MapMarker): number {
+    return marker.scale ?? this.state?.markerScale ?? this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE;
+  }
+
+  /** Resolve the effective base text scale for a marker */
+  private getTextBaseScale(marker: MapMarker): number {
+    return marker.textScale ?? this.state?.markerTextScale ?? this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE;
+  }
+
+  /** Resolve whether a marker scales to zoom */
+  private getMarkerScaleToZoom(): boolean {
+    return this.state?.scaleMarkersToZoom ?? this.plugin.settings.defaultScaleMarkersToZoom ?? true;
+  }
+
+  /** Resolve whether a marker's text scales to zoom */
+  private getTextScaleToZoom(): boolean {
+    return this.state?.scaleMarkerTextToZoom ?? this.plugin.settings.defaultScaleMarkerTextToZoom ?? true;
+  }
+
+  /** Compute effective scale (accounting for zoom if fixed-to-map) */
+  private computeEffectiveScale(baseScale: number, scaleToZoom: boolean): number {
+    return scaleToZoom ? baseScale : baseScale * (this.zoom / 100);
+  }
+
   /** Convert natural image coords to screen coords within the wrapper */
   private toScreenCoords(natX: number, natY: number): { x: number; y: number } {
     const { sx, sy } = this.getImageScale();
@@ -488,9 +729,32 @@ export class MapRenderer extends MarkdownRenderChild {
     });
   }
 
+  /** Update marker hover state during measurement modes */
+  private updateMarkerMeasureHover(e: MouseEvent): void {
+    const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
+    const mx = e.clientX;
+    const my = e.clientY;
+    els.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      // Expand hit area slightly for easier detection
+      const pad = 5;
+      const isNear = mx >= rect.left - pad && mx <= rect.right + pad &&
+                     my >= rect.top - pad && my <= rect.bottom + pad;
+      el.toggleClass("ttrpgmap-marker-measure-hover", isNear);
+    });
+  }
+
   private renderMarkers(): void {
     if (!this.state) return;
+    // Null out handle ref before DOM wipe (the element itself is removed with the markers)
+    this.resizeHandleEl = null;
+    this.isDraggingHandle = false;
     this.markerOverlay.querySelectorAll(".ttrpgmap-marker").forEach((el) => el.remove());
+
+    const mapScaleToZoom = this.getMarkerScaleToZoom();
+    const mapTextScaleToZoom = this.getTextScaleToZoom();
+
+    const isMeasuring = this.mode !== "pan";
 
     for (const marker of this.state.markers) {
       if (!this.isMarkerVisible(marker)) continue;
@@ -509,6 +773,21 @@ export class MapRenderer extends MarkdownRenderChild {
       markerEl.dataset.textPlacement = textPlacement;
       markerEl.dataset.markerId = marker.id;
 
+      // Compute effective scale for marker pin/icon
+      const markerBaseScale = this.getMarkerBaseScale(marker);
+      const markerScaleToZoom = marker.scaleToZoom ?? mapScaleToZoom;
+      markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
+
+      // Compute effective scale for text label
+      const textBaseScale = this.getTextBaseScale(marker);
+      const textScaleToZoom = marker.textScaleToZoom ?? mapTextScaleToZoom;
+      markerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
+
+      // In measurement modes, disable marker interaction
+      if (isMeasuring) {
+        markerEl.addClass("ttrpgmap-marker-measuring");
+      }
+
       // Pin with icon
       const useBaseMarker = marker.useBaseMarker ?? true;
       const shape = marker.shape ?? "pin";
@@ -526,39 +805,66 @@ export class MapRenderer extends MarkdownRenderChild {
       // Label
       buildMarkerLabel(markerEl, marker.note, marker.description, "ttrpgmap-marker-label");
 
-      // Click to navigate
-      if (marker.note) {
+      // Click to navigate (only in pan mode)
+      if (marker.note && !isMeasuring) {
         const navPath = linkPath(marker.note);
         markerEl.addEventListener("click", (e) => {
-          if (this.hasDragged) return;
+          if (this.hasDragged) { this.hasDragged = false; return; }
           e.stopPropagation();
           this.plugin.app.workspace.openLinkText(navPath, "");
         });
       }
 
-      // Drag to reposition
-      markerEl.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
-        e.stopPropagation();
-        this.draggingMarker = marker;
-        this.dragMarkerEl = markerEl;
-        this.dragStartX = e.clientX;
-        this.dragStartY = e.clientY;
-        this.dragOrigX = marker.x;
-        this.dragOrigY = marker.y;
-        this.hasDragged = false;
-        markerEl.addClass("ttrpgmap-marker-dragging");
-      });
+      // Drag to reposition (only in pan mode)
+      if (!isMeasuring) {
+        markerEl.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return;
+          // Don't start a positional drag when in resize mode
+          if (this.resizingMarker) return;
+          e.stopPropagation();
+          this.draggingMarker = marker;
+          this.dragMarkerEl = markerEl;
+          this.dragStartX = e.clientX;
+          this.dragStartY = e.clientY;
+          this.dragOrigX = marker.x;
+          this.dragOrigY = marker.y;
+          this.hasDragged = false;
+          markerEl.addClass("ttrpgmap-marker-dragging");
+        });
+      }
 
-      // Right-click menu
-      markerEl.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const menu = new Menu();
-        menu.addItem((item) => { item.setTitle("Edit"); item.onClick(() => this.editMarker(marker)); });
-        menu.addItem((item) => { item.setTitle("Delete"); item.onClick(() => this.deleteMarker(marker)); });
-        menu.showAtMouseEvent(e);
-      });
+      // Right-click menu (only in pan mode)
+      if (!isMeasuring) {
+        markerEl.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this.resizingMarker) this.commitResize();
+          const menu = new Menu();
+          menu.addItem((item) => { item.setTitle("Edit"); item.setIcon("pencil"); item.onClick(() => this.editMarker(marker)); });
+          menu.addItem((item) => { item.setTitle("Resize Marker"); item.setIcon("maximize-2"); item.onClick(() => this.enterResizeMode(marker, markerEl, "marker")); });
+          menu.addItem((item) => { item.setTitle("Resize Text"); item.setIcon("a-large-small"); item.onClick(() => this.enterResizeMode(marker, markerEl, "text")); });
+          menu.addItem((item) => { item.setTitle("Delete"); item.setIcon("trash-2"); item.onClick(() => this.deleteMarker(marker)); });
+          menu.showAtMouseEvent(e);
+        });
+      }
+    }
+
+    // Re-acquire resize target if renderMarkers() was called mid-resize
+    if (this.resizingMarker) {
+      const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${this.resizingMarker.id}"]`);
+      if (el) {
+        // Re-enter resize mode on the new element (rebuilds the handle)
+        const marker = this.resizingMarker;
+        const target = this.resizeTarget;
+        const startScale = this.resizeStartScale;
+        this.cleanupResizeHandle();
+        this.resizeMarkerEl = null;
+        this.resizingMarker = null;
+        this.enterResizeMode(marker, el, target);
+        this.resizeStartScale = startScale;
+      } else {
+        this.cancelResize();
+      }
     }
   }
 
@@ -578,6 +884,10 @@ export class MapRenderer extends MarkdownRenderChild {
       iconColor: template?.iconColor ?? "#000000",
       useBaseMarker: template?.useBaseMarker ?? true,
       shape: template?.shape ?? "pin",
+      scale: null,
+      scaleToZoom: null,
+      textScale: null,
+      textScaleToZoom: null,
     };
 
     new MarkerEditModal(this.plugin.app, this.plugin, marker, this.state.layers, (updated) => {
@@ -590,6 +900,7 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private editMarker(marker: MapMarker): void {
+    if (this.resizingMarker) this.commitResize();
     new MarkerEditModal(this.plugin.app, this.plugin, marker, this.state?.layers ?? [], (updated) => {
       Object.assign(marker, updated);
       this.plugin.dataManager.saveMapState(this.config.id, this.state!);
@@ -606,12 +917,100 @@ export class MapRenderer extends MarkdownRenderChild {
     this.refreshMarkerList();
   }
 
+  // ──────────────────── Resize Mode ────────────────────
+
+  private enterResizeMode(marker: MapMarker, markerEl: HTMLElement, target: "marker" | "text"): void {
+    // Ensure only one resize handle exists at a time
+    if (this.resizingMarker) this.commitResize();
+    // Materialize inherited scale so we have a concrete value to adjust
+    if (target === "marker") {
+      if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
+    } else {
+      if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
+    }
+    this.resizingMarker = marker;
+    this.resizeMarkerEl = markerEl;
+    this.resizeTarget = target;
+    this.resizeStartScale = target === "marker" ? marker.scale! : marker.textScale!;
+    markerEl.addClass("ttrpgmap-marker-resizing");
+
+    // Determine which side to place the handle to avoid text overlap
+    const textPlacement = markerEl.dataset.textPlacement ?? "above";
+    let handleSide: "left" | "right";
+    if (target === "marker") {
+      // Marker handle goes opposite text when text is left/right
+      handleSide = textPlacement === "right" ? "left" : "right";
+    } else {
+      // Text handle goes opposite marker handle: same side as text, or left by default
+      handleSide = textPlacement === "right" ? "right" : "left";
+    }
+
+    // Build the drag handle
+    const handle = markerEl.createDiv({ cls: "ttrpgmap-resize-handle" });
+    handle.dataset.side = handleSide;
+    this.resizeHandleSide = handleSide;
+
+    const grip = handle.createDiv({ cls: "ttrpgmap-resize-grip" });
+    setIcon(grip, "grip-vertical");
+
+    const label = handle.createDiv({ cls: "ttrpgmap-resize-label" });
+    label.setText(`${this.resizeStartScale.toFixed(2)}x`);
+
+    const tag = handle.createDiv({ cls: "ttrpgmap-resize-tag" });
+    tag.setText(target === "marker" ? "Marker" : "Text");
+
+    this.resizeHandleEl = handle;
+  }
+
+  private updateResizeLabel(scale: number): void {
+    const label = this.resizeHandleEl?.querySelector(".ttrpgmap-resize-label");
+    if (label) label.setText(`${scale.toFixed(2)}x`);
+  }
+
+  private cleanupResizeHandle(): void {
+    // Remove all resize handles in the overlay (defensive: ensures singleton)
+    this.markerOverlay?.querySelectorAll(".ttrpgmap-resize-handle").forEach((el) => el.remove());
+    this.resizeHandleEl = null;
+    this.isDraggingHandle = false;
+    if (this.resizeMarkerEl) {
+      this.resizeMarkerEl.removeClass("ttrpgmap-marker-resizing");
+    }
+  }
+
+  private commitResize(): void {
+    this.cleanupResizeHandle();
+    this.plugin.dataManager.saveMapState(this.config.id, this.state!);
+    this.resizingMarker = null;
+    this.resizeMarkerEl = null;
+  }
+
+  private cancelResize(): void {
+    if (this.resizingMarker && this.resizeMarkerEl) {
+      // Revert to original scale
+      if (this.resizeTarget === "marker") {
+        this.resizingMarker.scale = this.resizeStartScale;
+        const stz = this.resizingMarker.scaleToZoom ?? this.getMarkerScaleToZoom();
+        this.resizeMarkerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(this.resizeStartScale, stz)));
+      } else {
+        this.resizingMarker.textScale = this.resizeStartScale;
+        const stz = this.resizingMarker.textScaleToZoom ?? this.getTextScaleToZoom();
+        this.resizeMarkerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(this.resizeStartScale, stz)));
+      }
+    }
+    this.cleanupResizeHandle();
+    this.resizingMarker = null;
+    this.resizeMarkerEl = null;
+  }
+
   // ──────────────────── Context Menu ────────────────────
 
   private onContextMenu(e: MouseEvent): void {
     e.preventDefault();
 
-    if (this.mode === "measure" && this.drawingPoints.length >= 2) { this.finishMeasuring(); return; }
+    // Close any active resize handle when opening map context menu
+    if (this.resizingMarker) this.commitResize();
+
+    if ((this.mode === "measure" || this.mode === "freehand") && this.getMeasurePointCount() >= 2) { this.finishMeasuring(); return; }
     if (this.mode !== "pan") { this.cancelDrawing(); return; }
     if (!this.state) return;
 
@@ -649,6 +1048,7 @@ export class MapRenderer extends MarkdownRenderChild {
       for (const template of templates) {
         menu.addItem((item) => {
           item.setTitle(template.name);
+          item.setIcon(template.shape === "hotspot" ? "circle-dashed" : "map-pin");
           if (hasMultipleLayers) {
             const sub = (item as any).setSubmenu();
             for (const layer of layers) {
@@ -678,28 +1078,43 @@ export class MapRenderer extends MarkdownRenderChild {
     menu.showAtMouseEvent(e);
   }
 
-  // ──────────────────── Drawing (Calibrate / Measure) ────────────────────
+  // ──────────────────── Drawing (Calibrate / Measure / Freehand) ────────────────────
 
   private setMode(mode: InteractionMode): void {
     if (this.mode === mode) { this.cancelDrawing(); return; }
-    if (mode === "measure" && !this.state?.distanceScale) {
-      new Notice("Set a distance scale first (📏) before measuring.");
+    if ((mode === "measure" || mode === "freehand") && !this.state?.distanceScale) {
+      new Notice("Set a distance scale first before measuring.");
       return;
     }
     this.mode = mode;
     this.drawingPoints = [];
+    this.freehandStrokes = [];
     this.clearActiveSvg();
     this.updateToolbarState();
+    this.updateMeasureMode();
     this.wrapper.style.cursor = this.mode === "pan" ? "grab" : "crosshair";
   }
 
   private cancelDrawing(): void {
     this.mode = "pan";
     this.drawingPoints = [];
+    this.freehandStrokes = [];
+    this.isDrawingFreehand = false;
+    this.currentFreehandPolyline = null;
     this.clearActiveSvg();
     this.updateToolbarState();
+    this.updateMeasureMode();
+    this.hideTotalDisplay();
     this.wrapper.style.cursor = "grab";
     this.wrapper.removeClass("ttrpgmap-panning");
+  }
+
+  /** Update markers and wrapper class when entering/leaving measurement modes */
+  private updateMeasureMode(): void {
+    const isMeasuring = this.mode !== "pan";
+    this.wrapper.toggleClass("ttrpgmap-measuring", isMeasuring);
+    // Re-render markers to add/remove measurement class
+    this.renderMarkers();
   }
 
   private updateToolbarState(): void {
@@ -707,10 +1122,11 @@ export class MapRenderer extends MarkdownRenderChild {
     buttons.forEach((btn) => btn.removeClass("ttrpgmap-toolbar-btn-active"));
     if (this.mode === "calibrate") buttons[0]?.addClass("ttrpgmap-toolbar-btn-active");
     else if (this.mode === "measure") buttons[1]?.addClass("ttrpgmap-toolbar-btn-active");
+    else if (this.mode === "freehand") buttons[2]?.addClass("ttrpgmap-toolbar-btn-active");
   }
 
   private onMapClick(e: MouseEvent): void {
-    if (this.mode === "pan") return;
+    if (this.mode === "pan" || this.mode === "freehand") return;
     const rect = this.mapContainer.getBoundingClientRect();
     const scale = this.zoom / 100;
     const point: MapPoint = { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
@@ -745,16 +1161,165 @@ export class MapRenderer extends MarkdownRenderChild {
     if (this.state?.distanceScale) {
       const segDist = pixelsToUnits(pixelDistance(prev, curr), this.state.distanceScale);
       if (segDist !== null) {
+        const rounded = this.roundDistance(segDist);
         const mid: MapPoint = { x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2 };
-        this.drawSvgText(mid, `${segDist.toFixed(1)} ${this.state.distanceScale.unitLabel}`, "ttrpgmap-draw-label");
+        this.drawSvgText(mid, `${rounded.toFixed(1)} ${this.state.distanceScale.unitLabel}`, "ttrpgmap-draw-label");
       }
     }
+    this.updateTotalDisplay();
+  }
+
+  // ──────────────────── Freehand Drawing ────────────────────
+
+  private screenToMap(e: MouseEvent): MapPoint {
+    const rect = this.mapContainer.getBoundingClientRect();
+    const scale = this.zoom / 100;
+    return { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
+  }
+
+  private startFreehand(e: MouseEvent): void {
+    // Don't start on UI elements
+    const target = e.target as HTMLElement;
+    if (target.closest(".ttrpgmap-measure-panel") || target.closest(".ttrpgmap-zoom-controls") ||
+        target.closest(".ttrpgmap-settings-btn") || target.closest(".ttrpgmap-marker-list-panel")) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    this.isDrawingFreehand = true;
+
+    const point = this.screenToMap(e);
+    const stroke: MapPoint[] = [point];
+    this.freehandStrokes.push(stroke);
+
+    // Create SVG polyline for this stroke
+    const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    polyline.setAttribute("class", "ttrpgmap-draw-line ttrpgmap-freehand-line");
+    polyline.setAttribute("points", `${point.x},${point.y}`);
+    polyline.setAttribute("fill", "none");
+    this.svgOverlay.appendChild(polyline);
+    this.activeSvgElements.push(polyline);
+    this.currentFreehandPolyline = polyline;
+
+    // Draw start circle
+    this.drawSvgCircle(point, 4, "ttrpgmap-draw-point");
+  }
+
+  private continueFreehand(e: MouseEvent): void {
+    if (!this.isDrawingFreehand || !this.currentFreehandPolyline) return;
+    const currentStroke = this.freehandStrokes[this.freehandStrokes.length - 1];
+    if (!currentStroke || currentStroke.length === 0) return;
+
+    const point = this.screenToMap(e);
+    const last = currentStroke[currentStroke.length - 1];
+    const dx = point.x - last.x;
+    const dy = point.y - last.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < this.freehandMinDistance) return;
+
+    currentStroke.push(point);
+
+    // Update polyline points attribute
+    const pointsStr = currentStroke.map((p) => `${p.x},${p.y}`).join(" ");
+    this.currentFreehandPolyline.setAttribute("points", pointsStr);
+
+    this.updateTotalDisplay();
+  }
+
+  private endFreehand(): void {
+    this.isDrawingFreehand = false;
+
+    const currentStroke = this.freehandStrokes[this.freehandStrokes.length - 1];
+    if (currentStroke && currentStroke.length > 0) {
+      // Draw end circle
+      this.drawSvgCircle(currentStroke[currentStroke.length - 1], 4, "ttrpgmap-draw-point");
+
+      // Show segment distance label at midpoint of stroke
+      if (this.state?.distanceScale && currentStroke.length >= 2) {
+        const strokeDist = polylineUnitsDistance(currentStroke, this.state.distanceScale);
+        if (strokeDist !== null) {
+          const midIdx = Math.floor(currentStroke.length / 2);
+          const mid = currentStroke[midIdx];
+          const rounded = this.roundDistance(strokeDist);
+          this.drawSvgText(mid, `${rounded.toFixed(1)} ${this.state.distanceScale.unitLabel}`, "ttrpgmap-draw-label");
+        }
+      }
+    }
+
+    this.currentFreehandPolyline = null;
+    this.updateTotalDisplay();
+  }
+
+  // ──────────────────── Measurement Helpers ────────────────────
+
+  /** Get total point count across measure mode and freehand strokes */
+  private getMeasurePointCount(): number {
+    if (this.mode === "freehand") {
+      let total = 0;
+      for (const stroke of this.freehandStrokes) total += stroke.length;
+      return total;
+    }
+    return this.drawingPoints.length;
+  }
+
+  /** Calculate the total measured distance in map units */
+  private calculateTotalDistance(): number | null {
+    if (!this.state?.distanceScale) return null;
+    if (this.mode === "freehand") {
+      let total = 0;
+      for (const stroke of this.freehandStrokes) {
+        if (stroke.length >= 2) {
+          const d = polylineUnitsDistance(stroke, this.state.distanceScale);
+          if (d !== null) total += d;
+        }
+      }
+      return total > 0 ? total : null;
+    }
+    if (this.drawingPoints.length >= 2) {
+      return polylineUnitsDistance(this.drawingPoints, this.state.distanceScale);
+    }
+    return null;
+  }
+
+  /** Apply rounding settings to a distance value */
+  private roundDistance(value: number): number {
+    const mode = this.state?.roundingMode ?? "none";
+    const multiple = this.state?.roundingMultiple ?? 5;
+    return applyRounding(value, mode, multiple);
+  }
+
+  /** Format a distance for display, applying rounding */
+  private formatDistance(value: number): string {
+    const rounded = this.roundDistance(value);
+    const label = this.state?.distanceScale?.unitLabel ?? "";
+    // Show clean integer if rounding produces one, otherwise 1 decimal
+    const display = rounded === Math.floor(rounded) ? String(rounded) : rounded.toFixed(1);
+    return `${display} ${label}`;
+  }
+
+  private updateTotalDisplay(): void {
+    if (!this.totalDisplay) return;
+    const total = this.calculateTotalDistance();
+    if (total === null || total === 0) {
+      this.totalDisplay.style.display = "none";
+      return;
+    }
+    this.totalDisplay.style.display = "block";
+    this.totalDisplay.textContent = `Total Distance: ${this.formatDistance(total)}`;
+  }
+
+  private hideTotalDisplay(): void {
+    if (this.totalDisplay) this.totalDisplay.style.display = "none";
   }
 
   private finishMeasuring(): void {
-    if (!this.state?.distanceScale || this.drawingPoints.length < 2) { this.cancelDrawing(); return; }
-    const total = polylineUnitsDistance(this.drawingPoints, this.state.distanceScale);
-    if (total !== null) new Notice(`Total distance: ${total.toFixed(1)} ${this.state.distanceScale.unitLabel}`);
+    if (!this.state?.distanceScale) { this.cancelDrawing(); return; }
+    const total = this.calculateTotalDistance();
+    if (total !== null) {
+      new Notice(`Total Distance: ${this.formatDistance(total)}`);
+    }
     this.cancelDrawing();
   }
 

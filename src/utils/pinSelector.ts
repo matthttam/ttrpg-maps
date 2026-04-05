@@ -1,8 +1,8 @@
-import { createPinSvg, createCircleSvg } from "./markerPin";
+import { createPinSvg, createCircleSvg, createHotspotSvg } from "./markerPin";
 
-export type PinSelection = "none" | "down" | "up" | "left" | "right" | "circle";
+export type PinSelection = "none" | "down" | "up" | "left" | "right" | "circle" | "hotspot";
 
-const SELECTIONS: PinSelection[] = ["none", "down", "up", "left", "right", "circle"];
+const SELECTIONS: PinSelection[] = ["none", "down", "up", "left", "right", "circle", "hotspot"];
 
 const ROTATION: Record<string, string> = {
   down: "0deg",
@@ -35,13 +35,17 @@ export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color:
   let currentColor = opts.color;
 
   for (const sel of SELECTIONS) {
+    const label = sel === "none" ? "No pin" : sel === "circle" ? "Circle" : sel === "hotspot" ? "Hotspot" : `Pin ${sel}`;
     const btn = btnGroup.createDiv({
       cls: `ttrpgmap-pin-selector-btn ${opts.selected === sel ? "ttrpgmap-pin-selector-active" : ""}`,
-      attr: { "aria-label": sel === "none" ? "No pin" : sel === "circle" ? "Circle" : `Pin ${sel}` },
+      attr: { "aria-label": label },
     });
 
     if (sel === "none") {
       btn.createDiv({ cls: "ttrpgmap-pin-selector-none", text: "✕" });
+    } else if (sel === "hotspot") {
+      const hotspotWrap = btn.createDiv({ cls: "ttrpgmap-pin-selector-circle" });
+      hotspotWrap.appendChild(createHotspotSvg("ttrpgmap-pin-selector-svg"));
     } else if (sel === "circle") {
       const circleWrap = btn.createDiv({ cls: "ttrpgmap-pin-selector-circle" });
       circleWrap.appendChild(createCircleSvg(ICON_COLOR, "ttrpgmap-pin-selector-svg"));

@@ -58,6 +58,7 @@ export class Modal {
 
 export class Setting {
   controlEl: HTMLElement = document.createElement("div");
+  nameEl: HTMLElement = document.createElement("div");
   constructor(containerEl: HTMLElement) {}
   setName(name: string) { return this; }
   setDesc(desc: string) { return this; }
@@ -67,6 +68,7 @@ export class Setting {
       inputEl: document.createElement("input"),
       setPlaceholder(p: string) { return text; },
       setValue(v: string) { return text; },
+      setDisabled(d: boolean) { return text; },
       onChange(cb: (v: string) => void) { return text; },
     };
     cb(text);
@@ -116,6 +118,17 @@ export class Setting {
       onChange(cb: (v: boolean) => void) { return toggle; },
     };
     cb(toggle);
+    return this;
+  }
+  addSlider(cb: (slider: any) => void) {
+    const slider = {
+      setLimits(min: number, max: number, step: number) { return slider; },
+      setValue(v: number) { return slider; },
+      setDynamicTooltip() { return slider; },
+      setDisabled(d: boolean) { return slider; },
+      onChange(cb: (v: number) => void) { return slider; },
+    };
+    cb(slider);
     return this;
   }
 }

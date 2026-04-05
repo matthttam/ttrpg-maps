@@ -20,7 +20,11 @@ export class MarkerEditModal extends Modal {
     icon: string | null;
     iconColor: string | null;
     useBaseMarker: boolean | null;
-    shape: "pin" | "circle" | null;
+    shape: "pin" | "circle" | "hotspot" | null;
+    scale: number | null;
+    scaleToZoom: boolean | null;
+    textScale: number | null;
+    textScaleToZoom: boolean | null;
   };
   private onSave: (marker: typeof this.marker) => void;
 
@@ -67,7 +71,7 @@ export class MarkerEditModal extends Modal {
       textPlacement: (this.marker.textPlacement ?? "above") as TextPlacement,
       color: this.marker.color ?? "#ffffff",
       useBaseMarker: this.marker.useBaseMarker ?? true,
-      shape: (this.marker.shape ?? "pin") as "pin" | "circle",
+      shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
     };
   }
 
@@ -100,7 +104,7 @@ export class MarkerEditModal extends Modal {
       iconColor: this.marker.iconColor ?? "#000000",
       iconClass: "ttrpgmap-edit-preview-icon",
       useBaseMarker: usePin,
-      shape: (this.marker.shape ?? "pin") as "pin" | "circle",
+      shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
     });
 
     buildMarkerLabel(wrapper, this.marker.note, this.marker.description, "ttrpgmap-edit-preview-label");
@@ -224,6 +228,154 @@ export class MarkerEditModal extends Modal {
       this.marker.iconColor = template?.iconColor ?? "#000000";
       iconColorPicker.setValue(this.marker.iconColor);
     });
+
+    // ── Scale ──
+    const hasScaleOverride = this.marker.scale != null;
+    const defaultScale = 100;
+    let scaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
+    let scaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
+
+    const markerScaleSetting = new Setting(mainCol)
+      .setName("Marker Size")
+      .setDesc("Override the map marker scale for this marker");
+
+    markerScaleSetting.addSlider((slider) => {
+      scaleSlider = slider;
+      slider
+        .setLimits(25, 300, 5)
+        .setValue(this.marker.scale != null ? Math.round(this.marker.scale * 100) : defaultScale)
+        .onChange((value) => {
+          this.marker.scale = value / 100;
+          if (scaleTextInput) scaleTextInput.setValue(String(value));
+        });
+      if (!hasScaleOverride) slider.setDisabled(true);
+    });
+
+    markerScaleSetting.addText((text) => {
+      scaleTextInput = text as any;
+      text.inputEl.type = "number";
+      text.inputEl.min = "25";
+      text.inputEl.max = "300";
+      text.inputEl.step = "5";
+      text.inputEl.addClass("ttrpgmap-scale-input");
+      text
+        .setValue(String(this.marker.scale != null ? Math.round(this.marker.scale * 100) : defaultScale))
+        .onChange((value) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num >= 25 && num <= 300) {
+            this.marker.scale = num / 100;
+            if (scaleSlider) scaleSlider.setValue(num);
+          }
+        });
+      if (!hasScaleOverride) text.setDisabled(true);
+    });
+
+    markerScaleSetting.addToggle((toggle) => {
+      toggle
+        .setValue(hasScaleOverride)
+        .onChange((enabled) => {
+          if (enabled) {
+            this.marker.scale = 1.0;
+            if (scaleSlider) { (scaleSlider as any).setDisabled(false); scaleSlider.setValue(defaultScale); }
+            if (scaleTextInput) { (scaleTextInput as any).setDisabled(false); scaleTextInput.setValue(String(defaultScale)); }
+          } else {
+            this.marker.scale = null;
+            if (scaleSlider) { (scaleSlider as any).setDisabled(true); scaleSlider.setValue(defaultScale); }
+            if (scaleTextInput) { (scaleTextInput as any).setDisabled(true); scaleTextInput.setValue(String(defaultScale)); }
+          }
+        });
+    });
+
+    // ── Scale to Zoom ──
+    new Setting(mainCol)
+      .setName("Scale to Zoom")
+      .setDesc("How this marker behaves when zooming")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("inherit", "Inherit")
+          .addOption("screen", "Screen-constant")
+          .addOption("map", "Fixed to map")
+          .setValue(this.marker.scaleToZoom === null ? "inherit" : this.marker.scaleToZoom ? "screen" : "map")
+          .onChange((value) => {
+            if (value === "inherit") this.marker.scaleToZoom = null;
+            else if (value === "screen") this.marker.scaleToZoom = true;
+            else this.marker.scaleToZoom = false;
+          });
+      });
+
+    // ── Text Scale ──
+    const hasTextScaleOverride = this.marker.textScale != null;
+    const defaultTextScale = 100;
+    let textScaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
+    let textScaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
+
+    const textScaleSetting = new Setting(mainCol)
+      .setName("Text Size")
+      .setDesc("Override the text label scale for this marker");
+
+    textScaleSetting.addSlider((slider) => {
+      textScaleSlider = slider;
+      slider
+        .setLimits(25, 300, 5)
+        .setValue(this.marker.textScale != null ? Math.round(this.marker.textScale * 100) : defaultTextScale)
+        .onChange((value) => {
+          this.marker.textScale = value / 100;
+          if (textScaleTextInput) textScaleTextInput.setValue(String(value));
+        });
+      if (!hasTextScaleOverride) slider.setDisabled(true);
+    });
+
+    textScaleSetting.addText((text) => {
+      textScaleTextInput = text as any;
+      text.inputEl.type = "number";
+      text.inputEl.min = "25";
+      text.inputEl.max = "300";
+      text.inputEl.step = "5";
+      text.inputEl.addClass("ttrpgmap-scale-input");
+      text
+        .setValue(String(this.marker.textScale != null ? Math.round(this.marker.textScale * 100) : defaultTextScale))
+        .onChange((value) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num >= 25 && num <= 300) {
+            this.marker.textScale = num / 100;
+            if (textScaleSlider) textScaleSlider.setValue(num);
+          }
+        });
+      if (!hasTextScaleOverride) text.setDisabled(true);
+    });
+
+    textScaleSetting.addToggle((toggle) => {
+      toggle
+        .setValue(hasTextScaleOverride)
+        .onChange((enabled) => {
+          if (enabled) {
+            this.marker.textScale = 1.0;
+            if (textScaleSlider) { (textScaleSlider as any).setDisabled(false); textScaleSlider.setValue(defaultTextScale); }
+            if (textScaleTextInput) { (textScaleTextInput as any).setDisabled(false); textScaleTextInput.setValue(String(defaultTextScale)); }
+          } else {
+            this.marker.textScale = null;
+            if (textScaleSlider) { (textScaleSlider as any).setDisabled(true); textScaleSlider.setValue(defaultTextScale); }
+            if (textScaleTextInput) { (textScaleTextInput as any).setDisabled(true); textScaleTextInput.setValue(String(defaultTextScale)); }
+          }
+        });
+    });
+
+    // ── Text Scale to Zoom ──
+    new Setting(mainCol)
+      .setName("Text Scale to Zoom")
+      .setDesc("How this marker's text behaves when zooming")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("inherit", "Inherit")
+          .addOption("screen", "Screen-constant")
+          .addOption("map", "Fixed to map")
+          .setValue(this.marker.textScaleToZoom === null ? "inherit" : this.marker.textScaleToZoom ? "screen" : "map")
+          .onChange((value) => {
+            if (value === "inherit") this.marker.textScaleToZoom = null;
+            else if (value === "screen") this.marker.textScaleToZoom = true;
+            else this.marker.textScaleToZoom = false;
+          });
+      });
 
     // ── Save / Cancel ──
     new Setting(mainCol)

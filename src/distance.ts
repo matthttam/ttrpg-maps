@@ -1,4 +1,4 @@
-import { MapPoint, DistanceScale } from "./types";
+import { MapPoint, DistanceScale, RoundingMode } from "./types";
 
 /** Euclidean distance between two points in pixels */
 export function pixelDistance(a: MapPoint, b: MapPoint): number {
@@ -63,4 +63,15 @@ export function segmentDistances(points: MapPoint[], scale: DistanceScale): numb
     distances.push(pixelDistance(points[i - 1], points[i]) * ratio);
   }
   return distances;
+}
+
+/**
+ * Round a distance value to a multiple according to the rounding mode.
+ * Returns the original value if mode is "none" or multiple is <= 0.
+ */
+export function applyRounding(value: number, mode: RoundingMode, multiple: number): number {
+  if (mode === "none" || multiple <= 0) return value;
+  if (mode === "up") return Math.ceil(value / multiple) * multiple;
+  if (mode === "down") return Math.floor(value / multiple) * multiple;
+  return value;
 }

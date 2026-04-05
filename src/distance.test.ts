@@ -6,6 +6,7 @@ import {
   polylinePixelDistance,
   polylineUnitsDistance,
   segmentDistances,
+  applyRounding,
 } from "./distance";
 import { DistanceScale, MapPoint } from "./types";
 
@@ -212,5 +213,41 @@ describe("segmentDistances", () => {
       unitLabel: "feet",
     };
     expect(segmentDistances([{ x: 0, y: 0 }, { x: 10, y: 0 }], badScale)).toBeNull();
+  });
+});
+
+describe("applyRounding", () => {
+  it("returns original value when mode is 'none'", () => {
+    expect(applyRounding(7.3, "none", 5)).toBe(7.3);
+  });
+
+  it("rounds up to the nearest multiple", () => {
+    expect(applyRounding(7, "up", 5)).toBe(10);
+    expect(applyRounding(10, "up", 5)).toBe(10);
+    expect(applyRounding(0.1, "up", 5)).toBe(5);
+  });
+
+  it("rounds down to the nearest multiple", () => {
+    expect(applyRounding(7, "down", 5)).toBe(5);
+    expect(applyRounding(10, "down", 5)).toBe(10);
+    expect(applyRounding(4.9, "down", 5)).toBe(0);
+  });
+
+  it("returns original value when multiple is 0", () => {
+    expect(applyRounding(7, "up", 0)).toBe(7);
+  });
+
+  it("returns original value when multiple is negative", () => {
+    expect(applyRounding(7, "up", -5)).toBe(7);
+  });
+
+  it("handles zero value", () => {
+    expect(applyRounding(0, "up", 5)).toBe(0);
+    expect(applyRounding(0, "down", 5)).toBe(0);
+  });
+
+  it("works with non-integer multiples", () => {
+    expect(applyRounding(1.3, "up", 0.5)).toBe(1.5);
+    expect(applyRounding(1.3, "down", 0.5)).toBe(1);
   });
 });

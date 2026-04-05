@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPinSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "./markerPin";
+import { createPinSvg, createCircleSvg, createHotspotSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "./markerPin";
 import { getFAIcon, getFAIconNames } from "./faIcon";
 
 describe("createPinSvg", () => {
@@ -21,6 +21,63 @@ describe("createPinSvg", () => {
     const svg = createPinSvg("#ffffff", "test");
     const path = svg.querySelector("path");
     expect(path!.getAttribute("stroke")).toBe("#000000");
+  });
+});
+
+describe("createCircleSvg", () => {
+  it("creates an SVG element with correct viewBox", () => {
+    const svg = createCircleSvg("#ff0000", "test-circle");
+    expect(svg.tagName).toBe("svg");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 512 512");
+    expect(svg.getAttribute("class")).toBe("test-circle");
+  });
+
+  it("sets fill color on the path", () => {
+    const svg = createCircleSvg("#00ff00", "test");
+    const path = svg.querySelector("path");
+    expect(path).not.toBeNull();
+    expect(path!.getAttribute("fill")).toBe("#00ff00");
+  });
+
+  it("has a black stroke", () => {
+    const svg = createCircleSvg("#ffffff", "test");
+    const path = svg.querySelector("path");
+    expect(path!.getAttribute("stroke")).toBe("#000000");
+  });
+
+  it("has stroke-width of 12", () => {
+    const svg = createCircleSvg("#ffffff", "test");
+    const path = svg.querySelector("path");
+    expect(path!.getAttribute("stroke-width")).toBe("12");
+  });
+});
+
+describe("createHotspotSvg", () => {
+  it("creates an SVG element with correct viewBox", () => {
+    const svg = createHotspotSvg("test-hotspot");
+    expect(svg.tagName).toBe("svg");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 512 512");
+    expect(svg.getAttribute("class")).toBe("test-hotspot");
+  });
+
+  it("contains a circle element, not a path", () => {
+    const svg = createHotspotSvg("test");
+    const circle = svg.querySelector("circle");
+    const path = svg.querySelector("path");
+    expect(circle).not.toBeNull();
+    expect(path).toBeNull();
+  });
+
+  it("circle has fill none", () => {
+    const svg = createHotspotSvg("test");
+    const circle = svg.querySelector("circle");
+    expect(circle!.getAttribute("fill")).toBe("none");
+  });
+
+  it("circle has stroke-dasharray", () => {
+    const svg = createHotspotSvg("test");
+    const circle = svg.querySelector("circle");
+    expect(circle!.getAttribute("stroke-dasharray")).toBe("40 25");
   });
 });
 
@@ -92,5 +149,52 @@ describe("createPinElement", () => {
 
     expect(container.children.length).toBe(1);
     expect(container.firstElementChild!.classList.contains("pin")).toBe(true);
+  });
+
+  it("creates pin with ttrpgmap-pin--circle class for circle shape", () => {
+    const container = document.createElement("div");
+    const pin = createPinElement(container, {
+      pinClass: "my-pin",
+      svgClass: "my-svg",
+      color: "#ff0000",
+      iconClass: "my-icon",
+      shape: "circle",
+    });
+
+    expect(pin.classList.contains("ttrpgmap-pin")).toBe(true);
+    expect(pin.classList.contains("ttrpgmap-pin--circle")).toBe(true);
+  });
+
+  it("creates pin with ttrpgmap-pin--hotspot class for hotspot shape", () => {
+    const container = document.createElement("div");
+    const pin = createPinElement(container, {
+      pinClass: "my-pin",
+      svgClass: "my-svg",
+      color: "#ff0000",
+      iconClass: "my-icon",
+      shape: "hotspot",
+    });
+
+    expect(pin.classList.contains("ttrpgmap-pin")).toBe(true);
+    expect(pin.classList.contains("ttrpgmap-pin--hotspot")).toBe(true);
+  });
+
+  it("creates standalone pin when useBaseMarker is false and icon is set", () => {
+    const container = document.createElement("div");
+    const pin = createPinElement(container, {
+      pinClass: "my-pin",
+      svgClass: "my-svg",
+      color: "#ff0000",
+      icon: "star",
+      iconColor: "#00ff00",
+      iconClass: "my-icon",
+      useBaseMarker: false,
+    });
+
+    expect(pin.classList.contains("ttrpgmap-pin")).toBe(true);
+    expect(pin.classList.contains("ttrpgmap-pin--standalone")).toBe(true);
+    // Standalone uses a different icon wrapper class
+    const standaloneIcon = pin.querySelector(".ttrpgmap-pin-standalone-icon");
+    expect(standaloneIcon).not.toBeNull();
   });
 });

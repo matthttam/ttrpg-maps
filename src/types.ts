@@ -33,7 +33,7 @@ export interface MarkerTemplate {
   icon: string | null;
   iconColor: string;
   useBaseMarker: boolean;
-  shape: "pin" | "circle";
+  shape: "pin" | "circle" | "hotspot";
 }
 
 /** A single marker placed on a map */
@@ -52,8 +52,21 @@ export interface MapMarker {
   icon: string | null;
   iconColor: string | null;
   useBaseMarker: boolean | null;
-  shape: "pin" | "circle" | null;
+  shape: "pin" | "circle" | "hotspot" | null;
+  scale: number | null;
+  scaleToZoom: boolean | null;
+  textScale: number | null;
+  textScaleToZoom: boolean | null;
 }
+
+/** How measured distances should be rounded */
+export type RoundingMode = "none" | "up" | "down";
+
+/** Default marker scale multiplier (1.0 = 100%) */
+export const DEFAULT_MARKER_SCALE = 1.0;
+
+/** Default marker text scale multiplier (1.0 = 100%) */
+export const DEFAULT_MARKER_TEXT_SCALE = 1.0;
 
 /** A point used in distance scale or measurement */
 export interface MapPoint {
@@ -86,11 +99,21 @@ export interface MapState {
   markers: MapMarker[];
   layers: MarkerLayer[];
   distanceScale: DistanceScale | null;
+  roundingMode?: RoundingMode;
+  roundingMultiple?: number;
+  markerScale?: number;
+  scaleMarkersToZoom?: boolean;
+  markerTextScale?: number;
+  scaleMarkerTextToZoom?: boolean;
 }
 
 /** Plugin-wide settings stored in data.json */
 export interface TTRPGMapsSettings {
   markerTemplates: MarkerTemplate[];
+  defaultMarkerScale?: number;
+  defaultScaleMarkersToZoom?: boolean;
+  defaultMarkerTextScale?: number;
+  defaultScaleMarkerTextToZoom?: boolean;
 }
 
 /** IDs of predefined templates that cannot be renamed or deleted */

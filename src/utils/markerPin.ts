@@ -38,6 +38,23 @@ export function createCircleSvg(fillColor: string, cssClass: string): SVGSVGElem
   return svg;
 }
 
+/** Create an SVG dashed-circle for a hotspot marker */
+export function createHotspotSvg(cssClass: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 512 512");
+  svg.setAttribute("class", cssClass);
+  const circle = document.createElementNS(SVG_NS, "circle");
+  circle.setAttribute("cx", "256");
+  circle.setAttribute("cy", "256");
+  circle.setAttribute("r", "240");
+  circle.setAttribute("fill", "none");
+  circle.setAttribute("stroke", "var(--text-muted)");
+  circle.setAttribute("stroke-width", "16");
+  circle.setAttribute("stroke-dasharray", "40 25");
+  svg.appendChild(circle);
+  return svg;
+}
+
 /** Render an FA icon SVG into a container */
 function renderIcon(container: HTMLElement, iconName: string): void {
   const icon = getFAIcon(iconName);
@@ -60,14 +77,21 @@ export interface PinElementOpts {
   iconColor?: string;
   iconClass: string;
   useBaseMarker?: boolean;
-  /** Pin shape: "pin" (default teardrop) or "circle" */
-  shape?: "pin" | "circle";
+  /** Pin shape: "pin" (default teardrop), "circle", or "hotspot" (transparent clickable area) */
+  shape?: "pin" | "circle" | "hotspot";
 }
 
 /** Create a full pin element: pin shape, circle shape, or standalone icon */
 export function createPinElement(container: HTMLElement, opts: PinElementOpts): HTMLElement {
   const useBase = opts.useBaseMarker ?? true;
   const shape = opts.shape ?? "pin";
+
+  if (shape === "hotspot") {
+    const cls = `ttrpgmap-pin ttrpgmap-pin--hotspot ${opts.pinClass}`;
+    const pin = container.createDiv({ cls });
+    pin.appendChild(createHotspotSvg(opts.svgClass));
+    return pin;
+  }
 
   if (useBase || !opts.icon) {
     const cls = `ttrpgmap-pin ${opts.pinClass}` + (shape === "circle" ? " ttrpgmap-pin--circle" : "");

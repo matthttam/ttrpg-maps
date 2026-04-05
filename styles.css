@@ -36,14 +36,14 @@
 /* ===== Zoom Controls (top-left) ===== */
 /* Shared overlay control transparency */
 .ttrpgmap-zoom-controls,
-.ttrpgmap-toolbar,
+.ttrpgmap-measure-panel,
 .ttrpgmap-settings-btn {
   opacity: 0.5;
   transition: opacity 0.15s ease;
 }
 
 .ttrpgmap-zoom-controls:hover,
-.ttrpgmap-toolbar:hover,
+.ttrpgmap-measure-panel:hover,
 .ttrpgmap-settings-btn:hover {
   opacity: 1;
 }
@@ -90,12 +90,53 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-/* ===== Toolbar (top-right) ===== */
-.ttrpgmap-toolbar {
+/* ===== Measurement Panel (top-right drawer) ===== */
+.ttrpgmap-measure-panel {
   position: absolute;
   top: 10px;
   right: 10px;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.ttrpgmap-measure-toggle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-normal);
+}
+
+.ttrpgmap-measure-toggle:hover {
+  background: var(--background-secondary-alt, var(--background-secondary));
+  filter: brightness(1.1);
+}
+
+.ttrpgmap-measure-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ttrpgmap-measure-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 8px;
+  min-width: 160px;
+}
+
+.ttrpgmap-measure-tools {
   display: flex;
   gap: 4px;
 }
@@ -112,6 +153,11 @@
   cursor: pointer;
   font-size: 16px;
   color: var(--text-normal);
+}
+
+.ttrpgmap-toolbar-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .ttrpgmap-toolbar-btn:hover {
@@ -154,6 +200,13 @@
   stroke: #44aaff;
 }
 
+.ttrpgmap-freehand-line {
+  stroke: #44dd88;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .ttrpgmap-draw-label {
   fill: #ffffff;
   font-size: 14px;
@@ -164,6 +217,79 @@
   stroke-width: 3px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* ===== Rounding Controls ===== */
+.ttrpgmap-measure-rounding {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 6px;
+}
+
+.ttrpgmap-measure-rounding-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ttrpgmap-measure-rounding-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ttrpgmap-measure-rounding-select {
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+}
+
+.ttrpgmap-measure-rounding-of {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ttrpgmap-measure-rounding-input {
+  width: 50px;
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+}
+
+/* ===== Total Distance Display ===== */
+.ttrpgmap-measure-total {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.80);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ===== Marker Measurement Mode ===== */
+.ttrpgmap-marker-measuring {
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.ttrpgmap-marker-measure-hover {
+  opacity: 0.1;
 }
 
 /* ===== Settings Button (bottom-right) ===== */
@@ -455,6 +581,78 @@
   opacity: 0.8;
 }
 
+/* Resize mode */
+.ttrpgmap-marker-resizing {
+  z-index: 20;
+}
+
+/* Drag handle container */
+.ttrpgmap-resize-handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: ew-resize;
+  z-index: 30;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Position based on side */
+.ttrpgmap-resize-handle[data-side="right"] {
+  left: calc(100% + 8px);
+  flex-direction: row;
+}
+
+.ttrpgmap-resize-handle[data-side="left"] {
+  right: calc(100% + 8px);
+  flex-direction: row-reverse;
+}
+
+/* Grip icon */
+.ttrpgmap-resize-grip {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-accent);
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.ttrpgmap-resize-grip svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Scale label */
+.ttrpgmap-resize-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Target tag (Size / Text) */
+.ttrpgmap-resize-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--background-modifier-border);
+  line-height: 1.4;
+}
+
 /* Adjust transform anchor based on direction (pin mode only) */
 .ttrpgmap-marker[data-direction="up"] {
   transform: translate(-50%, 0%);
@@ -480,13 +678,65 @@
 
 /* Circle pin: square aspect ratio */
 .ttrpgmap-pin--circle.ttrpgmap-marker-pin {
-  width: 37.5px;
-  height: 37.5px;
+  width: calc(37.5px * var(--marker-scale, 1));
+  height: calc(37.5px * var(--marker-scale, 1));
 }
 
 /* Circle pin icon centered */
 .ttrpgmap-pin--circle .ttrpgmap-pin-icon {
   top: 50%;
+}
+
+/* Hotspot markers anchor at center */
+.ttrpgmap-marker:has(.ttrpgmap-pin--hotspot) {
+  transform: translate(-50%, -50%);
+}
+
+/* Hotspot: square aspect, transparent by default */
+.ttrpgmap-pin--hotspot.ttrpgmap-marker-pin {
+  width: calc(37.5px * var(--marker-scale, 1));
+  height: calc(37.5px * var(--marker-scale, 1));
+}
+
+/* Hotspot on maps: invisible until hovered/dragged */
+.ttrpgmap-pin--hotspot.ttrpgmap-marker-pin .ttrpgmap-pin-svg {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Show dashed outline on hover */
+.ttrpgmap-marker:hover .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg {
+  opacity: 1;
+}
+
+/* Show dashed outline while dragging or resizing, with translucent fill */
+.ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
+.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg {
+  opacity: 1;
+}
+
+.ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
+.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle {
+  fill: var(--text-muted);
+  fill-opacity: 0.35;
+}
+
+/* Hotspot is always clickable on maps */
+.ttrpgmap-pin--hotspot.ttrpgmap-marker-pin {
+  cursor: pointer;
+}
+
+/* Hotspot in previews: always visible, default cursor */
+.ttrpgmap-pin--hotspot.ttrpgmap-preview-pin .ttrpgmap-pin-svg,
+.ttrpgmap-pin--hotspot.ttrpgmap-edit-preview-pin .ttrpgmap-pin-svg,
+.ttrpgmap-pin--hotspot.ttrpgmap-marker-list-pin .ttrpgmap-pin-svg {
+  opacity: 1;
+}
+
+.ttrpgmap-pin--hotspot.ttrpgmap-preview-pin,
+.ttrpgmap-pin--hotspot.ttrpgmap-edit-preview-pin,
+.ttrpgmap-pin--hotspot.ttrpgmap-marker-list-pin {
+  cursor: default;
 }
 
 /* ===== Shared Pin Shape ===== */
@@ -519,8 +769,8 @@
 
 /* Standalone icon mode: icon IS the marker, same footprint as pin */
 .ttrpgmap-pin--standalone.ttrpgmap-marker-pin {
-  width: 37.5px;
-  height: 50px;
+  width: calc(37.5px * var(--marker-scale, 1));
+  height: calc(50px * var(--marker-scale, 1));
   align-items: center;
   justify-content: center;
 }
@@ -541,13 +791,13 @@
 
 /* Map marker pin */
 .ttrpgmap-marker-pin {
-  width: 37.5px;
-  height: 50px;
+  width: calc(37.5px * var(--marker-scale, 1));
+  height: calc(50px * var(--marker-scale, 1));
 }
 
 .ttrpgmap-marker-icon {
-  width: 20px;
-  height: 20px;
+  width: calc(20px * var(--marker-scale, 1));
+  height: calc(20px * var(--marker-scale, 1));
   color: var(--marker-icon-color, #000000);
 }
 
@@ -582,50 +832,51 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   background: rgba(0, 0, 0, 0.80);
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: calc(2px * var(--marker-text-scale, 1)) calc(6px * var(--marker-text-scale, 1));
+  border-radius: calc(4px * var(--marker-text-scale, 1));
   width: max-content;
-  max-width: 220px;
+  max-width: calc(220px * var(--marker-text-scale, 1));
 }
 
 .ttrpgmap-marker[data-text-placement="above"] .ttrpgmap-marker-label {
   bottom: 100%;
-  margin-bottom: 4px;
+  margin-bottom: calc(4px * var(--marker-text-scale, 1));
 }
 
 .ttrpgmap-marker[data-text-placement="below"] .ttrpgmap-marker-label {
   top: 100%;
-  margin-top: 4px;
+  margin-top: calc(4px * var(--marker-text-scale, 1));
 }
 
 .ttrpgmap-marker[data-text-placement="left"] .ttrpgmap-marker-label {
   right: 100%;
-  margin-right: 6px;
+  margin-right: calc(6px * var(--marker-text-scale, 1));
   bottom: 50%;
   transform: translateY(50%);
 }
 
 .ttrpgmap-marker[data-text-placement="right"] .ttrpgmap-marker-label {
   left: 100%;
-  margin-left: 6px;
+  margin-left: calc(6px * var(--marker-text-scale, 1));
   bottom: 50%;
   transform: translateY(50%);
 }
 
 .ttrpgmap-marker-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--marker-text-scale, 1));
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: calc(220px * var(--marker-text-scale, 1));
 }
 
 .ttrpgmap-marker-desc {
-  font-size: 12px;
+  font-size: calc(12px * var(--marker-text-scale, 1));
   color: #dddddd;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -670,6 +921,7 @@
 
 .ttrpgmap-modal {
   overflow-x: hidden;
+  padding-right: 12px;
 }
 
 .ttrpgmap-modal-layout {
@@ -1176,4 +1428,29 @@
 .ttrpgmap-color-swatch::-webkit-color-swatch {
   border: none;
   border-radius: 2px;
+}
+
+/* Scale percentage input: compact number field next to slider */
+.ttrpgmap-scale-input {
+  width: 55px !important;
+  text-align: center;
+}
+
+/* Help icon: small (?) next to setting names */
+.ttrpgmap-help-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  opacity: 0.5;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.ttrpgmap-help-icon:hover {
+  opacity: 1;
+}
+
+.ttrpgmap-help-icon svg {
+  width: 14px;
+  height: 14px;
 }

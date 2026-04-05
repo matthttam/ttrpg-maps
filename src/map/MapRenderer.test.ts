@@ -249,10 +249,11 @@ describe("MapRenderer DOM", () => {
     const select = rounding!.querySelector("select");
     expect(select).not.toBeNull();
     const options = select!.querySelectorAll("option");
-    expect(options.length).toBe(3);
+    expect(options.length).toBe(4);
     expect(options[0].value).toBe("none");
-    expect(options[1].value).toBe("up");
-    expect(options[2].value).toBe("down");
+    expect(options[1].value).toBe("closest");
+    expect(options[2].value).toBe("up");
+    expect(options[3].value).toBe("down");
 
     const input = rounding!.querySelector("input[type='number']");
     expect(input).not.toBeNull();
@@ -384,6 +385,118 @@ describe("MapRenderer DOM", () => {
 
     const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
     expect(markerEl.style.getPropertyValue("--marker-scale")).toBe("1.5");
+  });
+});
+
+describe("MapRenderer copy marker", () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+  });
+
+  it("startCopyMarker sets pendingCopy and changes cursor", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    (renderer as any).startCopyMarker(marker);
+
+    expect((renderer as any).pendingCopy).toBe(marker);
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    expect(wrapper.style.cursor).toBe("copy");
+    expect(wrapper.classList.contains("ttrpgmap-copy-mode")).toBe(true);
+  });
+
+  it("completeCopy creates a new marker at given coordinates", async () => {
+    const marker = createMarker({ x: 100, y: 200, color: "#ff0000", icon: "star" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    (renderer as any).startCopyMarker(marker);
+    (renderer as any).completeCopy(300, 400);
+
+    const state = (renderer as any).state;
+    expect(state.markers).toHaveLength(2);
+
+    const copy = state.markers[1];
+    expect(copy.id).not.toBe(marker.id);
+    expect(copy.x).toBe(300);
+    expect(copy.y).toBe(400);
+    expect(copy.color).toBe("#ff0000");
+    expect(copy.icon).toBe("star");
+    expect(copy.templateId).toBe(marker.templateId);
+    expect(plugin.dataManager.saveMapState).toHaveBeenCalled();
+  });
+
+  it("completeCopy clears pendingCopy and restores cursor", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    (renderer as any).startCopyMarker(marker);
+    (renderer as any).completeCopy(50, 50);
+
+    expect((renderer as any).pendingCopy).toBeNull();
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    expect(wrapper.style.cursor).toBe("grab");
+    expect(wrapper.classList.contains("ttrpgmap-copy-mode")).toBe(false);
+  });
+
+  it("copy preserves all marker properties except id and position", async () => {
+    const marker = createMarker({
+      note: "Test Note",
+      description: "Test Desc",
+      direction: "left",
+      textPlacement: "right",
+      iconColor: "#aabbcc",
+      useBaseMarker: false,
+      shape: "circle",
+      scale: 1.5,
+      scaleToZoom: false,
+      textScale: 2.0,
+      textScaleToZoom: true,
+      layerId: "layer_1",
+    });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    (renderer as any).startCopyMarker(marker);
+    (renderer as any).completeCopy(999, 888);
+
+    const copy = (renderer as any).state.markers[1];
+    expect(copy.note).toBe("Test Note");
+    expect(copy.description).toBe("Test Desc");
+    expect(copy.direction).toBe("left");
+    expect(copy.textPlacement).toBe("right");
+    expect(copy.iconColor).toBe("#aabbcc");
+    expect(copy.useBaseMarker).toBe(false);
+    expect(copy.shape).toBe("circle");
+    expect(copy.scale).toBe(1.5);
+    expect(copy.scaleToZoom).toBe(false);
+    expect(copy.textScale).toBe(2.0);
+    expect(copy.textScaleToZoom).toBe(true);
+    expect(copy.layerId).toBe("layer_1");
+  });
+
+  it("keydown cancels copy mode", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    (renderer as any).startCopyMarker(marker);
+    expect((renderer as any).pendingCopy).toBe(marker);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect((renderer as any).pendingCopy).toBeNull();
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    expect(wrapper.style.cursor).toBe("grab");
   });
 });
 

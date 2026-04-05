@@ -113,7 +113,7 @@ export class MarkerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container");
+    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide");
     contentEl.addClass("ttrpgmap-modal");
 
     const template = this.getTemplate();
@@ -229,13 +229,15 @@ export class MarkerEditModal extends Modal {
       iconColorPicker.setValue(this.marker.iconColor);
     });
 
+    // ── Remaining fields are full-width (below the 2-column layout) ──
+
     // ── Scale ──
     const hasScaleOverride = this.marker.scale != null;
     const defaultScale = 100;
     let scaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
     let scaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
 
-    const markerScaleSetting = new Setting(mainCol)
+    const markerScaleSetting = new Setting(contentEl)
       .setName("Marker Size")
       .setDesc("Override the map marker scale for this marker");
 
@@ -287,7 +289,7 @@ export class MarkerEditModal extends Modal {
     });
 
     // ── Scale to Zoom ──
-    new Setting(mainCol)
+    new Setting(contentEl)
       .setName("Scale to Zoom")
       .setDesc("How this marker behaves when zooming")
       .addDropdown((dropdown) => {
@@ -309,7 +311,7 @@ export class MarkerEditModal extends Modal {
     let textScaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
     let textScaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
 
-    const textScaleSetting = new Setting(mainCol)
+    const textScaleSetting = new Setting(contentEl)
       .setName("Text Size")
       .setDesc("Override the text label scale for this marker");
 
@@ -361,7 +363,7 @@ export class MarkerEditModal extends Modal {
     });
 
     // ── Text Scale to Zoom ──
-    new Setting(mainCol)
+    new Setting(contentEl)
       .setName("Text Scale to Zoom")
       .setDesc("How this marker's text behaves when zooming")
       .addDropdown((dropdown) => {
@@ -378,7 +380,7 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Save / Cancel ──
-    new Setting(mainCol)
+    new Setting(contentEl)
       .addButton((btn) =>
         btn
           .setButtonText("Save")

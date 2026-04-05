@@ -919,6 +919,10 @@
   max-width: 90vw;
 }
 
+.ttrpgmap-modal-container--wide {
+  width: 950px;
+}
+
 .ttrpgmap-modal {
   overflow-x: hidden;
   padding-right: 12px;
@@ -938,12 +942,13 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 0;
+  margin-bottom: 4px;
 }
 
 /* Remove the border on the first setting after a heading */
 .ttrpgmap-modal h2 + .setting-item,
 .ttrpgmap-modal h3 + .setting-item,
+.ttrpgmap-modal-main > .setting-item:first-child,
 .ttrpgmap-modal h3 + .ttrpgmap-layers-container > .setting-item:first-child {
   border-top: none !important;
 }
@@ -988,6 +993,7 @@
   flex: 1;
   min-width: 0;
   z-index: 1;
+  padding-top: 16px;
 }
 
 /* Layer rows indented under the heading */
@@ -996,13 +1002,61 @@
 }
 
 /* ===== Template List ===== */
-.ttrpgmap-template-list-container > .setting-item:not(.setting-item-heading) {
+.ttrpgmap-template-list-container .setting-item:not(.setting-item-heading) {
   padding: 6px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.ttrpgmap-template-list-container > .setting-item:not(.setting-item-heading) .setting-item-info {
+.ttrpgmap-template-list-container .setting-item:not(.setting-item-heading) .setting-item-info {
   margin-right: 8px;
+}
+
+/* ===== Template Folders ===== */
+.ttrpgmap-folder-header {
+  background: var(--background-secondary);
+  font-weight: var(--font-semibold);
+}
+
+.ttrpgmap-folder-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ttrpgmap-folder-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.ttrpgmap-folder-contents {
+  margin-left: 24px;
+  min-height: 32px;
+}
+
+.ttrpgmap-folder-empty {
+  padding: 8px 12px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+}
+
+/* Drag-and-drop feedback */
+.ttrpgmap-template-row {
+  cursor: grab;
+}
+
+.ttrpgmap-template-row:active {
+  cursor: grabbing;
+}
+
+.ttrpgmap-dragging {
+  opacity: 0.4;
+}
+
+.ttrpgmap-drag-over {
+  outline: 2px dashed var(--interactive-accent);
+  outline-offset: -2px;
 }
 
 .ttrpgmap-template-preview {
@@ -1216,6 +1270,7 @@
   align-items: center;
   min-width: 305px;
   flex-shrink: 0;
+  margin: 12px 0;
   position: sticky;
   top: 0;
   align-self: stretch;

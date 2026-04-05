@@ -73,5 +73,6 @@ export function applyRounding(value: number, mode: RoundingMode, multiple: numbe
   if (mode === "none" || multiple <= 0) return value;
   if (mode === "up") return Math.ceil(value / multiple) * multiple;
   if (mode === "down") return Math.floor(value / multiple) * multiple;
+  if (mode === "closest") return Math.round(value / multiple) * multiple;
   return value;
 }

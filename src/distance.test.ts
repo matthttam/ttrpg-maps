@@ -233,6 +233,13 @@ describe("applyRounding", () => {
     expect(applyRounding(4.9, "down", 5)).toBe(0);
   });
 
+  it("rounds to the closest multiple", () => {
+    expect(applyRounding(30.2, "closest", 5)).toBe(30);
+    expect(applyRounding(34.9, "closest", 5)).toBe(35);
+    expect(applyRounding(32.5, "closest", 5)).toBe(35);
+    expect(applyRounding(10, "closest", 5)).toBe(10);
+  });
+
   it("returns original value when multiple is 0", () => {
     expect(applyRounding(7, "up", 0)).toBe(7);
   });

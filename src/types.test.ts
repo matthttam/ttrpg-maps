@@ -46,6 +46,7 @@ describe("Marker template resolution", () => {
   const defaultTemplate: MarkerTemplate = {
     id: "castle",
     name: "Castle",
+    folderId: null,
     note: null,
     description: null,
     direction: "down",

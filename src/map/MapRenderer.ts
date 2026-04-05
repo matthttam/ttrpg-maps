@@ -72,6 +72,9 @@ export class MapRenderer extends MarkdownRenderChild {
   private isDraggingHandle = false;
   private _resizeSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Copy-marker state
+  private pendingCopy: MapMarker | null = null;
+
   constructor(containerEl: HTMLElement, plugin: TTRPGMapsPlugin, config: MapConfig, sourcePath: string, sectionInfo: { lineStart: number; lineEnd: number } | null) {
     super(containerEl);
     this.plugin = plugin;
@@ -208,11 +211,13 @@ export class MapRenderer extends MarkdownRenderChild {
     // Mode dropdown
     const modeSelect = roundingRow.createEl("select", { cls: "ttrpgmap-measure-rounding-select" });
     const modeNone = modeSelect.createEl("option", { text: "None", value: "none" });
+    const modeClosest = modeSelect.createEl("option", { text: "Closest", value: "closest" });
     const modeUp = modeSelect.createEl("option", { text: "Up to", value: "up" });
     const modeDown = modeSelect.createEl("option", { text: "Down to", value: "down" });
 
     const currentMode = this.state?.roundingMode ?? "none";
     modeNone.selected = currentMode === "none";
+    modeClosest.selected = currentMode === "closest";
     modeUp.selected = currentMode === "up";
     modeDown.selected = currentMode === "down";
 
@@ -525,6 +530,20 @@ export class MapRenderer extends MarkdownRenderChild {
     }
 
     if (this.mode !== "pan") return;
+
+    // Copy mode: place copied marker at click location
+    if (this.pendingCopy) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = this.mapContainer.getBoundingClientRect();
+      const scale = this.zoom / 100;
+      const { sx, sy } = this.getImageScale();
+      const mapX = (e.clientX - rect.left) / scale / sx;
+      const mapY = (e.clientY - rect.top) / scale / sy;
+      this.completeCopy(mapX, mapY);
+      return;
+    }
+
     this.isPanning = true;
     this.panStartX = e.clientX - this.panX;
     this.panStartY = e.clientY - this.panY;
@@ -841,6 +860,7 @@ export class MapRenderer extends MarkdownRenderChild {
           if (this.resizingMarker) this.commitResize();
           const menu = new Menu();
           menu.addItem((item) => { item.setTitle("Edit"); item.setIcon("pencil"); item.onClick(() => this.editMarker(marker)); });
+          menu.addItem((item) => { item.setTitle("Copy Marker"); item.setIcon("copy"); item.onClick(() => this.startCopyMarker(marker)); });
           menu.addItem((item) => { item.setTitle("Resize Marker"); item.setIcon("maximize-2"); item.onClick(() => this.enterResizeMode(marker, markerEl, "marker")); });
           menu.addItem((item) => { item.setTitle("Resize Text"); item.setIcon("a-large-small"); item.onClick(() => this.enterResizeMode(marker, markerEl, "text")); });
           menu.addItem((item) => { item.setTitle("Delete"); item.setIcon("trash-2"); item.onClick(() => this.deleteMarker(marker)); });
@@ -907,6 +927,57 @@ export class MapRenderer extends MarkdownRenderChild {
       this.renderMarkers();
       this.refreshMarkerList();
     }).open();
+  }
+
+  private startCopyMarker(source: MapMarker): void {
+    this.pendingCopy = source;
+    this.wrapper.style.cursor = "copy";
+    this.wrapper.addClass("ttrpgmap-copy-mode");
+
+    const cancel = () => {
+      this.pendingCopy = null;
+      this.wrapper.style.cursor = "grab";
+      this.wrapper.removeClass("ttrpgmap-copy-mode");
+      this.wrapper.removeEventListener("contextmenu", onCancel, true);
+      activeWindow.removeEventListener("keydown", onCancel, true);
+      activeWindow.removeEventListener("blur", onCancel);
+    };
+    const onCancel = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
+    };
+
+    // Cancel on right-click or any keypress
+    this.wrapper.addEventListener("contextmenu", onCancel, true);
+    activeWindow.addEventListener("keydown", onCancel, true);
+    activeWindow.addEventListener("blur", onCancel);
+
+    // Store cancel so mousedown handler can call it after placing
+    (this as any)._cancelCopy = cancel;
+  }
+
+  private completeCopy(x: number, y: number): void {
+    if (!this.pendingCopy || !this.state) return;
+    const source = this.pendingCopy;
+
+    const marker: MapMarker = {
+      ...source,
+      id: `marker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      x,
+      y,
+    };
+
+    this.state.markers.push(marker);
+    this.plugin.dataManager.saveMapState(this.config.id, this.state);
+    this.renderMarkers();
+    this.refreshMarkerList();
+
+    // Clean up copy mode
+    if ((this as any)._cancelCopy) {
+      (this as any)._cancelCopy();
+      (this as any)._cancelCopy = null;
+    }
   }
 
   private deleteMarker(marker: MapMarker): void {
@@ -1045,12 +1116,15 @@ export class MapRenderer extends MarkdownRenderChild {
     }
     if (templates.length > 1) {
       menu.addSeparator();
-      for (const template of templates) {
-        menu.addItem((item) => {
+
+      const folders = this.plugin.settings.templateFolders;
+      const topLevel = templates.filter((t) => !t.folderId);
+      const addTemplateToMenu = (m: any, template: any) => {
+        m.addItem((item: any) => {
           item.setTitle(template.name);
           item.setIcon(template.shape === "hotspot" ? "circle-dashed" : "map-pin");
           if (hasMultipleLayers) {
-            const sub = (item as any).setSubmenu();
+            const sub = item.setSubmenu();
             for (const layer of layers) {
               sub.addItem((subItem: any) => {
                 subItem.setTitle(layer.name);
@@ -1059,6 +1133,23 @@ export class MapRenderer extends MarkdownRenderChild {
             }
           } else {
             item.onClick(() => this.placeMarker(mapX, mapY, template.id));
+          }
+        });
+      };
+
+      for (const template of topLevel) {
+        addTemplateToMenu(menu, template);
+      }
+
+      for (const folder of folders) {
+        const folderTemplates = templates.filter((t) => t.folderId === folder.id);
+        if (folderTemplates.length === 0) continue;
+        menu.addItem((item: any) => {
+          item.setTitle(folder.name);
+          item.setIcon("folder");
+          const sub = item.setSubmenu();
+          for (const template of folderTemplates) {
+            addTemplateToMenu(sub, template);
           }
         });
       }
@@ -1081,6 +1172,7 @@ export class MapRenderer extends MarkdownRenderChild {
   // ──────────────────── Drawing (Calibrate / Measure / Freehand) ────────────────────
 
   private setMode(mode: InteractionMode): void {
+    if ((this as any)._cancelCopy) { (this as any)._cancelCopy(); (this as any)._cancelCopy = null; }
     if (this.mode === mode) { this.cancelDrawing(); return; }
     if ((mode === "measure" || mode === "freehand") && !this.state?.distanceScale) {
       new Notice("Set a distance scale first before measuring.");

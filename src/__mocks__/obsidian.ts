@@ -1,4 +1,6 @@
 // Minimal mocks for Obsidian API used in tests
+// Obsidian exposes activeWindow as a global
+(globalThis as any).activeWindow = globalThis.window ?? globalThis;
 export class MarkdownRenderChild {
   containerEl: HTMLElement;
   constructor(containerEl: HTMLElement) {

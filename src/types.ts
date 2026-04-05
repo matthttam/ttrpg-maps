@@ -21,10 +21,17 @@ export const DEFAULT_LAYER: MarkerLayer = {
   zoomMax: null,
 };
 
+/** A folder that groups marker templates in the settings UI and context menu */
+export interface TemplateFolder {
+  id: string;
+  name: string;
+}
+
 /** A reusable preset for marker styling */
 export interface MarkerTemplate {
   id: string;
   name: string;
+  folderId: string | null;
   note: string | null;
   description: string | null;
   direction: MarkerDirection;
@@ -60,7 +67,7 @@ export interface MapMarker {
 }
 
 /** How measured distances should be rounded */
-export type RoundingMode = "none" | "up" | "down";
+export type RoundingMode = "none" | "up" | "down" | "closest";
 
 /** Default marker scale multiplier (1.0 = 100%) */
 export const DEFAULT_MARKER_SCALE = 1.0;
@@ -110,6 +117,7 @@ export interface MapState {
 /** Plugin-wide settings stored in data.json */
 export interface TTRPGMapsSettings {
   markerTemplates: MarkerTemplate[];
+  templateFolders: TemplateFolder[];
   defaultMarkerScale?: number;
   defaultScaleMarkersToZoom?: boolean;
   defaultMarkerTextScale?: number;
@@ -125,6 +133,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
     {
       id: "default",
       name: "Default",
+      folderId: null,
       note: null,
       description: null,
       direction: "down",
@@ -136,6 +145,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
       shape: "pin",
     },
   ],
+  templateFolders: [],
 };
 
 /** Default values for map config when not specified */

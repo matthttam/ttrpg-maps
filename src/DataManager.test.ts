@@ -68,6 +68,115 @@ describe("DataManager", () => {
       expect(settings.markerTemplates[0].color).toBe("#ff0000");
     });
 
+    it("migrates missing templateFolders to empty array", async () => {
+      const stored = {
+        markerTemplates: [
+          {
+            id: "default",
+            name: "Default",
+            note: null,
+            description: null,
+            direction: "down",
+            textPlacement: "above",
+            color: "#ffffff",
+            icon: null,
+            iconColor: "#000000",
+            useBaseMarker: true,
+            shape: "pin",
+          },
+        ],
+      };
+      const { dm } = createDataManager(stored);
+
+      const settings = await dm.loadSettings();
+
+      expect(settings.templateFolders).toEqual([]);
+    });
+
+    it("migrates missing folderId on templates to null", async () => {
+      const stored = {
+        markerTemplates: [
+          {
+            id: "default",
+            name: "Default",
+            note: null,
+            description: null,
+            direction: "down",
+            textPlacement: "above",
+            color: "#ffffff",
+            icon: null,
+            iconColor: "#000000",
+            useBaseMarker: true,
+            shape: "pin",
+          },
+          {
+            id: "custom",
+            name: "Custom",
+            note: null,
+            description: null,
+            direction: "up",
+            textPlacement: "below",
+            color: "#00ff00",
+            icon: null,
+            iconColor: "#ffffff",
+            useBaseMarker: false,
+            shape: "circle",
+          },
+        ],
+        templateFolders: [{ id: "folder_1", name: "NPCs" }],
+      };
+      const { dm } = createDataManager(stored);
+
+      const settings = await dm.loadSettings();
+
+      expect(settings.markerTemplates[0].folderId).toBeNull();
+      expect(settings.markerTemplates[1].folderId).toBeNull();
+    });
+
+    it("preserves existing folderId values during migration", async () => {
+      const stored = {
+        markerTemplates: [
+          {
+            id: "default",
+            name: "Default",
+            folderId: null,
+            note: null,
+            description: null,
+            direction: "down",
+            textPlacement: "above",
+            color: "#ffffff",
+            icon: null,
+            iconColor: "#000000",
+            useBaseMarker: true,
+            shape: "pin",
+          },
+          {
+            id: "custom",
+            name: "Custom",
+            folderId: "folder_1",
+            note: null,
+            description: null,
+            direction: "up",
+            textPlacement: "below",
+            color: "#00ff00",
+            icon: null,
+            iconColor: "#ffffff",
+            useBaseMarker: false,
+            shape: "circle",
+          },
+        ],
+        templateFolders: [{ id: "folder_1", name: "NPCs" }],
+      };
+      const { dm } = createDataManager(stored);
+
+      const settings = await dm.loadSettings();
+
+      expect(settings.markerTemplates[0].folderId).toBeNull();
+      expect(settings.markerTemplates[1].folderId).toBe("folder_1");
+      expect(settings.templateFolders).toHaveLength(1);
+      expect(settings.templateFolders[0].name).toBe("NPCs");
+    });
+
     it("ensures predefined default template exists even if data has templates without it", async () => {
       const stored = {
         markerTemplates: [

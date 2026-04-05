@@ -28,6 +28,12 @@ export class DataManager {
       }
     }
 
+    // Migrate: ensure templateFolders array and folderId field exist
+    if (!settings.templateFolders) settings.templateFolders = [];
+    for (const t of settings.markerTemplates) {
+      if (t.folderId === undefined) t.folderId = null;
+    }
+
     return settings;
   }
 

@@ -915,13 +915,68 @@
 
 /* ===== Modal styles ===== */
 .ttrpgmap-modal-container {
-  width: 950px;
+  width: 70ch;
   max-width: 90vw;
 }
 
 .ttrpgmap-modal {
   overflow-x: hidden;
   padding-right: 12px;
+}
+
+.ttrpgmap-modal .setting-item-description {
+  padding-top: 0;
+}
+
+/* Match modal headings to the settings-tab style */
+.ttrpgmap-modal h2,
+.ttrpgmap-modal h3 {
+  border: none !important;
+  box-shadow: none !important;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0;
+}
+
+/* Remove the border on the first setting after a heading */
+.ttrpgmap-modal h2 + .setting-item,
+.ttrpgmap-modal h3 + .setting-item,
+.ttrpgmap-modal h3 + .ttrpgmap-layers-container > .setting-item:first-child {
+  border-top: none !important;
+}
+
+/* Spacing above the layers container to match other sections */
+.ttrpgmap-layers-container {
+  padding-top: 18px;
+}
+
+/* Inline labeled inputs (Map Size, Zoom Range) */
+.ttrpgmap-size-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ttrpgmap-size-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+
+.ttrpgmap-size-input {
+  width: 90px;
+}
+
+.ttrpgmap-size-separator {
+  color: var(--text-muted);
+}
+
+.ttrpgmap-image-dims {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
 
 .ttrpgmap-modal-layout {
@@ -933,6 +988,11 @@
   flex: 1;
   min-width: 0;
   z-index: 1;
+}
+
+/* Layer rows indented under the heading */
+.ttrpgmap-layer-row {
+  margin-left: 24px;
 }
 
 /* ===== Template List ===== */
@@ -979,12 +1039,6 @@
   margin-top: 4px;
 }
 
-/* ===== Image dimensions display ===== */
-.ttrpgmap-image-dims {
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 2px 0 8px 0;
-}
 
 /* ===== Note path display ===== */
 .ttrpgmap-note-path {
@@ -1454,3 +1508,4 @@
   width: 14px;
   height: 14px;
 }
+

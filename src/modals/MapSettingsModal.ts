@@ -4,9 +4,9 @@ import { MapConfig, MapState, MarkerLayer, DEFAULT_LAYER, DEFAULT_LAYER_ID, DEFA
 import { ImageSuggest } from "../suggests/ImageSuggest";
 import { LayerEditModal } from "./LayerEditModal";
 
-/** Replace setDesc with a (?) icon that shows the tooltip on hover */
+/** Add a (?) icon to the right side of a setting row that shows a tooltip on hover */
 function addHelpIcon(setting: Setting, tooltip: string): void {
-  const icon = setting.nameEl.createSpan({ cls: "ttrpgmap-help-icon" });
+  const icon = setting.controlEl.createSpan({ cls: "ttrpgmap-help-icon" });
   setIcon(icon, "help-circle");
   icon.setAttribute("aria-label", tooltip);
   icon.setAttribute("data-tooltip-position", "top");
@@ -61,7 +61,7 @@ export class MapSettingsModal extends Modal {
 
     contentEl.createEl("h2", { text: "Map Settings" });
 
-    const imageDimsEl = contentEl.createDiv({ cls: "ttrpgmap-image-dims" });
+    const imageDimsEl = createSpan({ cls: "ttrpgmap-image-dims" });
 
     const imageSetting = new Setting(contentEl)
       .setName("Image")
@@ -78,10 +78,9 @@ export class MapSettingsModal extends Modal {
           this.loadImageDimensions(imageDimsEl);
         });
       });
-    addHelpIcon(imageSetting, "Search for a map image in your vault");
-
-    contentEl.appendChild(imageDimsEl);
+    imageSetting.descEl.appendChild(imageDimsEl);
     this.loadImageDimensions(imageDimsEl);
+    addHelpIcon(imageSetting, "Search for a map image in your vault");
 
     const idSetting = new Setting(contentEl)
       .setName("Map ID")
@@ -92,54 +91,65 @@ export class MapSettingsModal extends Modal {
       );
     addHelpIcon(idSetting, "Unique identifier. Use different IDs to have separate markers on the same image.");
 
-    const heightSetting = new Setting(contentEl)
-      .setName("Height")
-      .addText((text) =>
-        text
-          .setPlaceholder("e.g. 500 or 80%")
-          .setValue(this.config.height ?? "")
-          .onChange((value) => (this.config.height = value || null))
-      );
-    addHelpIcon(heightSetting, "Display height (blank = auto from width/image)");
+    const sizeSetting = new Setting(contentEl)
+      .setName("Map Size");
+    const sizeControl = sizeSetting.controlEl;
+    sizeControl.addClass("ttrpgmap-size-control");
+    sizeControl.createSpan({ text: "Height:", cls: "ttrpgmap-size-label" });
+    const heightInput = sizeControl.createEl("input", {
+      type: "text",
+      cls: "ttrpgmap-size-input",
+      value: this.config.height ?? "",
+      attr: { placeholder: "e.g. 500" },
+    });
+    heightInput.addEventListener("input", () => {
+      this.config.height = heightInput.value || null;
+    });
+    sizeControl.createSpan({ text: "\u00d7", cls: "ttrpgmap-size-separator" });
+    sizeControl.createSpan({ text: "Width:", cls: "ttrpgmap-size-label" });
+    const widthInput = sizeControl.createEl("input", {
+      type: "text",
+      cls: "ttrpgmap-size-input",
+      value: this.config.width ?? "",
+      attr: { placeholder: "e.g. 800" },
+    });
+    widthInput.addEventListener("input", () => {
+      this.config.width = widthInput.value || null;
+    });
+    addHelpIcon(sizeSetting, "Display dimensions (blank = auto from image aspect ratio)");
 
-    const widthSetting = new Setting(contentEl)
-      .setName("Width")
-      .addText((text) =>
-        text
-          .setPlaceholder("e.g. 800 or 100%")
-          .setValue(this.config.width ?? "")
-          .onChange((value) => (this.config.width = value || null))
-      );
-    addHelpIcon(widthSetting, "Display width (blank = auto from height/image)");
-
-    contentEl.createEl("h3", { text: "Zoom" });
-
-    const zoomMinSetting = new Setting(contentEl)
-      .setName("Minimum Zoom")
-      .addText((text) =>
-        text
-          .setValue(String(this.config.zoomMin))
-          .onChange((value) => (this.config.zoomMin = parseInt(value, 10) || 50))
-      );
-    addHelpIcon(zoomMinSetting, "Minimum zoom level (%)");
-
-    const zoomMaxSetting = new Setting(contentEl)
-      .setName("Maximum Zoom")
-      .addText((text) =>
-        text
-          .setValue(String(this.config.zoomMax))
-          .onChange((value) => (this.config.zoomMax = parseInt(value, 10) || 200))
-      );
-    addHelpIcon(zoomMaxSetting, "Maximum zoom level (%)");
-
-    const zoomStepSetting = new Setting(contentEl)
-      .setName("Zoom Step")
-      .addText((text) =>
-        text
-          .setValue(String(this.config.zoomStep))
-          .onChange((value) => (this.config.zoomStep = parseInt(value, 10) || 10))
-      );
-    addHelpIcon(zoomStepSetting, "Amount to change per zoom increment (%)");
+    const zoomSetting = new Setting(contentEl)
+      .setName("Zoom Range");
+    const zoomControl = zoomSetting.controlEl;
+    zoomControl.addClass("ttrpgmap-size-control");
+    zoomControl.createSpan({ text: "Min:", cls: "ttrpgmap-size-label" });
+    const zoomMinInput = zoomControl.createEl("input", {
+      type: "text",
+      cls: "ttrpgmap-size-input",
+      value: String(this.config.zoomMin),
+    });
+    zoomMinInput.addEventListener("input", () => {
+      this.config.zoomMin = parseInt(zoomMinInput.value, 10) || 50;
+    });
+    zoomControl.createSpan({ text: "Max:", cls: "ttrpgmap-size-label" });
+    const zoomMaxInput = zoomControl.createEl("input", {
+      type: "text",
+      cls: "ttrpgmap-size-input",
+      value: String(this.config.zoomMax),
+    });
+    zoomMaxInput.addEventListener("input", () => {
+      this.config.zoomMax = parseInt(zoomMaxInput.value, 10) || 200;
+    });
+    zoomControl.createSpan({ text: "Step:", cls: "ttrpgmap-size-label" });
+    const zoomStepInput = zoomControl.createEl("input", {
+      type: "text",
+      cls: "ttrpgmap-size-input",
+      value: String(this.config.zoomStep),
+    });
+    zoomStepInput.addEventListener("input", () => {
+      this.config.zoomStep = parseInt(zoomStepInput.value, 10) || 10;
+    });
+    addHelpIcon(zoomSetting, "Zoom range (%) and step size per scroll increment");
 
     // ── Marker Scale ──
     contentEl.createEl("h3", { text: "Markers" });
@@ -148,7 +158,7 @@ export class MapSettingsModal extends Modal {
     const hasOverride = this.state.markerScale != null;
     const effectiveScale = this.state.markerScale ?? globalScale;
 
-    const scaleDescEl = contentEl.createDiv({ cls: "setting-item-description", text: "" });
+    const scaleDescEl = createSpan();
     const updateScaleDesc = (val: number, isOverride: boolean) => {
       scaleDescEl.textContent = isOverride
         ? `Map override: ${Math.round(val * 100)}% (global default: ${Math.round(globalScale * 100)}%)`
@@ -173,6 +183,11 @@ export class MapSettingsModal extends Modal {
           updateScaleDesc(value / 100, true);
           this.onLayerChange(this.state);
         });
+      slider.sliderEl.addEventListener("input", () => {
+        const value = parseInt(slider.sliderEl.value, 10);
+        if (currentTextInput) currentTextInput.setValue(String(value));
+        updateScaleDesc(value / 100, true);
+      });
       if (!hasOverride) slider.setDisabled(true);
     });
 
@@ -228,9 +243,8 @@ export class MapSettingsModal extends Modal {
         });
     });
 
+    scaleSetting.descEl.appendChild(scaleDescEl);
     addHelpIcon(scaleSetting, "Override the global marker size for this map. Toggle enables the override.");
-
-    contentEl.appendChild(scaleDescEl);
 
     // Scale to Zoom
     const globalScaleToZoom = this.plugin.settings.defaultScaleMarkersToZoom ?? true;
@@ -259,7 +273,7 @@ export class MapSettingsModal extends Modal {
     const hasTextOverride = this.state.markerTextScale != null;
     const effectiveTextScale = this.state.markerTextScale ?? globalTextScale;
 
-    const textScaleDescEl = contentEl.createDiv({ cls: "setting-item-description", text: "" });
+    const textScaleDescEl = createSpan();
     const updateTextScaleDesc = (val: number, isOverride: boolean) => {
       textScaleDescEl.textContent = isOverride
         ? `Map override: ${Math.round(val * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`
@@ -284,6 +298,11 @@ export class MapSettingsModal extends Modal {
           updateTextScaleDesc(value / 100, true);
           this.onLayerChange(this.state);
         });
+      slider.sliderEl.addEventListener("input", () => {
+        const value = parseInt(slider.sliderEl.value, 10);
+        if (textScaleInput) textScaleInput.setValue(String(value));
+        updateTextScaleDesc(value / 100, true);
+      });
       if (!hasTextOverride) slider.setDisabled(true);
     });
 
@@ -339,9 +358,8 @@ export class MapSettingsModal extends Modal {
         });
     });
 
+    textScaleSetting.descEl.appendChild(textScaleDescEl);
     addHelpIcon(textScaleSetting, "Override the global text label size for this map. Toggle enables the override.");
-
-    contentEl.appendChild(textScaleDescEl);
 
     // Scale Text to Zoom
     const globalTextScaleToZoom = this.plugin.settings.defaultScaleMarkerTextToZoom ?? true;
@@ -364,6 +382,7 @@ export class MapSettingsModal extends Modal {
     addHelpIcon(textZoomSetting, `Inherit uses the global default (currently ${globalTextZoomLabel}). Screen-constant keeps text the same size on screen. Fixed to map makes text scale with zoom.`);
 
     // ── Marker Layers ──
+    contentEl.createEl("h3", { text: "Layers" });
     const layersContainer = contentEl.createDiv({ cls: "ttrpgmap-layers-container" });
     this.renderLayers(layersContainer);
 
@@ -377,6 +396,11 @@ export class MapSettingsModal extends Modal {
           this.close();
         })
     );
+
+    // Prevent auto-focus on the first input
+    activeWindow.setTimeout(() => {
+      (activeWindow.document.activeElement as HTMLElement)?.blur();
+    }, 0);
   }
 
   private formatZoomRange(layer: MarkerLayer): string {
@@ -416,7 +440,7 @@ export class MapSettingsModal extends Modal {
     for (const layer of this.state.layers) {
       const isDefault = layer.id === DEFAULT_LAYER_ID;
 
-      const row = container.createDiv({ cls: "setting-item" });
+      const row = container.createDiv({ cls: "setting-item ttrpgmap-layer-row" });
       const info = row.createDiv({ cls: "setting-item-info" });
       const nameRow = info.createDiv({ cls: "setting-item-name ttrpgmap-layer-name-row" });
 

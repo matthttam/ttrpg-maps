@@ -993,10 +993,42 @@ export class MapRenderer extends MarkdownRenderChild {
     this.wrapper.style.cursor = "copy";
     this.wrapper.addClass("ttrpgmap-copy-mode");
 
+    // Create ghost preview fixed to the viewport
+    const ghost = activeWindow.document.body.createDiv({ cls: "ttrpgmap-marker ttrpgmap-copy-ghost" });
+    ghost.style.setProperty("--marker-color", source.color ?? "#ffffff");
+    ghost.style.setProperty("--marker-icon-color", source.iconColor ?? "#000000");
+    const markerBaseScale = this.getMarkerBaseScale(source);
+    const markerScaleToZoom = source.scaleToZoom ?? this.getMarkerScaleToZoom();
+    ghost.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
+    const textBaseScale = this.getTextBaseScale(source);
+    const textScaleToZoom = source.textScaleToZoom ?? this.getTextScaleToZoom();
+    ghost.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
+    ghost.dataset.direction = source.direction ?? "down";
+    ghost.dataset.textPlacement = source.textPlacement ?? "above";
+    createPinElement(ghost, {
+      pinClass: "ttrpgmap-marker-pin",
+      svgClass: "ttrpgmap-pin-svg",
+      color: source.color ?? "#ffffff",
+      icon: source.icon,
+      iconColor: source.iconColor ?? "#000000",
+      iconClass: "ttrpgmap-marker-icon",
+      useBaseMarker: source.useBaseMarker ?? true,
+      shape: source.shape ?? "pin",
+    });
+    buildMarkerLabel(ghost, source.note, source.description, "ttrpgmap-marker-label");
+
+    const onMove = (e: MouseEvent) => {
+      ghost.style.left = `${e.clientX}px`;
+      ghost.style.top = `${e.clientY}px`;
+    };
+    this.wrapper.addEventListener("mousemove", onMove);
+
     const cancel = () => {
       this.pendingCopy = null;
       this.wrapper.style.cursor = "grab";
       this.wrapper.removeClass("ttrpgmap-copy-mode");
+      ghost.remove();
+      this.wrapper.removeEventListener("mousemove", onMove);
       this.wrapper.removeEventListener("contextmenu", onCancel, true);
       activeWindow.removeEventListener("keydown", onCancel, true);
       activeWindow.removeEventListener("blur", onCancel);

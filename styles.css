@@ -719,16 +719,18 @@
   opacity: 1;
 }
 
-/* Show dashed outline while dragging or resizing, with translucent fill */
+/* Show dashed outline while dragging, resizing, or copy ghost, with translucent fill */
 .ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
-.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg {
+.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
+.ttrpgmap-copy-ghost .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg {
   opacity: 1;
 }
 
 .ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
-.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle {
+.ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
+.ttrpgmap-copy-ghost .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle {
   fill: var(--text-muted);
-  fill-opacity: 0.35;
+  fill-opacity: 0.9;
 }
 
 /* Hotspot is always clickable on maps */
@@ -1067,6 +1069,15 @@
 .ttrpgmap-drag-over {
   outline: 2px dashed var(--interactive-accent);
   outline-offset: -2px;
+}
+
+/* Copy marker ghost preview */
+.ttrpgmap-copy-ghost {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
 }
 
 .ttrpgmap-template-preview {

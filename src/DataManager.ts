@@ -72,9 +72,13 @@ export class DataManager {
 
     if (await adapter.exists(path)) {
       const raw = await adapter.read(path);
-      const state = JSON.parse(raw) as MapState;
-      this.ensureLayers(state);
-      return state;
+      try {
+        const state = JSON.parse(raw) as MapState;
+        this.ensureLayers(state);
+        return state;
+      } catch (e) {
+        console.warn(`[ttrpg-maps] Failed to parse map state ${path}:`, e);
+      }
     }
 
     return {
@@ -130,9 +134,14 @@ export class DataManager {
     for (const file of listing.files) {
       if (!file.endsWith(".json")) continue;
       const raw = await adapter.read(file);
-      const state = JSON.parse(raw) as MapState;
-      this.ensureLayers(state);
-      states.push(state);
+      try {
+        const state = JSON.parse(raw) as MapState;
+        this.ensureLayers(state);
+        states.push(state);
+      } catch (e) {
+        console.warn(`[ttrpg-maps] Failed to parse ${file}:`, e);
+        continue;
+      }
     }
     return states;
   }

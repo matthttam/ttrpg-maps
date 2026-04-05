@@ -39,6 +39,7 @@ export interface MarkerTemplate {
   color: string;
   icon: string | null;
   iconColor: string;
+  iconRotation: number;
   useBaseMarker: boolean;
   shape: "pin" | "circle" | "hotspot";
 }
@@ -108,6 +109,8 @@ export interface MapState {
   distanceScale: DistanceScale | null;
   roundingMode?: RoundingMode;
   roundingMultiple?: number;
+  showRawDistance?: boolean;
+  distanceDecimals?: number;
   markerScale?: number;
   scaleMarkersToZoom?: boolean;
   markerTextScale?: number;

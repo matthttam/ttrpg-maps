@@ -3,6 +3,7 @@ import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MarkerLayer, DEFAULT_LAYER, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
 import { ImageSuggest } from "../suggests/ImageSuggest";
 import { LayerEditModal } from "./LayerEditModal";
+import { buildScaleSlider } from "./sharedFields";
 
 /** Add a (?) icon to the right side of a setting row that shows a tooltip on hover */
 function addHelpIcon(setting: Setting, tooltip: string): void {
@@ -56,7 +57,7 @@ export class MapSettingsModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container");
+    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
     contentEl.createEl("h2", { text: "Map Settings" });
@@ -166,50 +167,18 @@ export class MapSettingsModal extends Modal {
     };
     updateScaleDesc(effectiveScale, hasOverride);
 
-    let currentSlider: { setValue: (v: number) => any } | null = null;
-    let currentTextInput: { setValue: (v: string) => any } | null = null;
-
     const scaleSetting = new Setting(contentEl)
       .setName("Marker Size");
 
-    scaleSetting.addSlider((slider) => {
-      currentSlider = slider;
-      slider
-        .setLimits(25, 300, 5)
-        .setValue(Math.round(effectiveScale * 100))
-        .onChange((value) => {
-          this.state.markerScale = value / 100;
-          if (currentTextInput) currentTextInput.setValue(String(value));
-          updateScaleDesc(value / 100, true);
-          this.onLayerChange(this.state);
-        });
-      slider.sliderEl.addEventListener("input", () => {
-        const value = parseInt(slider.sliderEl.value, 10);
-        if (currentTextInput) currentTextInput.setValue(String(value));
-        updateScaleDesc(value / 100, true);
-      });
-      if (!hasOverride) slider.setDisabled(true);
-    });
-
-    scaleSetting.addText((text) => {
-      currentTextInput = text;
-      text.inputEl.type = "number";
-      text.inputEl.min = "25";
-      text.inputEl.max = "300";
-      text.inputEl.step = "5";
-      text.inputEl.addClass("ttrpgmap-scale-input");
-      text
-        .setValue(String(Math.round(effectiveScale * 100)))
-        .onChange((value) => {
-          const num = parseInt(value, 10);
-          if (!isNaN(num) && num >= 25 && num <= 300) {
-            this.state.markerScale = num / 100;
-            if (currentSlider) currentSlider.setValue(num);
-            updateScaleDesc(num / 100, true);
-            this.onLayerChange(this.state);
-          }
-        });
-      if (!hasOverride) text.setDisabled(true);
+    const scaleControls = buildScaleSlider({
+      setting: scaleSetting,
+      value: effectiveScale,
+      onChange: (value) => {
+        this.state.markerScale = value;
+        updateScaleDesc(value, true);
+        this.onLayerChange(this.state);
+      },
+      disabled: !hasOverride,
     });
 
     scaleSetting.addToggle((toggle) => {
@@ -218,25 +187,13 @@ export class MapSettingsModal extends Modal {
         .onChange((enabled) => {
           if (enabled) {
             this.state.markerScale = globalScale;
-            if (currentSlider) {
-              (currentSlider as any).setDisabled(false);
-              currentSlider.setValue(Math.round(globalScale * 100));
-            }
-            if (currentTextInput) {
-              (currentTextInput as any).setDisabled(false);
-              currentTextInput.setValue(String(Math.round(globalScale * 100)));
-            }
+            scaleControls.setDisabled(false);
+            scaleControls.setValue(globalScale);
             updateScaleDesc(globalScale, true);
           } else {
             this.state.markerScale = undefined;
-            if (currentSlider) {
-              (currentSlider as any).setDisabled(true);
-              currentSlider.setValue(Math.round(globalScale * 100));
-            }
-            if (currentTextInput) {
-              (currentTextInput as any).setDisabled(true);
-              currentTextInput.setValue(String(Math.round(globalScale * 100)));
-            }
+            scaleControls.setDisabled(true);
+            scaleControls.setValue(globalScale);
             updateScaleDesc(globalScale, false);
           }
           this.onLayerChange(this.state);
@@ -281,50 +238,18 @@ export class MapSettingsModal extends Modal {
     };
     updateTextScaleDesc(effectiveTextScale, hasTextOverride);
 
-    let textScaleSlider: { setValue: (v: number) => any } | null = null;
-    let textScaleInput: { setValue: (v: string) => any } | null = null;
-
     const textScaleSetting = new Setting(contentEl)
       .setName("Text Size");
 
-    textScaleSetting.addSlider((slider) => {
-      textScaleSlider = slider;
-      slider
-        .setLimits(25, 300, 5)
-        .setValue(Math.round(effectiveTextScale * 100))
-        .onChange((value) => {
-          this.state.markerTextScale = value / 100;
-          if (textScaleInput) textScaleInput.setValue(String(value));
-          updateTextScaleDesc(value / 100, true);
-          this.onLayerChange(this.state);
-        });
-      slider.sliderEl.addEventListener("input", () => {
-        const value = parseInt(slider.sliderEl.value, 10);
-        if (textScaleInput) textScaleInput.setValue(String(value));
-        updateTextScaleDesc(value / 100, true);
-      });
-      if (!hasTextOverride) slider.setDisabled(true);
-    });
-
-    textScaleSetting.addText((text) => {
-      textScaleInput = text;
-      text.inputEl.type = "number";
-      text.inputEl.min = "25";
-      text.inputEl.max = "300";
-      text.inputEl.step = "5";
-      text.inputEl.addClass("ttrpgmap-scale-input");
-      text
-        .setValue(String(Math.round(effectiveTextScale * 100)))
-        .onChange((value) => {
-          const num = parseInt(value, 10);
-          if (!isNaN(num) && num >= 25 && num <= 300) {
-            this.state.markerTextScale = num / 100;
-            if (textScaleSlider) textScaleSlider.setValue(num);
-            updateTextScaleDesc(num / 100, true);
-            this.onLayerChange(this.state);
-          }
-        });
-      if (!hasTextOverride) text.setDisabled(true);
+    const textScaleControls = buildScaleSlider({
+      setting: textScaleSetting,
+      value: effectiveTextScale,
+      onChange: (value) => {
+        this.state.markerTextScale = value;
+        updateTextScaleDesc(value, true);
+        this.onLayerChange(this.state);
+      },
+      disabled: !hasTextOverride,
     });
 
     textScaleSetting.addToggle((toggle) => {
@@ -333,25 +258,13 @@ export class MapSettingsModal extends Modal {
         .onChange((enabled) => {
           if (enabled) {
             this.state.markerTextScale = globalTextScale;
-            if (textScaleSlider) {
-              (textScaleSlider as any).setDisabled(false);
-              textScaleSlider.setValue(Math.round(globalTextScale * 100));
-            }
-            if (textScaleInput) {
-              (textScaleInput as any).setDisabled(false);
-              textScaleInput.setValue(String(Math.round(globalTextScale * 100)));
-            }
+            textScaleControls.setDisabled(false);
+            textScaleControls.setValue(globalTextScale);
             updateTextScaleDesc(globalTextScale, true);
           } else {
             this.state.markerTextScale = undefined;
-            if (textScaleSlider) {
-              (textScaleSlider as any).setDisabled(true);
-              textScaleSlider.setValue(Math.round(globalTextScale * 100));
-            }
-            if (textScaleInput) {
-              (textScaleInput as any).setDisabled(true);
-              textScaleInput.setValue(String(Math.round(globalTextScale * 100)));
-            }
+            textScaleControls.setDisabled(true);
+            textScaleControls.setValue(globalTextScale);
             updateTextScaleDesc(globalTextScale, false);
           }
           this.onLayerChange(this.state);
@@ -414,6 +327,7 @@ export class MapSettingsModal extends Modal {
 
   private renderLayers(container: HTMLElement): void {
     container.empty();
+    container.addClass("ttrpgmap-template-list-container");
 
     // Header row with "Add Layer" button
     const header = container.createDiv({ cls: "setting-item setting-item-heading" });
@@ -423,28 +337,35 @@ export class MapSettingsModal extends Modal {
     const headerControl = header.createDiv({ cls: "setting-item-control" });
     const addBtn = headerControl.createEl("button", { text: "Add Layer" });
     addBtn.addEventListener("click", () => {
+      const existingNames = new Set(this.state.layers.map((l) => l.name.toLowerCase()));
+      let n = 1;
+      while (existingNames.has(`layer ${n}`.toLowerCase())) n++;
       const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const newLayer: MarkerLayer = {
         id,
-        name: "New Layer",
+        name: `Layer ${n}`,
         zoomMin: this.config.zoomMin,
         zoomMax: this.config.zoomMax,
       };
+      this.state.layers.push(newLayer);
+      this.onLayerChange(this.state);
+      this.renderLayers(container);
       new LayerEditModal(this.app, newLayer, (saved) => {
-        this.state.layers.push(saved);
+        Object.assign(newLayer, saved);
         this.onLayerChange(this.state);
         this.renderLayers(container);
       }).open();
     });
 
+    const layerList = container.createDiv({ cls: "ttrpgmap-layer-list" });
+
     for (const layer of this.state.layers) {
       const isDefault = layer.id === DEFAULT_LAYER_ID;
 
-      const row = container.createDiv({ cls: "setting-item ttrpgmap-layer-row" });
+      const row = layerList.createDiv({ cls: "setting-item" });
       const info = row.createDiv({ cls: "setting-item-info" });
       const nameRow = info.createDiv({ cls: "setting-item-name ttrpgmap-layer-name-row" });
 
-      // Layer icon
       const iconEl = nameRow.createDiv({ cls: "ttrpgmap-layer-icon" });
       setIcon(iconEl, "layers");
 
@@ -452,7 +373,7 @@ export class MapSettingsModal extends Modal {
 
       info.createDiv({
         cls: "setting-item-description",
-        text: `Zoom: ${this.formatZoomRange(layer)}`,
+        text: this.formatZoomRange(layer),
       });
 
       const control = row.createDiv({ cls: "setting-item-control" });
@@ -469,7 +390,6 @@ export class MapSettingsModal extends Modal {
       });
 
       if (isDefault) {
-        // Reset button
         const resetBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Reset to defaults" } });
         setIcon(resetBtn, "rotate-ccw");
         resetBtn.addEventListener("click", () => {
@@ -479,7 +399,6 @@ export class MapSettingsModal extends Modal {
           this.renderLayers(container);
         });
       } else {
-        // Delete button
         const deleteBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Delete layer" } });
         setIcon(deleteBtn, "trash-2");
         deleteBtn.addEventListener("click", () => {

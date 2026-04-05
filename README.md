@@ -4,20 +4,22 @@ Render interactive TTRPG maps from code blocks with markers, templates, and dist
 
 An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who want to embed interactive maps directly in their notes. Place markers, measure distances, and organize map data alongside your campaign notes.
 
-<!-- TODO: Add a screenshot or GIF showing the plugin in action -->
-<!-- ![TTRPG Maps screenshot](docs/screenshot.png) -->
+<!-- TODO: screenshot or GIF of a map with markers and measurement lines -->
 
 ## Features
 
 - **Interactive maps** - Embed any image as a pannable, zoomable map inside a note
-- **Markers with templates** - Create reusable marker templates with custom colors, icons, shapes, and labels. Place markers on maps with a right-click
-- **Distance measurement** - Calibrate a distance scale, then measure distances along multi-point or freehand paths with optional rounding
-- **Visibility layers** - Assign markers to zoom-based layers so they appear and disappear at different zoom levels
-- **Marker list panel** - Browse, search, and navigate to markers from a sidebar panel
-- **2,000+ icons** - Choose from Font Awesome and Game Icons libraries for marker icons
-- **Pin and circle shapes** - Markers can render as directional pins or circles, with or without a base shape
-- **Per-map settings** - Configure zoom limits, dimensions, and more per map
-- **Sidecar storage** - Map state (markers, scale) is stored separately from note content, keeping your markdown clean
+- **Customizable markers** - Place markers with custom colors, icons, shapes, and linked notes. Drag to reposition, right-click to edit or copy
+- **Reusable templates** - Create marker templates so every tavern, dungeon entrance, or NPC gets a consistent style. Organize templates in folders
+- **Distance measurement** - Calibrate a scale, then measure point-to-point or freehand distances with optional rounding
+- **Visibility layers** - Assign markers to zoom-based layers so overview markers show when zoomed out and detail markers show when zoomed in
+- **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search
+- **Three marker shapes** - Pin (directional teardrop), circle, or hotspot (invisible until hovered)
+- **Per-map and per-marker settings** - Override scale, zoom behavior, and label placement at every level
+- **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar
+- **Sidecar storage** - Marker state lives in `.ttrpgmap/` files, keeping your markdown clean
+
+For a complete breakdown of every feature, see the **[detailed feature list](docs/features.md)**.
 
 ## Installation
 
@@ -34,75 +36,82 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 3. Place the downloaded files into that folder
 4. Restart Obsidian and enable the plugin in **Settings** > **Community plugins**
 
-## Usage
+## Quick start
 
-### Creating a map
+### 1. Create a map
 
-Add a `ttrpgmap` code block to any note:
+Add an empty `ttrpgmap` code block to any note:
+
+````markdown
+```ttrpgmap
+```
+````
+
+The rendered block displays a **Configure Map** button. Click it to select your map image and set optional fields like dimensions and zoom range.
+
+<!-- TODO: screenshot of the empty placeholder with the Configure Map button -->
+
+Alternatively, you can set the fields directly as text in the code block:
 
 ````markdown
 ```ttrpgmap
 image: maps/dungeon-level-1.png
 height: 600px
 width: 100%
+zoommin: 30
+zoommax: 300
+zoomstep: 15
 ```
 ````
 
-The `image` field is the path to your map image relative to the vault root. All other fields are optional.
+See the [code block reference](docs/features.md#code-block-reference) for all available fields.
 
-### Code block reference
+### 2. Navigate the map
 
-| Field | Description | Default |
-|---|---|---|
-| `image` | Path to the map image (required) | - |
-| `id` | Unique map identifier | Auto-generated from image path |
-| `height` | Container height (e.g., `600px`, `80%`) | Scales to aspect ratio |
-| `width` | Container width (e.g., `800px`, `100%`) | Scales to aspect ratio |
-| `zoommin` | Minimum zoom percentage | `50` |
-| `zoommax` | Maximum zoom percentage | `200` |
-| `zoomstep` | Zoom step percentage | `10` |
+- **Pan** - Click and drag
+- **Zoom** - Scroll wheel, or use the +/- buttons (top-left)
+- **Reset view** - Click the center button (top-left)
 
-### Navigating the map
+<!-- TODO: screenshot of map with zoom controls highlighted -->
 
-- **Pan**: Click and drag
-- **Zoom**: Scroll wheel, or use the +/- buttons in the top-left corner
-- **Reset view**: Click the center button in the top-left corner
-
-### Placing markers
+### 3. Place markers
 
 1. Right-click anywhere on the map
-2. Select a marker template from the context menu
-3. The marker is placed at the clicked location
+2. Select a template from the context menu
+3. Edit the marker's properties in the modal that opens
+4. Click **Save**
 
-Right-click a marker to edit its properties or delete it. Drag a marker to reposition it.
+Right-click a marker to edit, copy, resize, or delete it. Drag a marker to reposition it. Click a marker linked to a note to navigate there.
 
-### Measuring distances
+<!-- TODO: screenshot of marker context menu -->
 
-1. Click the ruler icon in the top-right corner to open the measurement panel
-2. Click the **calibrate** button, click two points on the map, and enter the real-world distance between them (e.g., "100 feet")
-3. Click the **measure** button to start measuring -- click points along a path to see segment and total distances
-4. Click the **freehand** button to measure along a drawn curve instead of straight segments
-5. Press **Escape** to finish
+### 4. Measure distances
 
-Optionally configure rounding in the measurement panel to snap distances to the nearest multiple (e.g., round up to the nearest 5 feet).
+1. Open the measurement panel (ruler icon, top-right)
+2. **Calibrate**: Click two points and enter the real-world distance (e.g. "100 feet")
+3. **Measure**: Click points along a path to see segment and total distances
+4. **Freehand**: Click and drag to measure along curves
+5. Press **Escape** or double-click to finish
 
-### Marker templates
+Configure rounding in the measurement panel to snap distances to the nearest multiple.
 
-Open **Settings** > **TTRPG Maps** to manage marker templates. Each template defines:
+<!-- TODO: screenshot of measurement in action -->
 
-- Name, color, and icon
-- Shape (pin or circle) and direction
-- Text label placement
-- Optional linked note
+### 5. Manage templates
 
-Individual markers can override any template property. Use the reset button in the marker edit modal to restore template defaults.
+Open **Settings** > **TTRPG Maps** to create and organize marker templates. Templates define default values for color, icon, shape, direction, and more. Use **Save & Update Markers** to push template changes to all existing markers that use it.
 
-### Visibility layers
+<!-- TODO: screenshot of template settings -->
 
-Layers let you control which markers are visible at different zoom levels. Open map settings to manage layers. Each layer defines a zoom range -- markers assigned to that layer only appear when the current zoom falls within the range. This is useful for showing overview markers when zoomed out and detailed markers when zoomed in.
+## How data is stored
 
-<!-- TODO: Add screenshot of the settings panel -->
-<!-- ![Settings panel](docs/settings.png) -->
+| Data | Location | Managed by |
+|---|---|---|
+| Map config (image, zoom, dimensions) | Code block in your markdown file | Plugin writes back on settings change |
+| Markers, scale, layers, rounding | `.ttrpgmap/{mapId}.json` sidecar files | Plugin (debounced 300ms saves) |
+| Global settings and templates | `.obsidian/plugins/ttrpg-maps/data.json` | Obsidian `loadData`/`saveData` |
+
+Sidecar files keep marker data separate from note content. You can safely commit them to version control or sync them across devices.
 
 ## Third-party libraries
 

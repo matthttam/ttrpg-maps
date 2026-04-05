@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { getFAIcon, searchFAIcons, getFAIconNames, setFAIcon } from "./faIcon";
+import { getFAIcon, searchFAIcons, getFAIconNames, setFAIcon, loadGameIcons, isGameIconsLoaded } from "./faIcon";
+import * as fs from "fs";
+import * as path from "path";
 
 describe("getFAIcon", () => {
   it("returns data for a known icon", () => {
@@ -68,6 +70,42 @@ describe("setFAIcon", () => {
     setFAIcon(parent, "this-icon-definitely-does-not-exist-xyz");
     // Content should remain unchanged since the function returns early
     expect(parent.querySelector("span")).not.toBeNull();
+  });
+});
+
+describe("loadGameIcons", () => {
+  it("loads GI icons from gi-icons.json", async () => {
+    const giPath = path.resolve(__dirname, "../../gi-icons.json");
+    await loadGameIcons(giPath, (p) => fs.promises.readFile(p, "utf-8"));
+    expect(isGameIconsLoaded()).toBe(true);
+  });
+
+  it("makes GI icons available via getFAIcon after loading", async () => {
+    const icon = getFAIcon("gi-abacus");
+    expect(icon).toBeDefined();
+    expect(icon!.viewBox).toBe("0 0 512 512");
+    expect(icon!.path).toBeDefined();
+    expect(icon!.set).toBe("gi");
+  });
+
+  it("renders a GI icon via setFAIcon", async () => {
+    const parent = document.createElement("div");
+    setFAIcon(parent, "gi-abacus");
+    const svg = parent.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute("viewBox")).toBe("0 0 512 512");
+    expect(svg!.querySelector("path")).not.toBeNull();
+  });
+
+  it("includes GI icons in search results", () => {
+    const results = searchFAIcons("abacus");
+    expect(results).toContain("gi-abacus");
+  });
+
+  it("does not re-load if already loaded", async () => {
+    let callCount = 0;
+    await loadGameIcons("fake-path", async () => { callCount++; return "{}"; });
+    expect(callCount).toBe(0); // already loaded, should skip
   });
 });
 

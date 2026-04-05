@@ -175,3 +175,74 @@ export function buildIconField(ctx: FieldContext): {
 
   return { setting, colorPicker };
 }
+
+// ── Scale slider + text input ──
+
+export interface ScaleSliderControls {
+  setValue: (fraction: number) => void;
+  setDisabled: (disabled: boolean) => void;
+}
+
+interface ScaleSliderOpts {
+  setting: Setting;
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}
+
+/**
+ * Add a linked slider (25-300%) + text input to a Setting.
+ * Both controls stay in sync. Values are in fractions (1.0 = 100%).
+ */
+export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
+  const { setting, value, onChange, disabled = false } = opts;
+  let sliderRef: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
+  let textRef: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
+
+  setting.addSlider((slider) => {
+    sliderRef = slider;
+    slider
+      .setLimits(25, 300, 5)
+      .setValue(Math.round(value * 100))
+      .onChange((v: number) => {
+        if (textRef) textRef.setValue(String(v));
+        onChange(v / 100);
+      });
+    slider.sliderEl.addEventListener("input", () => {
+      const v = parseInt(slider.sliderEl.value, 10);
+      if (textRef) textRef.setValue(String(v));
+    });
+    if (disabled) slider.setDisabled(true);
+  });
+
+  setting.addText((text) => {
+    textRef = text as any;
+    text.inputEl.type = "number";
+    text.inputEl.min = "25";
+    text.inputEl.max = "300";
+    text.inputEl.step = "5";
+    text.inputEl.addClass("ttrpgmap-scale-input");
+    text
+      .setValue(String(Math.round(value * 100)))
+      .onChange((v: string) => {
+        const num = parseInt(v, 10);
+        if (!isNaN(num) && num >= 25 && num <= 300) {
+          if (sliderRef) sliderRef.setValue(num);
+          onChange(num / 100);
+        }
+      });
+    if (disabled) text.setDisabled(true);
+  });
+
+  return {
+    setValue(fraction: number) {
+      const pct = Math.round(fraction * 100);
+      if (sliderRef) sliderRef.setValue(pct);
+      if (textRef) textRef.setValue(String(pct));
+    },
+    setDisabled(d: boolean) {
+      if (sliderRef) sliderRef.setDisabled(d);
+      if (textRef) textRef.setDisabled(d);
+    },
+  };
+}

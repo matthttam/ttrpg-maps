@@ -4,7 +4,7 @@ import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LA
 import { NoteLinkSuggest } from "../suggests/NoteLinkSuggest";
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel } from "../utils/markerLabel";
-import { buildTextPlacementField, buildPinSelectorField, buildIconField, MarkerFieldState } from "./sharedFields";
+import { buildTextPlacementField, buildPinSelectorField, buildIconField, buildScaleSlider, MarkerFieldState } from "./sharedFields";
 
 export class MarkerEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
@@ -113,7 +113,7 @@ export class MarkerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide");
+    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
     const template = this.getTemplate();
@@ -233,43 +233,16 @@ export class MarkerEditModal extends Modal {
 
     // ── Scale ──
     const hasScaleOverride = this.marker.scale != null;
-    const defaultScale = 100;
-    let scaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
-    let scaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
 
     const markerScaleSetting = new Setting(contentEl)
       .setName("Marker Size")
       .setDesc("Override the map marker scale for this marker");
 
-    markerScaleSetting.addSlider((slider) => {
-      scaleSlider = slider;
-      slider
-        .setLimits(25, 300, 5)
-        .setValue(this.marker.scale != null ? Math.round(this.marker.scale * 100) : defaultScale)
-        .onChange((value) => {
-          this.marker.scale = value / 100;
-          if (scaleTextInput) scaleTextInput.setValue(String(value));
-        });
-      if (!hasScaleOverride) slider.setDisabled(true);
-    });
-
-    markerScaleSetting.addText((text) => {
-      scaleTextInput = text as any;
-      text.inputEl.type = "number";
-      text.inputEl.min = "25";
-      text.inputEl.max = "300";
-      text.inputEl.step = "5";
-      text.inputEl.addClass("ttrpgmap-scale-input");
-      text
-        .setValue(String(this.marker.scale != null ? Math.round(this.marker.scale * 100) : defaultScale))
-        .onChange((value) => {
-          const num = parseInt(value, 10);
-          if (!isNaN(num) && num >= 25 && num <= 300) {
-            this.marker.scale = num / 100;
-            if (scaleSlider) scaleSlider.setValue(num);
-          }
-        });
-      if (!hasScaleOverride) text.setDisabled(true);
+    const scaleControls = buildScaleSlider({
+      setting: markerScaleSetting,
+      value: this.marker.scale ?? 1.0,
+      onChange: (value) => { this.marker.scale = value; },
+      disabled: !hasScaleOverride,
     });
 
     markerScaleSetting.addToggle((toggle) => {
@@ -278,12 +251,12 @@ export class MarkerEditModal extends Modal {
         .onChange((enabled) => {
           if (enabled) {
             this.marker.scale = 1.0;
-            if (scaleSlider) { (scaleSlider as any).setDisabled(false); scaleSlider.setValue(defaultScale); }
-            if (scaleTextInput) { (scaleTextInput as any).setDisabled(false); scaleTextInput.setValue(String(defaultScale)); }
+            scaleControls.setDisabled(false);
+            scaleControls.setValue(1.0);
           } else {
             this.marker.scale = null;
-            if (scaleSlider) { (scaleSlider as any).setDisabled(true); scaleSlider.setValue(defaultScale); }
-            if (scaleTextInput) { (scaleTextInput as any).setDisabled(true); scaleTextInput.setValue(String(defaultScale)); }
+            scaleControls.setDisabled(true);
+            scaleControls.setValue(1.0);
           }
         });
     });
@@ -307,43 +280,16 @@ export class MarkerEditModal extends Modal {
 
     // ── Text Scale ──
     const hasTextScaleOverride = this.marker.textScale != null;
-    const defaultTextScale = 100;
-    let textScaleSlider: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
-    let textScaleTextInput: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
 
     const textScaleSetting = new Setting(contentEl)
       .setName("Text Size")
       .setDesc("Override the text label scale for this marker");
 
-    textScaleSetting.addSlider((slider) => {
-      textScaleSlider = slider;
-      slider
-        .setLimits(25, 300, 5)
-        .setValue(this.marker.textScale != null ? Math.round(this.marker.textScale * 100) : defaultTextScale)
-        .onChange((value) => {
-          this.marker.textScale = value / 100;
-          if (textScaleTextInput) textScaleTextInput.setValue(String(value));
-        });
-      if (!hasTextScaleOverride) slider.setDisabled(true);
-    });
-
-    textScaleSetting.addText((text) => {
-      textScaleTextInput = text as any;
-      text.inputEl.type = "number";
-      text.inputEl.min = "25";
-      text.inputEl.max = "300";
-      text.inputEl.step = "5";
-      text.inputEl.addClass("ttrpgmap-scale-input");
-      text
-        .setValue(String(this.marker.textScale != null ? Math.round(this.marker.textScale * 100) : defaultTextScale))
-        .onChange((value) => {
-          const num = parseInt(value, 10);
-          if (!isNaN(num) && num >= 25 && num <= 300) {
-            this.marker.textScale = num / 100;
-            if (textScaleSlider) textScaleSlider.setValue(num);
-          }
-        });
-      if (!hasTextScaleOverride) text.setDisabled(true);
+    const textScaleControls = buildScaleSlider({
+      setting: textScaleSetting,
+      value: this.marker.textScale ?? 1.0,
+      onChange: (value) => { this.marker.textScale = value; },
+      disabled: !hasTextScaleOverride,
     });
 
     textScaleSetting.addToggle((toggle) => {
@@ -352,12 +298,12 @@ export class MarkerEditModal extends Modal {
         .onChange((enabled) => {
           if (enabled) {
             this.marker.textScale = 1.0;
-            if (textScaleSlider) { (textScaleSlider as any).setDisabled(false); textScaleSlider.setValue(defaultTextScale); }
-            if (textScaleTextInput) { (textScaleTextInput as any).setDisabled(false); textScaleTextInput.setValue(String(defaultTextScale)); }
+            textScaleControls.setDisabled(false);
+            textScaleControls.setValue(1.0);
           } else {
             this.marker.textScale = null;
-            if (textScaleSlider) { (textScaleSlider as any).setDisabled(true); textScaleSlider.setValue(defaultTextScale); }
-            if (textScaleTextInput) { (textScaleTextInput as any).setDisabled(true); textScaleTextInput.setValue(String(defaultTextScale)); }
+            textScaleControls.setDisabled(true);
+            textScaleControls.setValue(1.0);
           }
         });
     });

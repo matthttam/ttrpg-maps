@@ -500,6 +500,95 @@ describe("MapRenderer copy marker", () => {
   });
 });
 
+describe("MapRenderer marker click navigation", () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+  });
+
+  it("clicking a marker with a note calls openLinkText", async () => {
+    const marker = createMarker({ note: "Places/Tavern" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const openLinkSpy = vi.fn();
+    plugin.app.workspace.openLinkText = openLinkSpy;
+
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+
+    // Simulate a simple click: mousedown -> mouseup -> click (no movement)
+    markerEl.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    markerEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openLinkSpy).toHaveBeenCalledWith("Places/Tavern", "");
+  });
+
+  it("dragging a marker beyond threshold does NOT navigate", async () => {
+    const marker = createMarker({ note: "Places/Tavern" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const openLinkSpy = vi.fn();
+    plugin.app.workspace.openLinkText = openLinkSpy;
+
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+
+    // Simulate a drag: mousedown -> mousemove (beyond threshold) -> mouseup -> click
+    markerEl.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 100, clientY: 100, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mousemove", { clientX: 110, clientY: 110, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mouseup", { clientX: 110, clientY: 110, bubbles: true }));
+    markerEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openLinkSpy).not.toHaveBeenCalled();
+  });
+
+  it("dragging a marker by 1 pixel does NOT navigate", async () => {
+    const marker = createMarker({ note: "Places/Tavern" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const openLinkSpy = vi.fn();
+    plugin.app.workspace.openLinkText = openLinkSpy;
+
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+
+    // Simulate a tiny drag (1px) -- below the drag threshold but still movement
+    markerEl.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 100, clientY: 100, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mousemove", { clientX: 101, clientY: 100, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mouseup", { clientX: 101, clientY: 100, bubbles: true }));
+    markerEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openLinkSpy).not.toHaveBeenCalled();
+  });
+
+  it("clicking a marker without a note does not call openLinkText", async () => {
+    const marker = createMarker({ note: null });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const openLinkSpy = vi.fn();
+    plugin.app.workspace.openLinkText = openLinkSpy;
+
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+
+    markerEl.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
+    wrapper.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    markerEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openLinkSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("EmptyMapRenderer DOM", () => {
   it("renders placeholder with configure button", async () => {
     const { EmptyMapRenderer } = await import("./EmptyMapRenderer");

@@ -8,3 +8,8 @@ export function generateMapId(imagePath: string): string {
   }
   return "map_" + Math.abs(hash).toString(36);
 }
+
+/** Generate a unique marker ID */
+export function generateMarkerId(): string {
+  return `marker_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}

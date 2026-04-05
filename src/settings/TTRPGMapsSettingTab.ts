@@ -1,46 +1,8 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
+import { buildScaleSlider } from "../modals/sharedFields";
 import { renderTemplateManager } from "./renderTemplateManager";
-
-/** Build a scale setting with a linked slider + text input (both update each other). */
-function addScaleSliderAndText(
-  setting: Setting,
-  initialValue: number,
-  onChange: (value: number) => void,
-): void {
-  let sliderRef: { setValue: (v: number) => any } | null = null;
-  let textRef: { setValue: (v: string) => any } | null = null;
-
-  setting.addSlider((slider) => {
-    sliderRef = slider;
-    slider
-      .setLimits(25, 300, 5)
-      .setValue(Math.round(initialValue * 100))
-      .onChange((value) => {
-        if (textRef) textRef.setValue(String(value));
-        onChange(value / 100);
-      });
-  });
-
-  setting.addText((text) => {
-    textRef = text;
-    text.inputEl.type = "number";
-    text.inputEl.min = "25";
-    text.inputEl.max = "300";
-    text.inputEl.step = "5";
-    text.inputEl.addClass("ttrpgmap-scale-input");
-    text
-      .setValue(String(Math.round(initialValue * 100)))
-      .onChange((value) => {
-        const num = parseInt(value, 10);
-        if (!isNaN(num) && num >= 25 && num <= 300) {
-          if (sliderRef) sliderRef.setValue(num);
-          onChange(num / 100);
-        }
-      });
-  });
-}
 
 export class TTRPGMapsSettingTab extends PluginSettingTab {
   private plugin: TTRPGMapsPlugin;
@@ -63,15 +25,15 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
       .setName("Default Marker Scale")
       .setDesc("Visual size of markers on all maps (%)");
 
-    addScaleSliderAndText(
-      markerScaleSetting,
-      this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
-      async (value) => {
+    buildScaleSlider({
+      setting: markerScaleSetting,
+      value: this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
+      onChange: async (value) => {
         this.plugin.settings.defaultMarkerScale = value;
         await this.plugin.dataManager.saveSettings(this.plugin.settings);
         this.plugin.triggerMapRefresh();
       },
-    );
+    });
 
     new Setting(containerEl)
       .setName("Scale Markers to Zoom")
@@ -95,15 +57,15 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
       .setName("Default Text Scale")
       .setDesc("Visual size of marker text labels on all maps (%)");
 
-    addScaleSliderAndText(
-      textScaleSetting,
-      this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
-      async (value) => {
+    buildScaleSlider({
+      setting: textScaleSetting,
+      value: this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
+      onChange: async (value) => {
         this.plugin.settings.defaultMarkerTextScale = value;
         await this.plugin.dataManager.saveSettings(this.plugin.settings);
         this.plugin.triggerMapRefresh();
       },
-    );
+    });
 
     new Setting(containerEl)
       .setName("Scale Text to Zoom")

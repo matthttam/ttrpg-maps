@@ -2,6 +2,7 @@ import { App, Modal, Setting, Notice } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MarkerTemplate, MapMarker, PREDEFINED_TEMPLATE_IDS } from "../types";
 import { createPinElement } from "../utils/markerPin";
+import { buildMarkerLabel } from "../utils/markerLabel";
 import { buildTextPlacementField, buildPinSelectorField, buildIconField } from "./sharedFields";
 
 /** Fields on a template that can be pushed to markers */
@@ -77,6 +78,8 @@ export class TemplateEditModal extends Modal {
       useBaseMarker: this.draft.useBaseMarker,
       shape: this.draft.shape,
     });
+
+    buildMarkerLabel(wrapper, "Example Note", "Example Description", "ttrpgmap-edit-preview-label");
   }
 
   /** Update dirty indicators on all tracked fields */
@@ -108,7 +111,7 @@ export class TemplateEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container");
+    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
     this.changedIndicators.clear();
 

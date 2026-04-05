@@ -7,15 +7,20 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 let giIconsLoaded = false;
 let giIcons: Record<string, IconEntry> = {};
 
-/** Load Game Icons JSON from the plugin's directory */
-export async function loadGameIcons(pluginDir: string, readFile: (path: string) => Promise<string>): Promise<void> {
+/** Check if Game Icons have been loaded */
+export function isGameIconsLoaded(): boolean {
+  return giIconsLoaded;
+}
+
+/** Load Game Icons JSON. Accepts a read function for the given path. */
+export async function loadGameIcons(path: string, readFile: (path: string) => Promise<string>): Promise<void> {
   if (giIconsLoaded) return;
   try {
-    const json = await readFile(`${pluginDir}/gi-icons.json`);
+    const json = await readFile(path);
     giIcons = JSON.parse(json);
     giIconsLoaded = true;
-  } catch {
-    // JSON not available. GI icons won't render but search still works via names/terms.
+  } catch (e) {
+    console.warn("[ttrpg-maps] Failed to load Game Icons from", path, e);
   }
 }
 

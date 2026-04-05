@@ -5,7 +5,7 @@ export class ScaleCalibrationModal extends Modal {
   private unitLabel = "units";
   private onSave: (units: number, unitLabel: string) => void;
 
-  constructor(app: App, pixelDist: number, onSave: (units: number, unitLabel: string) => void) {
+  constructor(app: App, onSave: (units: number, unitLabel: string) => void) {
     super(app);
     this.onSave = onSave;
   }

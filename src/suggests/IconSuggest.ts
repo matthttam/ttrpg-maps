@@ -12,7 +12,7 @@ export class IconSuggest extends AbstractInputSuggest<string> {
   }
 
   getSuggestions(query: string): string[] {
-    return searchFAIcons(query, 30);
+    return searchFAIcons(query, 100);
   }
 
   renderSuggestion(value: string, el: HTMLElement): void {

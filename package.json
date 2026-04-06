@@ -1,6 +1,6 @@
 {
   "name": "obsidian-ttrpg-maps",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.",
   "main": "main.js",
   "repository": {

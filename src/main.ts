@@ -6,7 +6,7 @@ import { EmptyMapRenderer } from "./map/EmptyMapRenderer";
 import { TTRPGMapsSettingTab } from "./settings/TTRPGMapsSettingTab";
 import { parseMapConfig } from "./utils/configSerializer";
 import { generateMapId } from "./utils/mapId";
-import { loadGameIcons, isGameIconsLoaded } from "./utils/faIcon";
+import { loadGameIcons, isGameIconsLoaded, extractAndLoadGameIcons } from "./utils/mapIcon";
 
 export default class TTRPGMapsPlugin extends Plugin {
   settings: TTRPGMapsSettings = DEFAULT_SETTINGS;
@@ -24,16 +24,19 @@ export default class TTRPGMapsPlugin extends Plugin {
     this.settings = await this.dataManager.loadSettings();
     this.addSettingTab(new TTRPGMapsSettingTab(this.app, this));
 
-    // Load Game Icons JSON from plugin directory
+    // Load Game Icons JSON from plugin directory, or extract from embedded data
     const adapter = this.app.vault.adapter;
     const giFile = "gi-icons.json";
     const read = (p: string) => adapter.read(p);
-    // Try manifest.dir first (Obsidian 1.5+), then constructed path
+    const write = (p: string, data: string) => adapter.write(p, data);
     const manifestPath = normalizePath(`${this.manifest.dir}/${giFile}`);
     const fallbackPath = normalizePath(`.obsidian/plugins/${this.manifest.id}/${giFile}`);
     await loadGameIcons(manifestPath, read);
     if (!isGameIconsLoaded()) {
       await loadGameIcons(fallbackPath, read);
+    }
+    if (!isGameIconsLoaded()) {
+      await extractAndLoadGameIcons(manifestPath, write, read);
     }
 
     this.registerHoverLinkSource("ttrpg-maps", {

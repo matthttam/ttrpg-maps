@@ -1,7 +1,7 @@
 import { App, Setting } from "obsidian";
 import { MarkerDirection, TextPlacement } from "../types";
 import { IconSuggest } from "../suggests/IconSuggest";
-import { setFAIcon, getFAIcon } from "../utils/faIcon";
+import { setMapIcon, getMapIcon } from "../utils/mapIcon";
 
 import { createPinSelector, PinSelection } from "../utils/pinSelector";
 import { createColorPicker } from "../utils/colorPicker";
@@ -105,9 +105,9 @@ export function buildIconField(ctx: FieldContext): {
   function updateInputPreview() {
     iconPreview.empty();
     if (ctx.state.icon) {
-      setFAIcon(iconPreview, ctx.state.icon);
+      setMapIcon(iconPreview, ctx.state.icon);
       iconPreview.removeClass("ttrpgmap-hidden");
-      const icon = getFAIcon(ctx.state.icon);
+      const icon = getMapIcon(ctx.state.icon);
       sourceEl.setText(icon ? (icon.set === "gi" ? "Game Icons" : "FA") : "");
       if (icon) { sourceEl.removeClass("ttrpgmap-hidden"); } else { sourceEl.addClass("ttrpgmap-hidden"); }
     } else {

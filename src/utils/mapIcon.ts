@@ -30,9 +30,46 @@ export async function loadGameIcons(path: string, readFile: (path: string) => Pr
   }
 }
 
+/** Extract embedded Game Icons and write to disk, then load. */
+export async function extractAndLoadGameIcons(
+  destPath: string,
+  writeFile: (path: string, data: string) => Promise<void>,
+  readFile: (path: string) => Promise<string>,
+): Promise<void> {
+  if (giIconsLoaded) return;
+  try {
+    const { GI_ICONS_COMPRESSED } = await import("../generated/gi-icons-embedded");
+    const binary = Uint8Array.from(atob(GI_ICONS_COMPRESSED), (c) => c.charCodeAt(0));
+    const ds = new DecompressionStream("deflate");
+    const writer = ds.writable.getWriter();
+    writer.write(binary);
+    void writer.close();
+    const reader = ds.readable.getReader();
+    const chunks: Uint8Array[] = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    const json = new TextDecoder().decode(merged);
+    await writeFile(destPath, json);
+    giIcons = JSON.parse(json);
+    giIconsLoaded = true;
+  } catch (e) {
+    console.warn("[ttrpg-maps] Failed to extract embedded Game Icons", e);
+  }
+}
+
 /** Render an icon as inline SVG into a container */
-export function setFAIcon(parent: HTMLElement, iconName: string): void {
-  const icon = getFAIcon(iconName);
+export function setMapIcon(parent: HTMLElement, iconName: string): void {
+  const icon = getMapIcon(iconName);
   if (!icon) return;
 
   parent.empty();
@@ -47,12 +84,12 @@ export function setFAIcon(parent: HTMLElement, iconName: string): void {
 }
 
 /** Get icon data by name (FA inline, GI from lazy cache) */
-export function getFAIcon(name: string): IconEntry | undefined {
+export function getMapIcon(name: string): IconEntry | undefined {
   return FA_ICONS[name] ?? giIcons[name];
 }
 
 /** Search icons by name and search terms */
-export function searchFAIcons(query: string, limit = 30): string[] {
+export function searchMapIcons(query: string, limit = 30): string[] {
   if (!query) return [];
   const lowerQuery = query.toLowerCase();
 
@@ -80,6 +117,6 @@ export function searchFAIcons(query: string, limit = 30): string[] {
 }
 
 /** Get all icon names */
-export function getFAIconNames(): string[] {
+export function getMapIconNames(): string[] {
   return ALL_ICON_NAMES;
 }

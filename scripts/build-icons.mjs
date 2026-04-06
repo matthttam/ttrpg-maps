@@ -10,6 +10,7 @@
 import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
+import zlib from "zlib";
 import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
@@ -105,7 +106,14 @@ resolveAliases(giData, giIcons, giDefaultW, giDefaultH, "gi-", "gi");
 giCount = Object.keys(giIcons).length;
 
 // Write Game Icons JSON (loaded at runtime by the plugin)
-fs.writeFileSync(giJsonFile, JSON.stringify(giIcons), "utf8");
+const giJsonStr = JSON.stringify(giIcons);
+fs.writeFileSync(giJsonFile, giJsonStr, "utf8");
+
+// Write compressed GI data as a TS module for embedded fallback
+const giCompressed = zlib.deflateSync(Buffer.from(giJsonStr, "utf8"), { level: 9 });
+const giBase64 = giCompressed.toString("base64");
+const giEmbedFile = path.join(outDir, "gi-icons-embedded.ts");
+fs.writeFileSync(giEmbedFile, `// Auto-generated compressed Game Icons data. Do not edit.\nexport const GI_ICONS_COMPRESSED = "${giBase64}";\n`, "utf8");
 
 // Generate TypeScript file with FA icons inline + GI icon names for search
 const giNames = Object.keys(giIcons).sort();

@@ -1,39 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { getFAIcon, searchFAIcons, getFAIconNames, setFAIcon, loadGameIcons, isGameIconsLoaded } from "../../src/utils/faIcon";
+import { getMapIcon, searchMapIcons, getMapIconNames, setMapIcon, loadGameIcons, isGameIconsLoaded } from "../../src/utils/mapIcon";
 import * as fs from "fs";
 import * as path from "path";
 
-describe("getFAIcon", () => {
+describe("getMapIcon", () => {
   it("returns data for a known icon", () => {
-    const icon = getFAIcon("star");
+    const icon = getMapIcon("star");
     expect(icon).toBeDefined();
     expect(icon!.viewBox).toBeDefined();
     expect(icon!.path).toBeDefined();
   });
 
   it("returns undefined for an unknown icon", () => {
-    const icon = getFAIcon("this-icon-definitely-does-not-exist-xyz");
+    const icon = getMapIcon("this-icon-definitely-does-not-exist-xyz");
     expect(icon).toBeUndefined();
   });
 });
 
-describe("searchFAIcons", () => {
+describe("searchMapIcons", () => {
   it("returns empty array for empty query", () => {
-    expect(searchFAIcons("")).toEqual([]);
+    expect(searchMapIcons("")).toEqual([]);
   });
 
   it("returns exact match as first result", () => {
-    const results = searchFAIcons("star");
+    const results = searchMapIcons("star");
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]).toBe("star");
   });
 
   it("returns results for partial match", () => {
-    const results = searchFAIcons("arro");
+    const results = searchMapIcons("arro");
     expect(results.length).toBeGreaterThan(0);
     // All results should contain the partial query
     for (const name of results) {
-      const icon = getFAIcon(name);
+      const icon = getMapIcon(name);
       const nameMatches = name.includes("arro");
       const termMatches = icon?.terms?.some((t) => t.toLowerCase().includes("arro"));
       expect(nameMatches || termMatches).toBe(true);
@@ -41,15 +41,15 @@ describe("searchFAIcons", () => {
   });
 
   it("respects the limit parameter", () => {
-    const results = searchFAIcons("a", 5);
+    const results = searchMapIcons("a", 5);
     expect(results.length).toBeLessThanOrEqual(5);
   });
 });
 
-describe("setFAIcon", () => {
+describe("setMapIcon", () => {
   it("renders an SVG into the parent element", () => {
     const parent = document.createElement("div");
-    setFAIcon(parent, "star");
+    setMapIcon(parent, "star");
     const svg = parent.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg!.getAttribute("fill")).toBe("currentColor");
@@ -60,7 +60,7 @@ describe("setFAIcon", () => {
     const parent = document.createElement("div");
      
     parent.innerHTML = "<span>old content</span>";
-    setFAIcon(parent, "star");
+    setMapIcon(parent, "star");
     expect(parent.querySelector("span")).toBeNull();
     expect(parent.querySelector("svg")).not.toBeNull();
   });
@@ -69,7 +69,7 @@ describe("setFAIcon", () => {
     const parent = document.createElement("div");
      
     parent.innerHTML = "<span>existing</span>";
-    setFAIcon(parent, "this-icon-definitely-does-not-exist-xyz");
+    setMapIcon(parent, "this-icon-definitely-does-not-exist-xyz");
     // Content should remain unchanged since the function returns early
     expect(parent.querySelector("span")).not.toBeNull();
   });
@@ -82,17 +82,17 @@ describe("loadGameIcons", () => {
     expect(isGameIconsLoaded()).toBe(true);
   });
 
-  it("makes GI icons available via getFAIcon after loading", async () => {
-    const icon = getFAIcon("gi-abacus");
+  it("makes GI icons available via getMapIcon after loading", async () => {
+    const icon = getMapIcon("gi-abacus");
     expect(icon).toBeDefined();
     expect(icon!.viewBox).toBe("0 0 512 512");
     expect(icon!.path).toBeDefined();
     expect(icon!.set).toBe("gi");
   });
 
-  it("renders a GI icon via setFAIcon", async () => {
+  it("renders a GI icon via setMapIcon", async () => {
     const parent = document.createElement("div");
-    setFAIcon(parent, "gi-abacus");
+    setMapIcon(parent, "gi-abacus");
     const svg = parent.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg!.getAttribute("viewBox")).toBe("0 0 512 512");
@@ -100,7 +100,7 @@ describe("loadGameIcons", () => {
   });
 
   it("includes GI icons in search results", () => {
-    const results = searchFAIcons("abacus");
+    const results = searchMapIcons("abacus");
     expect(results).toContain("gi-abacus");
   });
 
@@ -111,15 +111,15 @@ describe("loadGameIcons", () => {
   });
 });
 
-describe("getFAIconNames", () => {
+describe("getMapIconNames", () => {
   it("returns a non-empty array", () => {
-    const names = getFAIconNames();
+    const names = getMapIconNames();
     expect(Array.isArray(names)).toBe(true);
     expect(names.length).toBeGreaterThan(0);
   });
 
   it("contains known icons", () => {
-    const names = getFAIconNames();
+    const names = getMapIconNames();
     expect(names).toContain("star");
     expect(names).toContain("location-dot");
   });

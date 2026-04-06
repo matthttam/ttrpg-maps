@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createPinSvg, createCircleSvg, createHotspotSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "../../src/utils/markerPin";
-import { getFAIcon, getFAIconNames } from "../../src/utils/faIcon";
+import { getMapIcon, getMapIconNames } from "../../src/utils/mapIcon";
 
 describe("createPinSvg", () => {
   it("creates an SVG element with correct viewBox", () => {
@@ -98,10 +98,10 @@ describe("createPinElement", () => {
   });
 
   it("FA icon registry loads correctly", () => {
-    const names = getFAIconNames();
+    const names = getMapIconNames();
     expect(names.length).toBeGreaterThan(0);
-    expect(getFAIcon("star")).toBeDefined();
-    expect(getFAIcon("location-dot")).toBeDefined();
+    expect(getMapIcon("star")).toBeDefined();
+    expect(getMapIcon("location-dot")).toBeDefined();
   });
 
   it("adds an icon element when icon is provided", () => {

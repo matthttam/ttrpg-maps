@@ -23,7 +23,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /** Get the fields that changed between snapshot and current template */
-function getChangedFields(snapshot: Partial<MarkerTemplate>, current: MarkerTemplate): (keyof MarkerTemplate)[] {
+function getChangedFields(snapshot: Partial<Record<keyof MarkerTemplate, unknown>>, current: MarkerTemplate): (keyof MarkerTemplate)[] {
   return APPLY_FIELDS.filter((key) => {
     const oldVal = snapshot[key];
     const newVal = current[key];
@@ -35,7 +35,7 @@ export class TemplateEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private original: MarkerTemplate;
   private draft: MarkerTemplate;
-  private snapshot: Partial<MarkerTemplate>;
+  private snapshot: Partial<Record<keyof MarkerTemplate, unknown>>;
   private onSaved: () => void;
   private changedIndicators: Map<string, HTMLElement> = new Map();
 
@@ -48,8 +48,7 @@ export class TemplateEditModal extends Modal {
     // Snapshot original values for dirty tracking
     this.snapshot = {};
     for (const key of APPLY_FIELDS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.snapshot as any)[key] = template[key];
+      this.snapshot[key] = template[key];
     }
   }
 
@@ -208,8 +207,7 @@ export class TemplateEditModal extends Modal {
                     for (const marker of state.markers) {
                       if (marker.templateId !== this.draft.id) continue;
                       for (const field of changed) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (marker as any)[field] = (this.draft as any)[field];
+                        (marker as unknown as Record<string, unknown>)[field] = this.draft[field];
                       }
                       stateChanged = true;
                       count++;

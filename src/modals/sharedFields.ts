@@ -241,10 +241,8 @@ interface ScaleSliderOpts {
  */
 export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
   const { setting, value, onChange, disabled = false } = opts;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let sliderRef: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let textRef: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
+  let sliderRef: { setValue: (v: number) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
+  let textRef: { setValue: (v: string) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
 
   setting.addSlider((slider) => {
     sliderRef = slider;
@@ -263,8 +261,7 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
   });
 
   setting.addText((text) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    textRef = text as any;
+    textRef = text;
     text.inputEl.type = "number";
     text.inputEl.min = "25";
     text.inputEl.max = "300";

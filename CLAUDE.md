@@ -52,6 +52,39 @@ Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/g
 
 Tests run in jsdom. `src/__mocks__/obsidian.ts` mocks the Obsidian API classes. `src/__mocks__/obsidian-dom.ts` polyfills Obsidian's custom HTMLElement methods (`createDiv`, `createEl`, `empty`, `addClass`, `setText`). Coverage is scoped to `src/utils/`, `src/map/`, `src/types.ts`, `src/distance.ts`, and `src/DataManager.ts`.
 
+## Obsidian community plugin guidelines
+
+This plugin is published to the Obsidian community directory. All code is scanned by an automated review bot using `eslint-plugin-obsidianmd` and `@typescript-eslint`. Run `npx eslint src/` locally before committing to catch issues early.
+
+### UI text must use sentence case
+All `.setName()`, `.setButtonText()`, `.setPlaceholder()`, `.setDesc()`, and heading text must use sentence case (first word capitalized, rest lowercase). Exceptions: proper nouns (TTRPG), acronyms (ID, SVG). Example: "Default marker scale", not "Default Marker Scale".
+
+### No inline styles
+Never use `element.style.X = ...` directly. Use CSS classes instead:
+- Show/hide: `el.addClass("ttrpgmap-hidden")` / `el.removeClass("ttrpgmap-hidden")` (defined in styles.css)
+- Cursors: `ttrpgmap-cursor-grab`, `ttrpgmap-cursor-crosshair`, `ttrpgmap-cursor-copy`
+- Image rendering: `ttrpgmap-pixelated`
+- For truly dynamic values (positions, transforms, CSS custom properties), use `// eslint-disable-next-line obsidianmd/no-static-styles-assignment`
+
+### Headings use the Setting API
+Use `new Setting(containerEl).setName("...").setHeading()` instead of `createEl("h2")` or `createEl("h3")`.
+
+### No innerHTML writes
+Use `parent.empty()` to clear content. Use `DOMParser` + `appendChild` for injecting SVG strings. Reading innerHTML in tests is OK.
+
+### No browser confirm()
+Use an Obsidian `Modal` with buttons that resolve a Promise instead of `confirm()`.
+
+### No async lifecycle overrides
+Don't declare `onload()`, `onOpen()`, etc. as `async`. Wrap the async body in `void (async () => { ... })()` inside a synchronous method.
+
+### Promise handling
+- Don't pass `async` callbacks to `.onChange()`, `.onClick()`, or `addEventListener`. Either remove async and prefix promise calls with `void`, or wrap in `void (async () => { ... })()`.
+- Prefix fire-and-forget promise calls with `void` (e.g., `void plugin.dataManager.saveSettings(...)`).
+
+### No explicit `any` in production code
+Use proper types. For undocumented Obsidian APIs (e.g., `setSubmenu()`, `app.setting`), use `// eslint-disable-next-line @typescript-eslint/no-explicit-any`. In test/mock files, eslint-disable comments are acceptable for mock objects.
+
 ## Key conventions
 
 - The Obsidian `setIcon()` API (Lucide icons) is only used for Obsidian UI elements (toolbar buttons, settings icons). All marker/map icons use the Font Awesome system via `setFAIcon()` / `createPinElement()`.

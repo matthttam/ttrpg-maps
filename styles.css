@@ -1683,3 +1683,18 @@
   image-rendering: pixelated;
 }
 
+.ttrpgmap-size-fill {
+  width: 100%;
+  height: 100%;
+}
+
+.ttrpgmap-size-auto-width {
+  width: auto;
+  height: 100%;
+}
+
+.ttrpgmap-size-auto-height {
+  width: 100%;
+  height: auto;
+}
+

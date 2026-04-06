@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MapConfig, MapState, MapMarker, MapPoint, RoundingMode, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
+import { MapConfig, MapState, MapMarker, MapPoint, MarkerTemplate, RoundingMode, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
 import { MapSettingsModal } from "../modals/MapSettingsModal";
 import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
@@ -587,36 +587,35 @@ export class MapRenderer extends MarkdownRenderChild {
     const natH = this.imageEl?.naturalHeight || 0;
     const ratio = natW && natH ? natW / natH : 0;
 
+    const imageSizeClasses = ["ttrpgmap-size-fill", "ttrpgmap-size-auto-width", "ttrpgmap-size-auto-height"];
+    if (this.imageEl) {
+      imageSizeClasses.forEach((cls) => this.imageEl!.removeClass(cls));
+    }
+    this.wrapper.removeClass("ttrpgmap-size-auto-height");
+
     if (height && width) {
        
       this.wrapper.style.width = width;
        
       this.wrapper.style.height = height;
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "100%"; }
+      if (this.imageEl) { this.imageEl.addClass("ttrpgmap-size-fill"); }
     } else if (height && !width) {
        
       this.wrapper.style.height = height;
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      if (this.imageEl) { this.imageEl.style.height = "100%"; this.imageEl.style.width = "auto"; }
+      if (this.imageEl) { this.imageEl.addClass("ttrpgmap-size-auto-width"); }
       const px = parseFloat(height);
        
       this.wrapper.style.width = (ratio && !height.includes("%")) ? `${Math.round(px * ratio)}px` : "auto";
     } else if (!height && width) {
        
       this.wrapper.style.width = width;
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "auto"; }
+      if (this.imageEl) { this.imageEl.addClass("ttrpgmap-size-auto-height"); }
       const px = parseFloat(width);
        
       this.wrapper.style.height = (ratio && !width.includes("%")) ? `${Math.round(px / ratio)}px` : "auto";
     } else {
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      this.wrapper.style.width = "100%";
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      this.wrapper.style.height = "auto";
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "auto"; }
+      this.wrapper.addClass("ttrpgmap-size-auto-height");
+      if (this.imageEl) { this.imageEl.addClass("ttrpgmap-size-auto-height"); }
     }
   }
 
@@ -1433,11 +1432,9 @@ export class MapRenderer extends MarkdownRenderChild {
         item.setTitle("Place marker");
         item.setIcon("map-pin");
         if (hasMultipleLayers) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sub = (item as any).setSubmenu();
+          const sub = item.setSubmenu();
           for (const layer of layers) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            sub.addItem((subItem: any) => {
+            sub.addItem((subItem) => {
               subItem.setTitle(layer.name);
               subItem.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
             });
@@ -1455,17 +1452,14 @@ export class MapRenderer extends MarkdownRenderChild {
 
       const folders = this.plugin.settings.templateFolders;
       const topLevel = sortByName(templates.filter((t) => !t.folderId));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const addTemplateToMenu = (m: any, template: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        m.addItem((item: any) => {
+      const addTemplateToMenu = (m: Menu, template: MarkerTemplate) => {
+        m.addItem((item) => {
           item.setTitle(template.name);
           item.setIcon(template.shape === "hotspot" ? "circle-dashed" : "map-pin");
           if (hasMultipleLayers) {
             const sub = item.setSubmenu();
             for (const layer of layers) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              sub.addItem((subItem: any) => {
+              sub.addItem((subItem) => {
                 subItem.setTitle(layer.name);
                 subItem.onClick(() => this.placeMarker(mapX, mapY, template.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
               });
@@ -1483,8 +1477,7 @@ export class MapRenderer extends MarkdownRenderChild {
       for (const folder of sortByName(folders)) {
         const folderTemplates = sortByName(templates.filter((t) => t.folderId === folder.id));
         if (folderTemplates.length === 0) continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        menu.addItem((item: any) => {
+        menu.addItem((item) => {
           item.setTitle(folder.name);
           item.setIcon("folder");
           const sub = item.setSubmenu();
@@ -1500,8 +1493,7 @@ export class MapRenderer extends MarkdownRenderChild {
       item.setTitle("Edit templates");
       item.setIcon("settings");
       item.onClick(() => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const setting = (this.plugin.app as any).setting;
+        const setting = this.plugin.app.setting;
         setting.open();
         setting.openTabById(this.plugin.manifest.id);
       });

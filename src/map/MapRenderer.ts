@@ -212,20 +212,31 @@ export class MapRenderer extends MarkdownRenderChild {
     fitBtn.addEventListener("click", () => this.fitToScreen());
 
     // Lock toggles (inside zoom controls strip)
+    this.zoomLocked = this.state?.zoomLocked ?? false;
+    this.panLocked = this.state?.panLocked ?? false;
+
     const zoomLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Zoom" } });
     zoomLockBtn.innerHTML = NO_ZOOM_SVG;
+    if (this.zoomLocked) {
+      zoomLockBtn.addClass("is-active");
+      zoomInBtn.addClass("ttrpgmap-btn-disabled");
+      zoomOutBtn.addClass("ttrpgmap-btn-disabled");
+    }
     zoomLockBtn.addEventListener("click", () => {
       this.zoomLocked = !this.zoomLocked;
       zoomLockBtn.toggleClass("is-active", this.zoomLocked);
       zoomInBtn.toggleClass("ttrpgmap-btn-disabled", this.zoomLocked);
       zoomOutBtn.toggleClass("ttrpgmap-btn-disabled", this.zoomLocked);
+      if (this.state) { this.state.zoomLocked = this.zoomLocked; this.plugin.dataManager.saveMapState(this.config.id, this.state); }
     });
 
     const panLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Pan" } });
     panLockBtn.innerHTML = NO_PAN_SVG;
+    if (this.panLocked) panLockBtn.addClass("is-active");
     panLockBtn.addEventListener("click", () => {
       this.panLocked = !this.panLocked;
       panLockBtn.toggleClass("is-active", this.panLocked);
+      if (this.state) { this.state.panLocked = this.panLocked; this.plugin.dataManager.saveMapState(this.config.id, this.state); }
     });
   }
 
@@ -1024,7 +1035,8 @@ export class MapRenderer extends MarkdownRenderChild {
       markerEl.addEventListener("click", (e) => {
         if (this.hasDragged) { this.hasDragged = false; return; }
         e.stopPropagation();
-        this.plugin.app.workspace.openLinkText(navPath, "");
+        const newTab = this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? true;
+        this.plugin.app.workspace.openLinkText(navPath, "", newTab);
       });
     }
 

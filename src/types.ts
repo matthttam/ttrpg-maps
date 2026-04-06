@@ -116,6 +116,9 @@ export interface MapState {
   scaleMarkersToZoom?: boolean;
   markerTextScale?: number;
   scaleMarkerTextToZoom?: boolean;
+  openLinksInNewTab?: boolean;
+  zoomLocked?: boolean;
+  panLocked?: boolean;
 }
 
 /** Plugin-wide settings stored in data.json */
@@ -126,6 +129,7 @@ export interface TTRPGMapsSettings {
   defaultScaleMarkersToZoom?: boolean;
   defaultMarkerTextScale?: number;
   defaultScaleMarkerTextToZoom?: boolean;
+  openLinksInNewTab?: boolean;
 }
 
 /** IDs of predefined templates that cannot be renamed or deleted */

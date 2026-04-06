@@ -90,6 +90,26 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/* Disabled zoom buttons */
+.ttrpgmap-btn-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.ttrpgmap-lock-btn {
+  color: var(--text-muted);
+}
+
+.ttrpgmap-lock-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ttrpgmap-lock-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 /* ===== Measurement Panel (top-right drawer) ===== */
 .ttrpgmap-measure-panel {
   position: absolute;
@@ -792,6 +812,11 @@
   justify-content: center;
 }
 
+.ttrpgmap-pin-icon svg,
+.ttrpgmap-pin-standalone-icon svg {
+  rotate: var(--icon-rotation, 0deg);
+}
+
 .ttrpgmap-pin-icon svg {
   width: 100%;
   height: 100%;
@@ -958,9 +983,14 @@
   padding-right: 12px;
 }
 
-.ttrpgmap-modal .setting-item:not(.setting-item-heading) {
-  border-top: var(--border-width) solid var(--background-modifier-border);
+/* Reset all setting-item borders in our modals, then add them only between siblings */
+.ttrpgmap-modal .setting-item {
+  border-top: none;
   padding-left: 0;
+}
+
+.ttrpgmap-modal .setting-item + .setting-item:not(.setting-item-heading) {
+  border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
 .ttrpgmap-modal .setting-item-description {
@@ -980,27 +1010,23 @@
   margin-bottom: 4px;
 }
 
-/* Remove the border on the first setting after a heading */
-.ttrpgmap-modal h2 + .setting-item,
-.ttrpgmap-modal h3 + .setting-item,
-.ttrpgmap-modal-main > .setting-item:first-child,
-.ttrpgmap-layers-container > .setting-item-heading {
-  border-top: none;
-  padding-left: 0;
-}
-
 .ttrpgmap-layer-list {
   margin-left: 24px;
 }
 
-.ttrpgmap-layer-list > .setting-item {
+.ttrpgmap-layer-list > .setting-item,
+.ttrpgmap-layer-list > .setting-item + .setting-item {
   padding: 6px 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
 .ttrpgmap-layer-list > .setting-item:last-child {
-  border-bottom: none;
   padding-bottom: 12px;
+}
+
+/* Full-width border above the setting item after the layers container (Save button) */
+.ttrpgmap-layers-container + .setting-item {
+  border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
 /* Inline labeled inputs (Map Size, Zoom Range) */
@@ -1045,7 +1071,13 @@
 /* ===== Template List ===== */
 .ttrpgmap-template-list-container .setting-item:not(.setting-item-heading) {
   padding: 6px 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Borders between template rows in global settings (not inside layer list or modal) */
+.ttrpgmap-template-list-container > .setting-item + .setting-item:not(.setting-item-heading),
+.ttrpgmap-template-list-container > div > .setting-item + .setting-item:not(.setting-item-heading),
+.ttrpgmap-folder-contents > .setting-item + .setting-item {
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 .ttrpgmap-template-list-container .setting-item:not(.setting-item-heading) .setting-item-info {
@@ -1211,8 +1243,41 @@
   margin-left: auto;
 }
 
+.ttrpgmap-inline-reset {
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.ttrpgmap-inline-reset svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ttrpgmap-inline-reset:hover {
+  color: var(--text-normal);
+}
+
+.ttrpgmap-icon-rotation-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.ttrpgmap-icon-rotation-slider {
+  width: 80px;
+}
+
+.ttrpgmap-icon-rotation-input {
+  width: 45px;
+  text-align: center;
+}
+
 .setting-item:has(.ttrpgmap-icon-input-wrap) {
-  padding-bottom: 18px;
+  padding-bottom: 12px;
 }
 
 .setting-item:has(.ttrpgmap-icon-input-wrap) .setting-item-control {

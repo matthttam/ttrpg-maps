@@ -36,6 +36,11 @@ export default class TTRPGMapsPlugin extends Plugin {
       await loadGameIcons(fallbackPath, read);
     }
 
+    this.registerHoverLinkSource("ttrpg-maps", {
+      display: "TTRPG Maps",
+      defaultMod: false,
+    });
+
     this.registerMarkdownCodeBlockProcessor("ttrpgmap", (source, el, ctx) => {
       const partial = parseMapConfig(source);
 

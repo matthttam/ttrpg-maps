@@ -171,6 +171,24 @@ export class MapSettingsModal extends Modal {
       });
     addHelpIcon(navSetting, `Inherit uses the global default (currently ${globalNewTabLabel}). Controls whether clicking a marker's linked note opens in a new tab or the current one.`);
 
+    const globalHover = this.plugin.settings.showHoverPreview ?? false;
+    const globalHoverLabel = globalHover ? "On" : "Off";
+    const hoverSetting = new Setting(contentEl)
+      .setName("Hover Preview")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("inherit", "Inherit")
+          .addOption("on", "On")
+          .addOption("off", "Off")
+          .setValue(this.state.showHoverPreview == null ? "inherit" : this.state.showHoverPreview ? "on" : "off")
+          .onChange((value) => {
+            if (value === "inherit") this.state.showHoverPreview = undefined;
+            else this.state.showHoverPreview = value === "on";
+            this.onLayerChange(this.state);
+          });
+      });
+    addHelpIcon(hoverSetting, `Inherit uses the global default (currently ${globalHoverLabel}). Show a page preview when hovering markers with linked notes.`);
+
     // ── Marker Scale ──
     contentEl.createEl("h3", { text: "Markers" });
 

@@ -21,6 +21,7 @@ export class App {
   };
   workspace = {
     openLinkText: (linktext: string, sourcePath: string) => {},
+    trigger: (name: string, ...data: unknown[]) => {},
   };
   metadataCache = {
     getFirstLinkpathDest: (linkpath: string, sourcePath: string) => null as TFile | null,
@@ -195,9 +196,10 @@ export function getIconIds(): string[] {
 
 export class Plugin {
   app: App = new App();
-  manifest: any = { id: "ttrpg-maps" };
+  manifest: any = { id: "ttrpg-maps", dir: ".obsidian/plugins/ttrpg-maps" };
   async loadData() { return {}; }
   async saveData(data: any) {}
+  registerHoverLinkSource(id: string, info: any) {}
 }
 
 export class PluginSettingTab {

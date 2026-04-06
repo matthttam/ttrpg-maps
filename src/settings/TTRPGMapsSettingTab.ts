@@ -97,6 +97,18 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
           });
       });
 
+    new Setting(containerEl)
+      .setName("Show Hover Preview")
+      .setDesc("Show a page preview when hovering over markers with linked notes.")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.showHoverPreview ?? false)
+          .onChange(async (value) => {
+            this.plugin.settings.showHoverPreview = value;
+            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+          });
+      });
+
     // ── Marker Templates ──
     const templatesContainer = containerEl.createDiv();
     const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);

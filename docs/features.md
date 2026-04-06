@@ -23,6 +23,8 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
   - [Managing Templates](#managing-templates)
   - [Template Folders](#template-folders)
   - [Applying Template Changes](#applying-template-changes)
+  - [Import and Export Templates](#import-and-export-templates)
+  - [Restore Default Templates](#restore-default-templates)
 - [Distance Measurement](#distance-measurement)
   - [Calibration](#calibration)
   - [Point-to-Point Measurement](#point-to-point-measurement)
@@ -36,6 +38,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
 - [Code Block Reference](#code-block-reference)
 - [Context Menus](#context-menus)
 - [Keyboard and Mouse Reference](#keyboard-and-mouse-reference)
+- [Import and Export](#import-and-export)
 - [Data Storage](#data-storage)
 
 ---
@@ -120,7 +123,10 @@ A **live preview** in the modal shows how the marker will look as you change set
 | **Hover** (if hover preview enabled) | Show Obsidian's page preview popover for the linked note (or custom preview note) |
 | **Drag** | Reposition the marker. Position is saved on release |
 | **Right-click** | Open the marker context menu (Edit, Copy, Resize Marker, Resize Text, Delete) |
-| **Alt + Scroll** | Quick-resize the marker without opening resize mode |
+| **Alt + Scroll** (over pin) | Quick-resize the marker's pin/icon scale |
+| **Alt + Scroll** (over label) | Quick-resize the marker's text scale |
+| **Shift + Alt + Scroll** (over pin) | Adjust the map-level marker scale for all markers |
+| **Shift + Alt + Scroll** (over label) | Adjust the map-level text scale for all markers |
 
 ### Hover Preview
 
@@ -280,6 +286,17 @@ When editing a template, two save options are available:
 A confirmation dialog lists the fields that will be updated and shows how many markers will be affected. After applying, a notice reports the number of updated markers (e.g. "Updated 12 markers").
 
 Individual marker overrides are preserved. Only fields that match the old template value are updated.
+
+### Import and Export Templates
+
+The template manager header includes **Import** and **Export** buttons:
+
+- **Export** - Downloads all templates and folders as a `ttrpg-maps-templates.json` file. The file includes the plugin version for future compatibility
+- **Import** - Opens a file picker. Imported templates receive new IDs to avoid collisions. Duplicate template names get a numbered suffix (e.g. "Tavern (2)"). Duplicate folder names are skipped. The built-in Default template is not imported
+
+### Restore Default Templates
+
+A **Restore Defaults** button resets all templates and folders to the built-in defaults. A confirmation dialog warns that custom templates will be lost.
 
 ---
 
@@ -560,7 +577,10 @@ When the map has multiple layers, each template entry expands into a submenu to 
 | **Click** | Marker with note | Navigate to the linked note (new tab or current) |
 | **Hover** | Marker with note (preview enabled) | Show Obsidian page preview popover |
 | **Click + drag** | Marker | Reposition the marker |
-| **Alt + Scroll** | Over a marker | Quick-resize the marker |
+| **Alt + Scroll** | Over marker pin | Adjust per-marker pin/icon scale |
+| **Alt + Scroll** | Over marker label | Adjust per-marker text scale |
+| **Shift + Alt + Scroll** | Over marker pin | Adjust map-level marker scale |
+| **Shift + Alt + Scroll** | Over marker label | Adjust map-level text scale |
 | **Click** | During measurement | Place a measurement point |
 | **Click + drag** | During freehand | Draw a measurement stroke |
 | **Double-click** | During measurement/freehand | Finish measuring and show total |
@@ -574,6 +594,26 @@ When the map has multiple layers, each template entry expands into a submenu to 
 | **Escape** | Resize mode | Cancel resize and revert to original scale |
 | **Escape** | Copy mode | Cancel copy mode |
 | **Any key** | Copy mode | Cancel copy mode |
+
+---
+
+## Import and Export
+
+### Map Export
+
+Maps can be exported as ZIP files from the **Map Settings** modal. The ZIP bundle includes:
+- The map image file
+- The map's sidecar state (markers, layers, scale, etc.)
+- The code block configuration
+- A manifest with the plugin version
+
+### Map Import
+
+Import a map ZIP via the **Import Map** button in Map Settings. The import extracts the image into your vault, creates the sidecar state file, and sets up the code block configuration.
+
+### Template Import/Export
+
+See [Import and Export Templates](#import-and-export-templates) in the Marker Templates section.
 
 ---
 

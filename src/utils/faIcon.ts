@@ -1,5 +1,11 @@
-import { FA_ICONS, ALL_ICON_NAMES, GI_ICON_NAMES, GI_ICON_TERMS } from "../generated/fa-icons";
-import type { IconEntry } from "../generated/fa-icons";
+import { FA_ICONS, ALL_ICON_NAMES, GI_ICON_TERMS } from "../generated/fa-icons";
+
+interface IconEntry {
+  viewBox: string;
+  path: string;
+  terms: string[];
+  set: "fa" | "gi";
+}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 

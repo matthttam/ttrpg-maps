@@ -122,9 +122,8 @@ export function buildIconField(ctx: FieldContext): {
 
     // Auto-size input to content width
     function autoSize() {
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic width based on content
-      inputEl.style.width = "0";
-      inputEl.style.width = Math.max(inputEl.scrollWidth, 80) + "px";
+      inputEl.setCssStyles({ width: "0" });
+      inputEl.setCssStyles({ width: Math.max(inputEl.scrollWidth, 80) + "px" });
     }
 
     text

@@ -246,9 +246,10 @@ function makeDropTarget(
   rerender: () => void,
 ): void {
   el.addEventListener("dragover", (e) => {
-    if (e.dataTransfer?.types.includes("text/ttrpgmap-template")) {
+    const dt = e.dataTransfer;
+    if (dt?.types.includes("text/ttrpgmap-template")) {
       e.preventDefault();
-      e.dataTransfer!.dropEffect = "move";
+      dt.dropEffect = "move";
       el.addClass("ttrpgmap-drag-over");
     }
   });

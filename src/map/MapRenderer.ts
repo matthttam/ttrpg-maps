@@ -453,7 +453,7 @@ export class MapRenderer extends MarkdownRenderChild {
   /** Refresh the marker list if it's currently visible */
   private refreshMarkerList(): void {
     if (this.markerListScroll) {
-      const wrapper = this.markerListScroll.closest(".ttrpgmap-marker-list-wrapper") as HTMLElement | null;
+      const wrapper = this.markerListScroll.closest(".ttrpgmap-marker-list-wrapper");
       if (wrapper && !wrapper.hasClass("ttrpgmap-hidden")) {
         this.renderMarkerList(this.markerListScroll);
       }
@@ -589,7 +589,8 @@ export class MapRenderer extends MarkdownRenderChild {
 
     const imageSizeClasses = ["ttrpgmap-size-fill", "ttrpgmap-size-auto-width", "ttrpgmap-size-auto-height"];
     if (this.imageEl) {
-      imageSizeClasses.forEach((cls) => this.imageEl!.removeClass(cls));
+      const img = this.imageEl;
+      imageSizeClasses.forEach((cls) => img.removeClass(cls));
     }
     this.wrapper.removeClass("ttrpgmap-size-auto-height");
 

@@ -86,7 +86,7 @@ export class MarkerEditModal extends Modal {
       textPlacement: (this.marker.textPlacement ?? "above") as TextPlacement,
       color: this.marker.color ?? "#ffffff",
       useBaseMarker: this.marker.useBaseMarker ?? true,
-      shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
+      shape: this.marker.shape ?? "pin",
     };
   }
 
@@ -121,7 +121,7 @@ export class MarkerEditModal extends Modal {
       iconRotation: this.marker.iconRotation ?? 0,
       iconClass: "ttrpgmap-edit-preview-icon",
       useBaseMarker: usePin,
-      shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
+      shape: this.marker.shape ?? "pin",
     });
 
     buildMarkerLabel(wrapper, this.marker.note, this.marker.alias, this.marker.description, "ttrpgmap-edit-preview-label");

@@ -1,4 +1,4 @@
-import { App, AbstractInputSuggest, TFile, prepareFuzzySearch } from "obsidian";
+import { App, AbstractInputSuggest, prepareFuzzySearch } from "obsidian";
 
 /**
  * Inline suggest for note links attached to a text input.

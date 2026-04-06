@@ -115,8 +115,7 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
     // ── Support ──
     new Setting(containerEl).setName("Support").setHeading();
     new Setting(containerEl)
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- TTRPG is an acronym
-      .setName("Enjoy TTRPG maps?")
+      .setName("Enjoying this plugin?")
       .setDesc("If this plugin is useful to you, consider buying me a coffee!")
       .addButton((button) => {
         button

@@ -26,6 +26,7 @@ export class ConfigureMapModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
     contentEl.createEl("h2", { text: "Configure Map" });

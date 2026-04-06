@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Setting, Notice } from "obsidian";
 import { MarkerLayer, DEFAULT_LAYER_ID } from "../types";
 
 export class LayerEditModal extends Modal {
@@ -13,9 +13,20 @@ export class LayerEditModal extends Modal {
     this.onSave = onSave;
   }
 
+  private validate(): string | null {
+    const { zoomMin, zoomMax } = this.layer;
+    if (zoomMin != null && !Number.isInteger(zoomMin)) return "Minimum zoom must be a whole number.";
+    if (zoomMax != null && !Number.isInteger(zoomMax)) return "Maximum zoom must be a whole number.";
+    if (zoomMin != null && zoomMax != null) {
+      if (zoomMin >= zoomMax) return "Minimum zoom must be less than maximum zoom.";
+    }
+    return null;
+  }
+
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
     contentEl.createEl("h2", { text: this.isDefault ? "Edit Default Layer" : "Edit Layer" });
@@ -27,6 +38,7 @@ export class LayerEditModal extends Modal {
           .setValue(this.layer.name)
           .onChange((value) => {
             this.layer.name = value || "Unnamed Layer";
+            errorEl.style.display = "none";
           });
         if (this.isDefault) {
           text.setDisabled(true);
@@ -45,9 +57,11 @@ export class LayerEditModal extends Modal {
           .setPlaceholder("Any")
           .setValue(this.layer.zoomMin != null ? String(this.layer.zoomMin) : "")
           .onChange((value) => {
-            this.layer.zoomMin = value ? parseInt(value, 10) || 0 : null;
+            this.layer.zoomMin = value ? parseFloat(value) || 0 : null;
+            errorEl.style.display = "none";
           });
         text.inputEl.type = "number";
+        text.inputEl.step = "1";
       });
 
     new Setting(contentEl)
@@ -58,10 +72,15 @@ export class LayerEditModal extends Modal {
           .setPlaceholder("Any")
           .setValue(this.layer.zoomMax != null ? String(this.layer.zoomMax) : "")
           .onChange((value) => {
-            this.layer.zoomMax = value ? parseInt(value, 10) || 0 : null;
+            this.layer.zoomMax = value ? parseFloat(value) || 0 : null;
+            errorEl.style.display = "none";
           });
         text.inputEl.type = "number";
+        text.inputEl.step = "1";
       });
+
+    const errorEl = contentEl.createDiv({ cls: "ttrpgmap-field-error" });
+    errorEl.style.display = "none";
 
     new Setting(contentEl)
       .addButton((btn) =>
@@ -69,6 +88,12 @@ export class LayerEditModal extends Modal {
           .setButtonText("Save")
           .setCta()
           .onClick(() => {
+            const err = this.validate();
+            if (err) {
+              errorEl.setText(err);
+              errorEl.style.display = "";
+              return;
+            }
             this.onSave(this.layer);
             this.close();
           })

@@ -393,6 +393,7 @@ export class MapSettingsModal extends Modal {
         const resetBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Reset to defaults" } });
         setIcon(resetBtn, "rotate-ccw");
         resetBtn.addEventListener("click", () => {
+          layer.name = DEFAULT_LAYER.name;
           layer.zoomMin = DEFAULT_LAYER.zoomMin;
           layer.zoomMax = DEFAULT_LAYER.zoomMax;
           this.onLayerChange(this.state);
@@ -404,7 +405,7 @@ export class MapSettingsModal extends Modal {
         deleteBtn.addEventListener("click", () => {
           const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
           if (count > 0) {
-            const msg = `${count} marker${count === 1 ? "" : "s"} will be moved to the Default Marker layer.`;
+            const msg = `${count} marker${count === 1 ? "" : "s"} will be moved to the Default Layer.`;
             if (!confirm(msg)) return;
           }
           for (const m of this.state.markers) {

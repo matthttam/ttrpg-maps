@@ -1,5 +1,7 @@
 # TTRPG Maps
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/matthttam)
+
 Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.
 
 An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who want to embed interactive maps directly in their notes. Place markers, measure distances, and organize map data alongside your campaign notes.
@@ -125,6 +127,14 @@ This plugin bundles icons from the following sources:
 
 - **[Font Awesome Free](https://fontawesome.com)** - Icons: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), Fonts: [SIL OFL 1.1](https://scripts.sil.org/OFL), Code: [MIT](https://opensource.org/licenses/MIT)
 - **[Game Icons](https://game-icons.net)** - Icons: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) by various authors ([full credits](https://game-icons.net/about.html))
+
+## Support
+
+If you find this plugin useful, consider buying me a coffee!
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/matthttam)
+
+<img src="docs/qr-code.png" alt="Buy Me a Coffee QR Code" width="200" />
 
 ## License
 

@@ -113,5 +113,19 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
     const templatesContainer = containerEl.createDiv();
     const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);
     rerender();
+
+    // ── Support ──
+    containerEl.createEl("h3", { text: "Support" });
+    new Setting(containerEl)
+      .setName("Enjoy TTRPG Maps?")
+      .setDesc("If this plugin is useful to you, consider buying me a coffee!")
+      .addButton((button) => {
+        button
+          .setButtonText("Buy Me a Coffee")
+          .setCta()
+          .onClick(() => {
+            window.open("https://buymeacoffee.com/matthttam");
+          });
+      });
   }
 }

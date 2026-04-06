@@ -161,6 +161,14 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
   templateFolders: [],
 };
 
+/** Manifest stored inside an exported map ZIP */
+export interface MapExportManifest {
+  pluginVersion: string;
+  config: MapConfig;
+  state: MapState;
+  imageFilename: string;
+}
+
 /** Default values for map config when not specified */
 export const DEFAULT_MAP_CONFIG: Omit<MapConfig, "id" | "image"> = {
   height: null,

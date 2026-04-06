@@ -9,6 +9,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
   - [Placing Markers](#placing-markers)
   - [Editing Markers](#editing-markers)
   - [Marker Interactions on the Map](#marker-interactions-on-the-map)
+  - [Hover Preview](#hover-preview)
   - [Copy Mode](#copy-mode)
   - [Resize Mode](#resize-mode)
 - [Marker Shapes and Visuals](#marker-shapes-and-visuals)
@@ -49,6 +50,11 @@ Maps are rendered from `ttrpgmap` code blocks in your notes. The code block spec
 - **+** button zooms in by the configured step
 - **-** button zooms out by the configured step
 - **Center** button resets pan and zoom to the initial view
+- **Fit to Screen** button sets the zoom level so the entire map fits within the viewport and centers it
+- **Lock Zoom** toggle - prevents zooming. When active, scroll wheel passes through to page scroll
+- **Lock Pan** toggle - prevents panning by click-and-drag
+
+Lock states persist across page reloads (saved per-map).
 
 The current zoom level is displayed as a percentage between the buttons.
 
@@ -82,10 +88,13 @@ The marker edit modal lets you configure every aspect of a marker.
 | Field | Description |
 |---|---|
 | **Template** | Which template this marker is based on |
-| **Note link** | Link to a vault note (supports `#headings`, `#^block-ids`, and `\|aliases`) |
+| **Note link** | Link to a vault note (supports `#headings` and `#^block-ids`) |
+| **Alias** | Display name shown on the map instead of the note filename |
+| **Preview Note** | Alternate note shown in hover preview (blank uses the linked note) |
 | **Description** | Additional text shown in the marker label and list tooltip |
 | **Pin shape and direction** | Choose pin/circle/hotspot and which direction the pin points |
 | **Icon** | Search and select from 5,500+ icons |
+| **Icon rotation** | Rotate the icon (slider 0-359 degrees) |
 | **Icon color** | Color of the icon (independent of pin color) |
 | **Pin color** | Background color of the pin or circle shape |
 | **Text placement** | Where the label appears relative to the marker (above/below/left/right) |
@@ -95,7 +104,9 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Text scale to zoom** | Inherit / Screen-constant / Fixed to map |
 | **Layer** | Assign to a visibility layer (only shown if multiple layers exist) |
 
-Each field has a **reset button** that restores the value from the marker's template.
+Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template.
+
+A **Reset to Template & Save** button resets all visual properties to the template defaults and saves in one action.
 
 A **live preview** in the modal shows how the marker will look as you change settings.
 
@@ -105,10 +116,20 @@ A **live preview** in the modal shows how the marker will look as you change set
 
 | Action | Behavior |
 |---|---|
-| **Click** (marker with note link) | Navigate to the linked note |
+| **Click** (marker with note link) | Navigate to the linked note (new tab or current, configurable) |
+| **Hover** (if hover preview enabled) | Show Obsidian's page preview popover for the linked note (or custom preview note) |
 | **Drag** | Reposition the marker. Position is saved on release |
 | **Right-click** | Open the marker context menu (Edit, Copy, Resize Marker, Resize Text, Delete) |
 | **Alt + Scroll** | Quick-resize the marker without opening resize mode |
+
+### Hover Preview
+
+When enabled, hovering over a marker with a linked note shows Obsidian's built-in page preview popover.
+
+- Controlled by a global toggle (Settings > TTRPG Maps > Navigation > Show Hover Preview) and a per-map override (Map Settings > Hover Preview)
+- By default, the preview shows the marker's linked note
+- The **Preview Note** field on a marker allows specifying a different note for the preview
+- The preview does not interfere with click-to-navigate or drag-to-reposition
 
 ### Copy Mode
 
@@ -161,7 +182,9 @@ Over 5,500 icons are available:
 
 <!-- TODO: screenshot of the icon search dropdown -->
 
-Type in the icon field to search by name. The dropdown shows a preview, the icon name, and the source library (FA or Game Icons). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance.
+Type in the icon field to search by name (up to 100 results). The dropdown shows a preview, the icon name, and the source library (FA or Game Icons). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance.
+
+Each icon can be **rotated** (0-359 degrees) via a slider and text input. Rotation is set per-marker or per-template and appears in all previews (map, marker list, template list, edit modal).
 
 ### Colors
 
@@ -226,9 +249,11 @@ Open **Settings** > **TTRPG Maps** to manage templates.
 <!-- TODO: screenshot of the template manager in settings -->
 
 - **Add Template** - Creates a new template with default values
-- **Add Folder** - Creates a folder to organize templates
-- Each template row shows its name and a colored preview icon
+- **Add Folder** - Creates a folder with inline rename
+- **Duplicate** - Copy icon on each template row creates a copy with "(copy)" suffix
+- Each template row shows its name and a colored preview icon (including rotation)
 - Click a template to open its edit modal
+- All templates, folders, and their contents are sorted alphabetically
 
 The template edit modal has the same fields as the marker edit modal (pin shape, icon, colors, text placement, etc.). A **red asterisk** appears next to fields that have been changed since the last save.
 
@@ -240,8 +265,9 @@ A built-in **Default** template is always present and cannot be deleted (but can
 
 Templates can be organized into folders:
 - Drag templates into or out of folders
-- Folders appear as submenus in the map right-click context menu
-- Rename or delete folders from the template manager
+- Folders appear as submenus in the map right-click context menu (sorted alphabetically)
+- Click a folder header or its chevron to collapse/expand it
+- Rename folders inline by clicking the pencil icon
 - Deleting a folder moves its templates to the top level
 
 ### Applying Template Changes
@@ -273,7 +299,7 @@ Calibration sets the distance scale for the map.
 4. A modal asks how many units the line represents and what the unit label is (e.g. "100", "feet")
 5. Click **Save Scale**
 
-The scale is saved per-map and persists across sessions. You must calibrate before measuring.
+The scale is saved per-map and persists across sessions. You must calibrate before measuring. A zero-length calibration line (clicking the same point twice) is rejected with a notice.
 
 <!-- TODO: screenshot of the calibration modal -->
 
@@ -339,7 +365,7 @@ Each layer defines a zoom range:
 - **Minimum zoom %** - Markers hidden below this zoom (blank for no lower limit)
 - **Maximum zoom %** - Markers hidden above this zoom (blank for no upper limit)
 
-Every map has a **Default Marker** layer that is always visible and cannot be deleted (but its zoom range can be changed or reset).
+Every map has a **Default Layer** that is always visible and cannot be deleted (but its zoom range can be changed or reset).
 
 ### Use cases
 
@@ -353,6 +379,7 @@ Every map has a **Default Marker** layer that is always visible and cannot be de
 - Edit a layer's zoom range with the pencil icon
 - Delete custom layers with the trash icon (markers are moved to the default layer)
 - Reset the default layer to "always visible" with the reset icon
+- Validation ensures min zoom is less than max zoom and values are whole numbers
 
 ### Assigning markers to layers
 
@@ -406,6 +433,11 @@ Access map settings via the **gear button** in the bottom-right corner of the ma
 - **Min/Max zoom** - Constrains the zoom range (percentages)
 - **Zoom step** - Increment per scroll or button click
 
+### Navigation (per-map override)
+
+- **Open Links in** - Inherit / New tab / Current tab. Controls whether clicking a marker's linked note opens in a new tab or the current one
+- **Hover Preview** - Inherit / On / Off. Show Obsidian's page preview when hovering markers with linked notes
+
 ### Marker scale (per-map override)
 
 - **Toggle** to enable a map-level size override (when off, uses the global default)
@@ -444,6 +476,11 @@ Access via **Settings** > **TTRPG Maps**.
 
 - **Default Text Scale** - Size of marker labels on all maps (slider, 25-300%, default 100%)
 - **Scale Text to Zoom** - Screen-constant or Fixed to map
+
+### Navigation section
+
+- **Open Links in New Tab** - When clicking a marker's linked note, open in a new tab (default on)
+- **Show Hover Preview** - Show Obsidian's page preview when hovering markers with linked notes (default off)
 
 ### Marker Templates section
 
@@ -494,7 +531,7 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 | *Folder name* > *Template* | Templates in folders appear as submenus |
 | **Edit Templates** | Opens plugin settings to the template manager |
 
-When the map has multiple layers, each template entry expands into a submenu to select the target layer.
+When the map has multiple layers, each template entry expands into a submenu to select the target layer. Templates and folders are sorted alphabetically.
 
 ### Marker (right-click)
 
@@ -520,7 +557,8 @@ When the map has multiple layers, each template entry expands into a submenu to 
 | **Scroll wheel** | Map | Zoom in/out |
 | **Right-click** | Map background | Open map context menu |
 | **Right-click** | Marker | Open marker context menu |
-| **Click** | Marker with note | Navigate to the linked note |
+| **Click** | Marker with note | Navigate to the linked note (new tab or current) |
+| **Hover** | Marker with note (preview enabled) | Show Obsidian page preview popover |
 | **Click + drag** | Marker | Reposition the marker |
 | **Alt + Scroll** | Over a marker | Quick-resize the marker |
 | **Click** | During measurement | Place a measurement point |
@@ -555,6 +593,8 @@ Mutable per-map state, including:
 - Rounding mode, multiple, raw toggle, and decimal places
 - Per-map marker and text scale overrides
 - Layer definitions and zoom ranges
+- Navigation and hover preview overrides
+- Zoom and pan lock states
 
 Saves are debounced (300ms) for performance. These files can be committed to version control or synced across devices.
 
@@ -563,4 +603,5 @@ Saves are debounced (300ms) for performance. These files can be committed to ver
 Global settings managed by Obsidian's built-in persistence:
 - Default marker and text scale
 - Default zoom behavior
+- Navigation and hover preview defaults
 - All marker templates and template folders

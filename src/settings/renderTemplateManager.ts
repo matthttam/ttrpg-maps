@@ -1,8 +1,133 @@
-import { setIcon } from "obsidian";
+import { setIcon, Notice, Modal, App, Setting } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MarkerTemplate, TemplateFolder, PREDEFINED_TEMPLATE_IDS, DEFAULT_SETTINGS } from "../types";
 import { createPinElement } from "../utils/markerPin";
 import { TemplateEditModal } from "../modals/TemplateEditModal";
+import * as defaultTemplateData from "../default_templates.json";
+
+/** Export format for templates */
+interface TemplateExport {
+  pluginVersion: string;
+  templates: MarkerTemplate[];
+  folders: TemplateFolder[];
+}
+
+function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void): void {
+  const modal = new Modal(app);
+  modal.onOpen = () => {
+    const { contentEl } = modal;
+    contentEl.empty();
+    modal.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
+    contentEl.addClass("ttrpgmap-modal");
+    contentEl.createEl("h2", { text: "Restore Default Templates" });
+    contentEl.createEl("p", { text: "This will replace all your current templates and folders with the built-in defaults. Any custom templates will be lost." });
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => modal.close()))
+      .addButton((btn) =>
+        btn.setButtonText("Restore Defaults").setWarning().onClick(async () => {
+          plugin.settings.markerTemplates = defaultTemplateData.templates as MarkerTemplate[];
+          plugin.settings.templateFolders = defaultTemplateData.folders as TemplateFolder[];
+          await plugin.dataManager.saveSettings(plugin.settings);
+          plugin.triggerMapRefresh();
+          rerender();
+          modal.close();
+          new Notice("Templates restored to defaults.");
+        }));
+  };
+  modal.open();
+}
+
+function exportTemplates(plugin: TTRPGMapsPlugin): void {
+  const data: TemplateExport = {
+    pluginVersion: plugin.manifest.version,
+    templates: plugin.settings.markerTemplates,
+    folders: plugin.settings.templateFolders,
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ttrpg-maps-templates.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importTemplates(plugin: TTRPGMapsPlugin, rerender: () => void): void {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as TemplateExport;
+      if (!data.templates || !Array.isArray(data.templates)) {
+        new Notice("Invalid template file: missing templates array.");
+        return;
+      }
+
+      // Version-specific migrations would go here:
+      // if (data.pluginVersion === "0.2.0") { migrateFrom020(data); }
+
+      // Assign new IDs to avoid collisions, remap folder references
+      const folderIdMap = new Map<string, string>();
+      const folders = (data.folders ?? []).map((f) => {
+        const newId = `folder_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        folderIdMap.set(f.id, newId);
+        return { ...f, id: newId };
+      });
+
+      const existingNames = new Set(
+        plugin.settings.markerTemplates.map((t) => t.name.toLowerCase())
+      );
+
+      let imported = 0;
+      for (const t of data.templates) {
+        // Skip predefined templates (they already exist)
+        if (PREDEFINED_TEMPLATE_IDS.has(t.id)) continue;
+
+        let name = t.name;
+        if (existingNames.has(name.toLowerCase())) {
+          let n = 2;
+          while (existingNames.has(`${t.name} (${n})`.toLowerCase())) n++;
+          name = `${t.name} (${n})`;
+        }
+        existingNames.add(name.toLowerCase());
+
+        plugin.settings.markerTemplates.push({
+          ...t,
+          id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name,
+          folderId: t.folderId ? (folderIdMap.get(t.folderId) ?? null) : null,
+        });
+        imported++;
+      }
+
+      // Merge folders (skip duplicates by name)
+      const existingFolderNames = new Set(
+        plugin.settings.templateFolders.map((f) => f.name.toLowerCase())
+      );
+      for (const f of folders) {
+        if (!existingFolderNames.has(f.name.toLowerCase())) {
+          plugin.settings.templateFolders.push(f);
+          existingFolderNames.add(f.name.toLowerCase());
+        }
+      }
+
+      await plugin.dataManager.saveSettings(plugin.settings);
+      rerender();
+      new Notice(`Imported ${imported} template${imported !== 1 ? "s" : ""}.`);
+    } catch (e) {
+      new Notice("Failed to import templates. Check that the file is valid JSON.");
+      console.warn("[ttrpg-maps] Template import error:", e);
+    }
+  });
+  input.click();
+}
 
 /** Creates a marker pin preview for the template list */
 function createMarkerPreview(container: HTMLElement, template: MarkerTemplate): HTMLElement {
@@ -269,6 +394,15 @@ export function renderTemplateManager(
   headerInfo.createDiv({ cls: "setting-item-name", text: "Marker Templates" });
   headerInfo.createDiv({ cls: "setting-item-description", text: "Create and manage reusable marker presets" });
   const headerControl = header.createDiv({ cls: "setting-item-control" });
+
+  const restoreBtn = headerControl.createEl("button", { text: "Restore Defaults" });
+  restoreBtn.addEventListener("click", () => restoreDefaults(plugin.app, plugin, rerender));
+
+  const importBtn = headerControl.createEl("button", { text: "Import" });
+  importBtn.addEventListener("click", () => importTemplates(plugin, rerender));
+
+  const exportBtn = headerControl.createEl("button", { text: "Export" });
+  exportBtn.addEventListener("click", () => exportTemplates(plugin));
 
   const addFolderBtn = headerControl.createEl("button", { text: "Add Folder" });
   addFolderBtn.addEventListener("click", () => {

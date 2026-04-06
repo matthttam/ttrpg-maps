@@ -9,6 +9,7 @@
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
+    "resolveJsonModule": true,
     "isolatedModules": true,
     "strictNullChecks": true,
     "lib": [

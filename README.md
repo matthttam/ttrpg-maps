@@ -8,14 +8,15 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 
 ## Features
 
-- **Interactive maps** - Embed any image as a pannable, zoomable map inside a note
-- **Customizable markers** - Place markers with custom colors, icons, shapes, and linked notes. Drag to reposition, right-click to edit or copy
-- **Reusable templates** - Create marker templates so every tavern, dungeon entrance, or NPC gets a consistent style. Organize templates in folders
-- **Distance measurement** - Calibrate a scale, then measure point-to-point or freehand distances with optional rounding
+- **Interactive maps** - Embed any image as a pannable, zoomable map inside a note with lock zoom/pan and fit-to-screen controls
+- **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
+- **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note)
+- **Reusable templates** - Create and duplicate marker templates with collapsible folders. All sorted alphabetically
+- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with configurable rounding and decimal places
 - **Visibility layers** - Assign markers to zoom-based layers so overview markers show when zoomed out and detail markers show when zoomed in
-- **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search
+- **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
 - **Three marker shapes** - Pin (directional teardrop), circle, or hotspot (invisible until hovered)
-- **Per-map and per-marker settings** - Override scale, zoom behavior, and label placement at every level
+- **Per-map and per-marker settings** - Override scale, zoom behavior, label placement, navigation mode, and hover preview at every level
 - **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar
 - **Sidecar storage** - Marker state lives in `.ttrpgmap/` files, keeping your markdown clean
 

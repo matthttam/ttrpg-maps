@@ -429,4 +429,114 @@ describe("DataManager", () => {
       expect(states[1].mapId).toBe("map-b");
     });
   });
+
+  describe("marker migration", () => {
+    it("splits note with pipe into note and alias on load", async () => {
+      const { app, dm } = createDataManager();
+      const savedState = {
+        mapId: "mig-1",
+        markers: [{
+          id: "m1", templateId: "default", x: 0, y: 0, layerId: null,
+          note: "Places/Tavern|The Red Dragon Inn",
+          description: null, direction: null, textPlacement: null,
+          color: null, icon: null, iconColor: null, iconRotation: null,
+          useBaseMarker: null, shape: null,
+          scale: null, scaleToZoom: null, textScale: null, textScaleToZoom: null,
+        }],
+        layers: [{ ...DEFAULT_LAYER }],
+        distanceScale: null,
+      };
+
+      app.vault.adapter.exists = vi.fn().mockResolvedValue(true);
+      app.vault.adapter.read = vi.fn().mockResolvedValue(JSON.stringify(savedState));
+
+      const state = await dm.loadMapState("mig-1");
+
+      expect(state.markers[0].note).toBe("Places/Tavern");
+      expect(state.markers[0].alias).toBe("The Red Dragon Inn");
+      expect(state.markers[0].previewNote).toBeNull();
+    });
+
+    it("sets alias to null when note has no pipe", async () => {
+      const { app, dm } = createDataManager();
+      const savedState = {
+        mapId: "mig-2",
+        markers: [{
+          id: "m1", templateId: "default", x: 0, y: 0, layerId: null,
+          note: "Places/Tavern",
+          description: null, direction: null, textPlacement: null,
+          color: null, icon: null, iconColor: null, iconRotation: null,
+          useBaseMarker: null, shape: null,
+          scale: null, scaleToZoom: null, textScale: null, textScaleToZoom: null,
+        }],
+        layers: [{ ...DEFAULT_LAYER }],
+        distanceScale: null,
+      };
+
+      app.vault.adapter.exists = vi.fn().mockResolvedValue(true);
+      app.vault.adapter.read = vi.fn().mockResolvedValue(JSON.stringify(savedState));
+
+      const state = await dm.loadMapState("mig-2");
+
+      expect(state.markers[0].note).toBe("Places/Tavern");
+      expect(state.markers[0].alias).toBeNull();
+      expect(state.markers[0].previewNote).toBeNull();
+    });
+
+    it("does not re-migrate markers that already have alias defined", async () => {
+      const { app, dm } = createDataManager();
+      const savedState = {
+        mapId: "mig-3",
+        markers: [{
+          id: "m1", templateId: "default", x: 0, y: 0, layerId: null,
+          note: "Places/Tavern",
+          alias: "My Tavern",
+          previewNote: null,
+          description: null, direction: null, textPlacement: null,
+          color: null, icon: null, iconColor: null, iconRotation: null,
+          useBaseMarker: null, shape: null,
+          scale: null, scaleToZoom: null, textScale: null, textScaleToZoom: null,
+        }],
+        layers: [{ ...DEFAULT_LAYER }],
+        distanceScale: null,
+      };
+
+      app.vault.adapter.exists = vi.fn().mockResolvedValue(true);
+      app.vault.adapter.read = vi.fn().mockResolvedValue(JSON.stringify(savedState));
+
+      const state = await dm.loadMapState("mig-3");
+
+      expect(state.markers[0].note).toBe("Places/Tavern");
+      expect(state.markers[0].alias).toBe("My Tavern");
+    });
+
+    it("migrates markers in loadAllMapStates as well", async () => {
+      const { app, dm } = createDataManager();
+      const savedState = {
+        mapId: "mig-4",
+        markers: [{
+          id: "m1", templateId: "default", x: 0, y: 0, layerId: null,
+          note: "Page|Alias",
+          description: null, direction: null, textPlacement: null,
+          color: null, icon: null, iconColor: null, iconRotation: null,
+          useBaseMarker: null, shape: null,
+          scale: null, scaleToZoom: null, textScale: null, textScaleToZoom: null,
+        }],
+        layers: [{ ...DEFAULT_LAYER }],
+        distanceScale: null,
+      };
+
+      app.vault.adapter.exists = vi.fn().mockResolvedValue(true);
+      app.vault.adapter.list = vi.fn().mockResolvedValue({
+        files: [".ttrpgmap/mig-4.json"],
+        folders: [],
+      });
+      app.vault.adapter.read = vi.fn().mockResolvedValue(JSON.stringify(savedState));
+
+      const states = await dm.loadAllMapStates();
+
+      expect(states[0].markers[0].note).toBe("Page");
+      expect(states[0].markers[0].alias).toBe("Alias");
+    });
+  });
 });

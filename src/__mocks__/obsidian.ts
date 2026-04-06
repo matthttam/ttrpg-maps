@@ -10,14 +10,23 @@ export class MarkdownRenderChild {
   onunload() {}
 }
 
+export class TFolder {
+  path = "";
+  name = "";
+}
+
 export class App {
   vault = {
     getFileByPath: (path: string) => null as TFile | null,
     getResourcePath: (file: TFile) => `app://local/${file.path}`,
     getFiles: () => [] as TFile[],
+    getAllFolders: () => [] as TFolder[],
     getMarkdownFiles: () => [] as TFile[],
     read: async (file: TFile) => "",
     modify: async (file: TFile, content: string) => {},
+    readBinary: async (file: TFile) => new ArrayBuffer(0),
+    createBinary: async (path: string, data: ArrayBuffer) => ({} as TFile),
+    createFolder: async (path: string) => {},
   };
   workspace = {
     openLinkText: (linktext: string, sourcePath: string) => {},

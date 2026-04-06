@@ -18,6 +18,8 @@ const FREEHAND_MIN_DISTANCE = 5;
 const RESIZE_SCALE_SENSITIVITY = 0.005;
 const MIN_MARKER_SCALE = 0.1;
 const MAX_MARKER_SCALE = 5.0;
+const MIN_MARKER_TEXT_SCALE = 0.1;
+const MAX_MARKER_TEXT_SCALE = 5.0;
 const SCROLL_SCALE_STEP = 0.05;
 const RESIZE_SAVE_DEBOUNCE_MS = 300;
 const DRAG_THRESHOLD_PX = 3;
@@ -788,20 +790,47 @@ export class MapRenderer extends MarkdownRenderChild {
 
   private onWheel(e: WheelEvent): void {
     // Alt+scroll on a marker: resize it (always allowed even when zoom locked)
+    // Alt = per-marker, Shift+Alt = map-level; over label = text scale, over pin = marker scale
     if (e.altKey && this.state) {
-      e.preventDefault();
       const markerEl = (e.target as HTMLElement).closest<HTMLElement>(".ttrpgmap-marker");
       if (markerEl) {
         const markerId = markerEl.dataset.markerId;
         const marker = this.state.markers.find((m) => m.id === markerId);
         if (marker) {
-          // Materialize inherited scale if null
-          if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
+          e.preventDefault();
+          const isLabel = !!(e.target as HTMLElement).closest(".ttrpgmap-marker-label");
+          const isMapLevel = e.shiftKey;
           const scaleDelta = e.deltaY < 0 ? SCROLL_SCALE_STEP : -SCROLL_SCALE_STEP;
-          marker.scale = Math.max(MIN_MARKER_SCALE, Math.min(MAX_MARKER_SCALE, marker.scale + scaleDelta));
-          // Update CSS variable in-place
-          const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
-          markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(marker.scale, stz)));
+          const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+          if (isLabel) {
+            if (isMapLevel) {
+              // Shift+Alt over label: map-level text scale
+              if (this.state.markerTextScale == null) this.state.markerTextScale = this.getTextBaseScale(marker);
+              this.state.markerTextScale = clamp(this.state.markerTextScale + scaleDelta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
+              this.updateMarkerScalesAndVisibility();
+            } else {
+              // Alt over label: per-marker text scale
+              if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
+              marker.textScale = clamp(marker.textScale + scaleDelta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
+              const stz = marker.textScaleToZoom ?? this.getTextScaleToZoom();
+              markerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(marker.textScale, stz)));
+            }
+          } else {
+            if (isMapLevel) {
+              // Shift+Alt over pin: map-level marker scale
+              if (this.state.markerScale == null) this.state.markerScale = this.getMarkerBaseScale(marker);
+              this.state.markerScale = clamp(this.state.markerScale + scaleDelta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
+              this.updateMarkerScalesAndVisibility();
+            } else {
+              // Alt over pin: per-marker scale (existing behavior)
+              if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
+              marker.scale = clamp(marker.scale + scaleDelta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
+              const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
+              markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(marker.scale, stz)));
+            }
+          }
+
           // Show hotspot markers visibly while resizing
           markerEl.addClass("ttrpgmap-marker-resizing");
           // Debounced save + remove resizing class

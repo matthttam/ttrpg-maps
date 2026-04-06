@@ -302,13 +302,13 @@ export class MarkerEditModal extends Modal {
         .setValue(hasScaleOverride)
         .onChange((enabled) => {
           if (enabled) {
-            this.marker.scale = 1.0;
             scaleControls.setDisabled(false);
             scaleControls.setValue(1.0);
+            this.marker.scale = 1.0;
           } else {
-            this.marker.scale = null;
             scaleControls.setDisabled(true);
             scaleControls.setValue(1.0);
+            this.marker.scale = null;
           }
         });
     });
@@ -349,13 +349,13 @@ export class MarkerEditModal extends Modal {
         .setValue(hasTextScaleOverride)
         .onChange((enabled) => {
           if (enabled) {
-            this.marker.textScale = 1.0;
             textScaleControls.setDisabled(false);
             textScaleControls.setValue(1.0);
+            this.marker.textScale = 1.0;
           } else {
-            this.marker.textScale = null;
             textScaleControls.setDisabled(true);
             textScaleControls.setValue(1.0);
+            this.marker.textScale = null;
           }
         });
     });

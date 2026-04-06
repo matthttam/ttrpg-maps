@@ -592,6 +592,148 @@ describe("MapRenderer marker click navigation", () => {
   });
 });
 
+describe("MapRenderer Alt+Scroll resize", () => {
+  let container: HTMLElement;
+
+  function dispatchWheel(target: HTMLElement, opts: { altKey?: boolean; shiftKey?: boolean; deltaY?: number } = {}) {
+    const event = new WheelEvent("wheel", {
+      altKey: opts.altKey ?? true,
+      shiftKey: opts.shiftKey ?? false,
+      deltaY: opts.deltaY ?? -100, // scroll up = scale up
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+  });
+
+  it("Alt+Scroll over a marker pin adjusts per-marker scale", async () => {
+    const marker = createMarker({ note: "Test", description: "desc" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    const pinEl = markerEl.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+
+    expect(marker.scale).toBeNull();
+    dispatchWheel(pinEl);
+
+    // Scale should be materialized and incremented
+    expect(marker.scale).not.toBeNull();
+    expect(marker.scale).toBeGreaterThan(1.0);
+  });
+
+  it("Alt+Scroll over a marker label adjusts per-marker textScale", async () => {
+    const marker = createMarker({ note: "Test", description: "desc" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const markerEl = container.querySelector(".ttrpgmap-marker") as HTMLElement;
+    const labelEl = markerEl.querySelector(".ttrpgmap-marker-label") as HTMLElement;
+    expect(labelEl).not.toBeNull();
+
+    expect(marker.textScale).toBeNull();
+    dispatchWheel(labelEl);
+
+    // textScale should be materialized and incremented, scale should remain null
+    expect(marker.textScale).not.toBeNull();
+    expect(marker.textScale).toBeGreaterThan(1.0);
+    expect(marker.scale).toBeNull();
+  });
+
+  it("Shift+Alt+Scroll over pin adjusts map-level markerScale", async () => {
+    const marker = createMarker();
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const state = (renderer as any).state as MapState;
+    expect(state.markerScale).toBeUndefined();
+
+    const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+    dispatchWheel(pinEl, { shiftKey: true });
+
+    // Map-level scale should be set, per-marker should remain null
+    expect(state.markerScale).toBeDefined();
+    expect(state.markerScale).toBeGreaterThan(1.0);
+    expect(marker.scale).toBeNull();
+  });
+
+  it("Shift+Alt+Scroll over label adjusts map-level markerTextScale", async () => {
+    const marker = createMarker({ note: "Test", description: "desc" });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const state = (renderer as any).state as MapState;
+    expect(state.markerTextScale).toBeUndefined();
+
+    const labelEl = container.querySelector(".ttrpgmap-marker-label") as HTMLElement;
+    dispatchWheel(labelEl, { shiftKey: true });
+
+    // Map-level text scale should be set, per-marker should remain null
+    expect(state.markerTextScale).toBeDefined();
+    expect(state.markerTextScale).toBeGreaterThan(1.0);
+    expect(marker.textScale).toBeNull();
+  });
+
+  it("scroll down decreases scale", async () => {
+    const marker = createMarker({ scale: 1.5 });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+    dispatchWheel(pinEl, { deltaY: 100 }); // scroll down
+
+    expect(marker.scale).toBeLessThan(1.5);
+  });
+
+  it("scale is clamped to minimum", async () => {
+    const marker = createMarker({ scale: 0.15 });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+    dispatchWheel(pinEl, { deltaY: 100 }); // scroll down
+
+    expect(marker.scale).toBe(0.1);
+  });
+
+  it("scale is clamped to maximum", async () => {
+    const marker = createMarker({ scale: 4.98 });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+    dispatchWheel(pinEl, { deltaY: -100 }); // scroll up
+
+    expect(marker.scale).toBe(5.0);
+  });
+
+  it("map-level Shift+Alt initializes from hovered marker's effective scale", async () => {
+    const marker = createMarker({ scale: 2.0 });
+    const plugin = createMockPlugin({ markers: [marker] });
+    const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
+    await renderer.onload();
+
+    const state = (renderer as any).state as MapState;
+    const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
+    dispatchWheel(pinEl, { shiftKey: true });
+
+    // Should NOT use the per-marker override; getMarkerBaseScale resolves marker.scale first
+    // Since marker.scale is 2.0, map-level should start from 2.0 + step
+    expect(state.markerScale).toBeCloseTo(2.05, 5);
+  });
+});
+
 describe("EmptyMapRenderer DOM", () => {
   it("renders placeholder with configure button", async () => {
     const { EmptyMapRenderer } = await import("./EmptyMapRenderer");

@@ -4,6 +4,7 @@ import { MapConfig, MapState, MarkerLayer, DEFAULT_LAYER, DEFAULT_LAYER_ID, DEFA
 import { ImageSuggest } from "../suggests/ImageSuggest";
 import { LayerEditModal } from "./LayerEditModal";
 import { buildScaleSlider } from "./sharedFields";
+import { exportMap } from "../utils/mapExport";
 
 /** Add a (?) icon to the right side of a setting row that shows a tooltip on hover */
 function addHelpIcon(setting: Setting, tooltip: string): void {
@@ -223,14 +224,14 @@ export class MapSettingsModal extends Modal {
         .setValue(hasOverride)
         .onChange((enabled) => {
           if (enabled) {
-            this.state.markerScale = globalScale;
             scaleControls.setDisabled(false);
             scaleControls.setValue(globalScale);
+            this.state.markerScale = globalScale;
             updateScaleDesc(globalScale, true);
           } else {
-            this.state.markerScale = undefined;
             scaleControls.setDisabled(true);
             scaleControls.setValue(globalScale);
+            this.state.markerScale = undefined;
             updateScaleDesc(globalScale, false);
           }
           this.onLayerChange(this.state);
@@ -294,14 +295,14 @@ export class MapSettingsModal extends Modal {
         .setValue(hasTextOverride)
         .onChange((enabled) => {
           if (enabled) {
-            this.state.markerTextScale = globalTextScale;
             textScaleControls.setDisabled(false);
             textScaleControls.setValue(globalTextScale);
+            this.state.markerTextScale = globalTextScale;
             updateTextScaleDesc(globalTextScale, true);
           } else {
-            this.state.markerTextScale = undefined;
             textScaleControls.setDisabled(true);
             textScaleControls.setValue(globalTextScale);
+            this.state.markerTextScale = undefined;
             updateTextScaleDesc(globalTextScale, false);
           }
           this.onLayerChange(this.state);
@@ -336,8 +337,16 @@ export class MapSettingsModal extends Modal {
     const layersContainer = contentEl.createDiv({ cls: "ttrpgmap-layers-container" });
     this.renderLayers(layersContainer);
 
-    // ── Save ──
-    new Setting(contentEl).addButton((btn) =>
+    // ── Footer: Export + Save ──
+    const footer = new Setting(contentEl);
+    footer.settingEl.addClass("ttrpgmap-modal-footer");
+    footer.addButton((btn) => {
+      btn.setButtonText("Export");
+      setIcon(btn.buttonEl, "download");
+      btn.buttonEl.addClass("ttrpgmap-export-btn");
+      btn.onClick(() => exportMap(this.app, this.plugin, this.config, this.state));
+    });
+    footer.addButton((btn) =>
       btn
         .setButtonText("Save")
         .setCta()

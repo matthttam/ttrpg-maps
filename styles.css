@@ -965,6 +965,12 @@
   color: var(--text-muted);
 }
 
+.ttrpgmap-placeholder-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .ttrpgmap-configure-btn {
   cursor: pointer;
 }
@@ -1005,6 +1011,18 @@
 
 .ttrpgmap-modal .setting-item-description {
   padding-top: 0;
+}
+
+.ttrpgmap-modal-footer .setting-item-control {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.ttrpgmap-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Match modal headings to the settings-tab style */

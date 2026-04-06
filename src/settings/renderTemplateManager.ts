@@ -13,6 +13,7 @@ function createMarkerPreview(container: HTMLElement, template: MarkerTemplate): 
     color: template.color,
     icon: template.icon,
     iconColor: template.iconColor,
+    iconRotation: template.iconRotation,
     iconClass: "ttrpgmap-preview-icon",
     useBaseMarker: template.useBaseMarker,
     shape: template.shape,

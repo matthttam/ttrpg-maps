@@ -54,6 +54,7 @@ describe("Marker template resolution", () => {
     color: "#ff0000",
     icon: "castle",
     iconColor: "#ffffff",
+    iconRotation: 0,
     useBaseMarker: true,
     shape: "pin",
   };
@@ -72,6 +73,7 @@ describe("Marker template resolution", () => {
       color: "#00ff00",
       icon: null,
       iconColor: null,
+      iconRotation: null,
       useBaseMarker: null,
       shape: null,
       scale: null,
@@ -108,6 +110,7 @@ describe("Marker template resolution", () => {
       color: null,
       icon: null,
       iconColor: null,
+      iconRotation: null,
       useBaseMarker: null,
       shape: null,
       scale: null,
@@ -210,7 +213,7 @@ describe("MapMarker scale fields", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
       note: null, description: null, direction: null, textPlacement: null,
-      color: null, icon: null, iconColor: null, useBaseMarker: null, shape: null,
+      color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: 0.5,
       scaleToZoom: false,
       textScale: null,
@@ -224,7 +227,7 @@ describe("MapMarker scale fields", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
       note: null, description: null, direction: null, textPlacement: null,
-      color: null, icon: null, iconColor: null, useBaseMarker: null, shape: null,
+      color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null,
       scaleToZoom: null,
       textScale: null,
@@ -288,7 +291,7 @@ describe("MapMarker text scale fields", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
       note: null, description: null, direction: null, textPlacement: null,
-      color: null, icon: null, iconColor: null, useBaseMarker: null, shape: null,
+      color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null, scaleToZoom: null,
       textScale: 0.75,
       textScaleToZoom: false,
@@ -301,7 +304,7 @@ describe("MapMarker text scale fields", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
       note: null, description: null, direction: null, textPlacement: null,
-      color: null, icon: null, iconColor: null, useBaseMarker: null, shape: null,
+      color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null, scaleToZoom: null,
       textScale: null,
       textScaleToZoom: null,

@@ -16,7 +16,7 @@ export const DEFAULT_LAYER_ID = "default";
 
 export const DEFAULT_LAYER: MarkerLayer = {
   id: "default",
-  name: "Default Marker",
+  name: "Default Layer",
   zoomMin: null,
   zoomMax: null,
 };
@@ -59,6 +59,7 @@ export interface MapMarker {
   color: string | null;
   icon: string | null;
   iconColor: string | null;
+  iconRotation: number | null;
   useBaseMarker: boolean | null;
   shape: "pin" | "circle" | "hotspot" | null;
   scale: number | null;
@@ -144,6 +145,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
       color: "#ffffff",
       icon: null,
       iconColor: "#000000",
+      iconRotation: 0,
       useBaseMarker: true,
       shape: "pin",
     },

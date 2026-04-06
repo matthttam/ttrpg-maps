@@ -7,7 +7,7 @@ import { buildTextPlacementField, buildPinSelectorField, buildIconField } from "
 
 /** Fields on a template that can be pushed to markers */
 const APPLY_FIELDS: (keyof MarkerTemplate)[] = [
-  "direction", "textPlacement", "color", "icon", "iconColor", "useBaseMarker", "shape",
+  "direction", "textPlacement", "color", "icon", "iconColor", "iconRotation", "useBaseMarker", "shape",
 ];
 
 /** Human-readable labels for each field */
@@ -17,6 +17,7 @@ const FIELD_LABELS: Record<string, string> = {
   color: "Pin Color",
   icon: "Icon",
   iconColor: "Icon Color",
+  iconRotation: "Icon Rotation",
   useBaseMarker: "Use Pin Shape",
   shape: "Pin Shape",
 };
@@ -74,6 +75,7 @@ export class TemplateEditModal extends Modal {
       color: this.draft.color,
       icon: this.draft.icon,
       iconColor: this.draft.iconColor,
+      iconRotation: this.draft.iconRotation,
       iconClass: "ttrpgmap-edit-preview-icon",
       useBaseMarker: this.draft.useBaseMarker,
       shape: this.draft.shape,
@@ -165,7 +167,7 @@ export class TemplateEditModal extends Modal {
     this.addDirtyIndicator(pinSetting, "direction", "color", "useBaseMarker", "shape");
 
     const { setting: iconSetting } = buildIconField(ctx);
-    this.addDirtyIndicator(iconSetting, "icon", "iconColor");
+    this.addDirtyIndicator(iconSetting, "icon", "iconColor", "iconRotation");
 
     // ── Actions ──
     const actionSetting = new Setting(mainCol);
@@ -261,6 +263,7 @@ class ConfirmApplyModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
     contentEl.createEl("h2", { text: "Confirm Apply" });

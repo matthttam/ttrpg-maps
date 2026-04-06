@@ -10,6 +10,7 @@ import { createColorPicker } from "../utils/colorPicker";
 export interface MarkerFieldState {
   icon: string | null;
   iconColor: string;
+  iconRotation: number;
   direction: MarkerDirection;
   textPlacement: TextPlacement;
   color: string;
@@ -87,10 +88,12 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
   return setting;
 }
 
-/** Icon search + color picker. Returns { setting, colorPicker }. */
+/** Icon search + color picker + rotation. */
 export function buildIconField(ctx: FieldContext): {
   setting: Setting;
   colorPicker: { setValue: (hex: string) => void };
+  rotationInput: { setValue: (deg: number) => void };
+  rotationEl: HTMLElement;
 } {
   const setting = new Setting(ctx.contentEl).setName("Icon");
 
@@ -161,7 +164,7 @@ export function buildIconField(ctx: FieldContext): {
   sourceEl = inputWrap.createSpan({ cls: "ttrpgmap-icon-input-source" });
   updateInputPreview();
 
-  // Inline color picker
+  // Inline color picker (same row as icon search)
   const colorWrap = setting.controlEl.createDiv({ cls: "ttrpgmap-icon-color-wrap" });
   colorWrap.createSpan({ cls: "ttrpgmap-icon-color-label", text: "Color:" });
   const colorPicker = createColorPicker({
@@ -173,7 +176,48 @@ export function buildIconField(ctx: FieldContext): {
     },
   });
 
-  return { setting, colorPicker };
+  // Rotation (own row below the icon setting)
+  const rotationWrap = ctx.contentEl.createDiv({ cls: "ttrpgmap-icon-rotation-row" });
+  rotationWrap.createSpan({ cls: "ttrpgmap-icon-color-label", text: "Rotation:" });
+  const rotationSlider = rotationWrap.createEl("input", {
+    cls: "ttrpgmap-icon-rotation-slider",
+    type: "range",
+    attr: { min: "0", max: "359", step: "1" },
+    value: String(ctx.state.iconRotation ?? 0),
+  });
+  const rotationInput = rotationWrap.createEl("input", {
+    cls: "ttrpgmap-icon-rotation-input",
+    type: "number",
+    attr: { min: "0", max: "359", step: "1" },
+    value: String(ctx.state.iconRotation ?? 0),
+  });
+  const updateRotation = (val: number) => {
+    ctx.state.iconRotation = ((val % 360) + 360) % 360;
+    ctx.onChanged();
+  };
+  rotationSlider.addEventListener("input", () => {
+    const val = parseInt(rotationSlider.value, 10);
+    if (!isNaN(val)) {
+      rotationInput.value = String(val);
+      updateRotation(val);
+    }
+  });
+  rotationInput.addEventListener("input", () => {
+    const val = parseInt(rotationInput.value, 10);
+    if (!isNaN(val)) {
+      rotationSlider.value = String(((val % 360) + 360) % 360);
+      updateRotation(val);
+    }
+  });
+
+  return {
+    setting,
+    colorPicker,
+    rotationInput: {
+      setValue(deg: number) { rotationInput.value = String(deg); rotationSlider.value = String(deg); },
+    },
+    rotationEl: rotationWrap,
+  };
 }
 
 // ── Scale slider + text input ──

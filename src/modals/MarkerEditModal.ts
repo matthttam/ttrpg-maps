@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Setting, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID } from "../types";
 import { NoteLinkSuggest } from "../suggests/NoteLinkSuggest";
@@ -19,6 +19,7 @@ export class MarkerEditModal extends Modal {
     color: string | null;
     icon: string | null;
     iconColor: string | null;
+    iconRotation: number | null;
     useBaseMarker: boolean | null;
     shape: "pin" | "circle" | "hotspot" | null;
     scale: number | null;
@@ -62,11 +63,23 @@ export class MarkerEditModal extends Modal {
     );
   }
 
+  private addInlineResetButton(container: HTMLElement, onReset: () => void): void {
+    const btn = container.createDiv({ cls: "clickable-icon ttrpgmap-inline-reset", attr: { "aria-label": "Reset to template default" } });
+    setIcon(btn, "history");
+    btn.addEventListener("click", () => {
+      if (this.getTemplate()) {
+        onReset();
+        this.onOpen();
+      }
+    });
+  }
+
   /** Bridge marker's nullable fields into the non-null MarkerFieldState the shared builders expect */
   private getFieldState(): MarkerFieldState {
     return {
       icon: this.marker.icon,
       iconColor: this.marker.iconColor ?? "#000000",
+      iconRotation: this.marker.iconRotation ?? 0,
       direction: (this.marker.direction ?? "down") as MarkerDirection,
       textPlacement: (this.marker.textPlacement ?? "above") as TextPlacement,
       color: this.marker.color ?? "#ffffff",
@@ -79,6 +92,7 @@ export class MarkerEditModal extends Modal {
   private syncFromFieldState(fs: MarkerFieldState): void {
     this.marker.icon = fs.icon;
     this.marker.iconColor = fs.iconColor;
+    this.marker.iconRotation = fs.iconRotation;
     this.marker.direction = fs.direction;
     this.marker.textPlacement = fs.textPlacement;
     this.marker.color = fs.color;
@@ -102,6 +116,7 @@ export class MarkerEditModal extends Modal {
       color: this.marker.color ?? "#ffffff",
       icon: this.marker.icon,
       iconColor: this.marker.iconColor ?? "#000000",
+      iconRotation: this.marker.iconRotation ?? 0,
       iconClass: "ttrpgmap-edit-preview-icon",
       useBaseMarker: usePin,
       shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
@@ -142,6 +157,7 @@ export class MarkerEditModal extends Modal {
             this.marker.color = newTemplate.color;
             this.marker.icon = newTemplate.icon;
             this.marker.iconColor = newTemplate.iconColor;
+            this.marker.iconRotation = newTemplate.iconRotation;
             this.marker.useBaseMarker = newTemplate.useBaseMarker;
             this.marker.shape = newTemplate.shape;
           }
@@ -222,11 +238,15 @@ export class MarkerEditModal extends Modal {
       this.marker.color = template?.color ?? "#ffffff";
     });
 
-    const { setting: iconSetting, colorPicker: iconColorPicker } = buildIconField(ctx);
+    const { setting: iconSetting, colorPicker: iconColorPicker, rotationInput: iconRotationInput, rotationEl } = buildIconField(ctx);
     this.addResetButton(iconSetting, () => {
       this.marker.icon = template?.icon ?? null;
       this.marker.iconColor = template?.iconColor ?? "#000000";
       iconColorPicker.setValue(this.marker.iconColor);
+    });
+    this.addInlineResetButton(rotationEl, () => {
+      this.marker.iconRotation = template?.iconRotation ?? 0;
+      iconRotationInput.setValue(this.marker.iconRotation);
     });
 
     // ── Remaining fields are full-width (below the 2-column layout) ──
@@ -326,7 +346,34 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Save / Cancel ──
-    new Setting(contentEl)
+    const actionSetting = new Setting(contentEl);
+    actionSetting.controlEl.addClass("ttrpgmap-action-row");
+
+    actionSetting
+      .addButton((btn) =>
+        btn
+          .setButtonText("Reset to Template & Save")
+          .setWarning()
+          .onClick(() => {
+            const tpl = this.getTemplate();
+            if (tpl) {
+              this.marker.direction = tpl.direction;
+              this.marker.textPlacement = tpl.textPlacement;
+              this.marker.color = tpl.color;
+              this.marker.icon = tpl.icon;
+              this.marker.iconColor = tpl.iconColor;
+              this.marker.iconRotation = tpl.iconRotation;
+              this.marker.useBaseMarker = tpl.useBaseMarker;
+              this.marker.shape = tpl.shape;
+              this.marker.scale = null;
+              this.marker.scaleToZoom = null;
+              this.marker.textScale = null;
+              this.marker.textScaleToZoom = null;
+            }
+            this.onSave(this.marker);
+            this.close();
+          })
+      )
       .addButton((btn) =>
         btn
           .setButtonText("Save")

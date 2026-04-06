@@ -10,6 +10,7 @@ import { buildMarkerLabel, linkPath, displayTitle } from "../utils/markerLabel";
 import { setFAIcon } from "../utils/faIcon";
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from "../distance";
 import { generateMarkerId } from "../utils/mapId";
+import { NO_ZOOM_SVG, NO_PAN_SVG } from "../icons/lockIcons";
 
 type InteractionMode = "pan" | "calibrate" | "measure" | "freehand";
 
@@ -50,6 +51,8 @@ export class MapRenderer extends MarkdownRenderChild {
   private isPanning = false;
   private panStartX = 0;
   private panStartY = 0;
+  private zoomLocked = false;
+  private panLocked = false;
 
   // Marker drag state
   private draggingMarker: MapMarker | null = null;
@@ -91,6 +94,10 @@ export class MapRenderer extends MarkdownRenderChild {
   private pendingCopy: MapMarker | null = null;
   private _cancelCopy: (() => void) | null = null;
 
+  // Container resize handling
+  private resizeObserver: ResizeObserver | null = null;
+  private _resizeDebounce: ReturnType<typeof setTimeout> | null = null;
+
   constructor(containerEl: HTMLElement, plugin: TTRPGMapsPlugin, config: MapConfig, sourcePath: string, sectionInfo: { lineStart: number; lineEnd: number } | null) {
     super(containerEl);
     this.plugin = plugin;
@@ -114,6 +121,8 @@ export class MapRenderer extends MarkdownRenderChild {
   onunload(): void {
     this.plugin.offMapRefresh(this.refreshCallback);
     if (this._cancelCopy) { this._cancelCopy(); this._cancelCopy = null; }
+    if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
+    if (this._resizeDebounce) { clearTimeout(this._resizeDebounce); this._resizeDebounce = null; }
   }
 
   // ──────────────────── DOM Setup ────────────────────
@@ -152,6 +161,25 @@ export class MapRenderer extends MarkdownRenderChild {
     this.buildTotalDisplay();
     this.bindEvents();
     this.renderMarkers();
+
+    // Throttle layout during resize: hide overlays and pause image rendering
+    this.resizeObserver = new ResizeObserver(() => {
+      if (!this._resizeDebounce) {
+        this.markerOverlay.style.visibility = "hidden";
+        this.svgOverlay.style.display = "none";
+        this.imageEl.style.imageRendering = "pixelated";
+      } else {
+        clearTimeout(this._resizeDebounce);
+      }
+      this._resizeDebounce = setTimeout(() => {
+        this._resizeDebounce = null;
+        this.imageEl.style.imageRendering = "";
+        this.svgOverlay.style.display = "";
+        this.updateMarkerPositions();
+        this.markerOverlay.style.visibility = "";
+      }, 150);
+    });
+    this.resizeObserver.observe(this.wrapper);
   }
 
   private loadImage(): void {
@@ -168,16 +196,37 @@ export class MapRenderer extends MarkdownRenderChild {
   private buildZoomControls(): void {
     const controls = this.wrapper.createDiv({ cls: "ttrpgmap-zoom-controls" });
 
-    controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "+" })
-      .addEventListener("click", () => this.adjustZoom(this.config.zoomStep));
+    const zoomInBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "+" });
+    zoomInBtn.addEventListener("click", () => this.adjustZoom(this.config.zoomStep));
 
     controls.createDiv({ cls: "ttrpgmap-zoom-label" }).setText(`${this.zoom}%`);
 
-    controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "−" })
-      .addEventListener("click", () => this.adjustZoom(-this.config.zoomStep));
+    const zoomOutBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "−" });
+    zoomOutBtn.addEventListener("click", () => this.adjustZoom(-this.config.zoomStep));
 
     controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-center-btn", text: "◎" })
       .addEventListener("click", () => this.centerMap());
+
+    const fitBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", attr: { "aria-label": "Fit to Screen" } });
+    setIcon(fitBtn, "maximize");
+    fitBtn.addEventListener("click", () => this.fitToScreen());
+
+    // Lock toggles (inside zoom controls strip)
+    const zoomLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Zoom" } });
+    zoomLockBtn.innerHTML = NO_ZOOM_SVG;
+    zoomLockBtn.addEventListener("click", () => {
+      this.zoomLocked = !this.zoomLocked;
+      zoomLockBtn.toggleClass("is-active", this.zoomLocked);
+      zoomInBtn.toggleClass("ttrpgmap-btn-disabled", this.zoomLocked);
+      zoomOutBtn.toggleClass("ttrpgmap-btn-disabled", this.zoomLocked);
+    });
+
+    const panLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Pan" } });
+    panLockBtn.innerHTML = NO_PAN_SVG;
+    panLockBtn.addEventListener("click", () => {
+      this.panLocked = !this.panLocked;
+      panLockBtn.toggleClass("is-active", this.panLocked);
+    });
   }
 
   private buildMeasureDrawer(): void {
@@ -418,6 +467,7 @@ export class MapRenderer extends MarkdownRenderChild {
         color: marker.color ?? "#ffffff",
         icon: marker.icon,
         iconColor: marker.iconColor ?? "#000000",
+        iconRotation: marker.iconRotation ?? 0,
         iconClass: "ttrpgmap-marker-list-icon",
         useBaseMarker: marker.useBaseMarker ?? true,
         shape,
@@ -552,6 +602,7 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private adjustZoom(delta: number): void {
+    if (this.zoomLocked) return;
     const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
     if (newZoom === this.zoom) return;
     this.zoom = newZoom;
@@ -567,6 +618,23 @@ export class MapRenderer extends MarkdownRenderChild {
     this.panX = (rect.width - (this.imageEl?.clientWidth || 0) * scale) / 2;
     this.panY = (rect.height - (this.imageEl?.clientHeight || 0) * scale) / 2;
     this.applyTransform();
+  }
+
+  private fitToScreen(): void {
+    const imgW = this.imageEl?.clientWidth || 0;
+    const imgH = this.imageEl?.clientHeight || 0;
+    if (!imgW || !imgH) return;
+    const rect = this.wrapper.getBoundingClientRect();
+    const fitZoom = Math.min(rect.width / imgW, rect.height / imgH) * 100;
+    const clamped = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, Math.round(fitZoom)));
+    this.zoom = clamped;
+    const scale = this.zoom / 100;
+    this.panX = (rect.width - imgW * scale) / 2;
+    this.panY = (rect.height - imgH * scale) / 2;
+    this.applyTransform();
+    this.updateMarkerScalesAndVisibility();
+    const label = this.wrapper.querySelector(".ttrpgmap-zoom-label");
+    if (label) label.setText(`${this.zoom}%`);
   }
 
   private onMouseDown(e: MouseEvent): void {
@@ -611,6 +679,7 @@ export class MapRenderer extends MarkdownRenderChild {
       return;
     }
 
+    if (this.panLocked) return;
     this.isPanning = true;
     this.panStartX = e.clientX - this.panX;
     this.panStartY = e.clientY - this.panY;
@@ -707,10 +776,9 @@ export class MapRenderer extends MarkdownRenderChild {
   }
 
   private onWheel(e: WheelEvent): void {
-    e.preventDefault();
-
-    // Alt+scroll on a marker: resize it
+    // Alt+scroll on a marker: resize it (always allowed even when zoom locked)
     if (e.altKey && this.state) {
+      e.preventDefault();
       const markerEl = (e.target as HTMLElement).closest<HTMLElement>(".ttrpgmap-marker");
       if (markerEl) {
         const markerId = markerEl.dataset.markerId;
@@ -735,6 +803,9 @@ export class MapRenderer extends MarkdownRenderChild {
         }
       }
     }
+
+    if (this.zoomLocked) return;
+    e.preventDefault();
 
     const delta = e.deltaY < 0 ? this.config.zoomStep : -this.config.zoomStep;
     const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
@@ -935,6 +1006,7 @@ export class MapRenderer extends MarkdownRenderChild {
       color,
       icon: marker.icon,
       iconColor,
+      iconRotation: marker.iconRotation ?? 0,
       iconClass: "ttrpgmap-marker-icon",
       useBaseMarker: marker.useBaseMarker ?? true,
       shape: marker.shape ?? "pin",
@@ -1017,6 +1089,7 @@ export class MapRenderer extends MarkdownRenderChild {
       color: template?.color ?? "#ffffff",
       icon: template?.icon ?? null,
       iconColor: template?.iconColor ?? "#000000",
+      iconRotation: template?.iconRotation ?? 0,
       useBaseMarker: template?.useBaseMarker ?? true,
       shape: template?.shape ?? "pin",
       scale: null,
@@ -1069,6 +1142,7 @@ export class MapRenderer extends MarkdownRenderChild {
       color: source.color ?? "#ffffff",
       icon: source.icon,
       iconColor: source.iconColor ?? "#000000",
+      iconRotation: source.iconRotation ?? 0,
       iconClass: "ttrpgmap-marker-icon",
       useBaseMarker: source.useBaseMarker ?? true,
       shape: source.shape ?? "pin",
@@ -1266,8 +1340,11 @@ export class MapRenderer extends MarkdownRenderChild {
     if (templates.length > 1) {
       menu.addSeparator();
 
+      const sortByName = <T extends { name: string }>(items: T[]): T[] =>
+        [...items].sort((a, b) => a.name.localeCompare(b.name));
+
       const folders = this.plugin.settings.templateFolders;
-      const topLevel = templates.filter((t) => !t.folderId);
+      const topLevel = sortByName(templates.filter((t) => !t.folderId));
       const addTemplateToMenu = (m: any, template: any) => {
         m.addItem((item: any) => {
           item.setTitle(template.name);
@@ -1290,8 +1367,8 @@ export class MapRenderer extends MarkdownRenderChild {
         addTemplateToMenu(menu, template);
       }
 
-      for (const folder of folders) {
-        const folderTemplates = templates.filter((t) => t.folderId === folder.id);
+      for (const folder of sortByName(folders)) {
+        const folderTemplates = sortByName(templates.filter((t) => t.folderId === folder.id));
         if (folderTemplates.length === 0) continue;
         menu.addItem((item: any) => {
           item.setTitle(folder.name);
@@ -1383,6 +1460,11 @@ export class MapRenderer extends MarkdownRenderChild {
   private handleCalibrateClick(): void {
     if (this.drawingPoints.length !== 2) return;
     const [a, b] = this.drawingPoints;
+    if (pixelDistance(a, b) === 0) {
+      new Notice("Calibration line must have some length. Click two different points.");
+      this.drawingPoints.pop();
+      return;
+    }
     this.drawSvgLine(a, b, "ttrpgmap-draw-line ttrpgmap-calibrate-line");
 
     new ScaleCalibrationModal(this.plugin.app, (units, unitLabel) => {

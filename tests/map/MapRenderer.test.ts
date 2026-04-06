@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MapRenderer } from "./MapRenderer";
-import { MapConfig, MapState, MapMarker, DEFAULT_SETTINGS, DEFAULT_LAYER } from "../types";
+import { MapRenderer } from "../../src/map/MapRenderer";
+import { MapConfig, MapState, MapMarker, DEFAULT_SETTINGS, DEFAULT_LAYER } from "../../src/types";
 import { App } from "obsidian";
 
 /** Create a mock plugin with controllable state */
@@ -16,9 +16,7 @@ function createMockPlugin(mapState?: Partial<MapState>) {
   const app = new App();
   // Mock vault to return a fake file for image loading
   const fakeFile = { path: "maps/test.png", basename: "test", extension: "png" };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.vault.getFileByPath = (path: string) => fakeFile as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.vault.getResourcePath = (file: any) => `app://local/${file.path}`;
 
   return {
@@ -34,7 +32,6 @@ function createMockPlugin(mapState?: Partial<MapState>) {
     onMapRefresh: vi.fn(),
     offMapRefresh: vi.fn(),
     triggerMapRefresh: vi.fn(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -407,11 +404,9 @@ describe("MapRenderer copy marker", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).startCopyMarker(marker);
+(renderer as any).startCopyMarker(marker);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((renderer as any).pendingCopy).toBe(marker);
+expect((renderer as any).pendingCopy).toBe(marker);
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
     expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(true);
     expect(wrapper.classList.contains("ttrpgmap-copy-mode")).toBe(true);
@@ -423,13 +418,10 @@ describe("MapRenderer copy marker", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).startCopyMarker(marker);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).completeCopy(300, 400);
+(renderer as any).startCopyMarker(marker);
+(renderer as any).completeCopy(300, 400);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state = (renderer as any).state;
+const state = (renderer as any).state;
     expect(state.markers).toHaveLength(2);
 
     const copy = state.markers[1];
@@ -448,13 +440,10 @@ describe("MapRenderer copy marker", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).startCopyMarker(marker);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).completeCopy(50, 50);
+(renderer as any).startCopyMarker(marker);
+(renderer as any).completeCopy(50, 50);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((renderer as any).pendingCopy).toBeNull();
+expect((renderer as any).pendingCopy).toBeNull();
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
     expect(wrapper.classList.contains("ttrpgmap-cursor-grab")).toBe(true);
     expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(false);
@@ -480,13 +469,10 @@ describe("MapRenderer copy marker", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).startCopyMarker(marker);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).completeCopy(999, 888);
+(renderer as any).startCopyMarker(marker);
+(renderer as any).completeCopy(999, 888);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const copy = (renderer as any).state.markers[1];
+const copy = (renderer as any).state.markers[1];
     expect(copy.note).toBe("Test Note");
     expect(copy.description).toBe("Test Desc");
     expect(copy.direction).toBe("left");
@@ -507,15 +493,12 @@ describe("MapRenderer copy marker", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (renderer as any).startCopyMarker(marker);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((renderer as any).pendingCopy).toBe(marker);
+(renderer as any).startCopyMarker(marker);
+expect((renderer as any).pendingCopy).toBe(marker);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((renderer as any).pendingCopy).toBeNull();
+expect((renderer as any).pendingCopy).toBeNull();
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
     expect(wrapper.classList.contains("ttrpgmap-cursor-grab")).toBe(true);
     expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(false);
@@ -671,8 +654,7 @@ describe("MapRenderer Alt+Scroll resize", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state = (renderer as any).state as MapState;
+const state = (renderer as any).state as MapState;
     expect(state.markerScale).toBeUndefined();
 
     const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
@@ -690,8 +672,7 @@ describe("MapRenderer Alt+Scroll resize", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state = (renderer as any).state as MapState;
+const state = (renderer as any).state as MapState;
     expect(state.markerTextScale).toBeUndefined();
 
     const labelEl = container.querySelector(".ttrpgmap-marker-label") as HTMLElement;
@@ -745,8 +726,7 @@ describe("MapRenderer Alt+Scroll resize", () => {
     const renderer = new MapRenderer(container, plugin, createConfig(), "test.md", null);
     await renderer.onload();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state = (renderer as any).state as MapState;
+const state = (renderer as any).state as MapState;
     const pinEl = container.querySelector(".ttrpgmap-marker-pin") as HTMLElement;
     dispatchWheel(pinEl, { shiftKey: true });
 
@@ -758,7 +738,7 @@ describe("MapRenderer Alt+Scroll resize", () => {
 
 describe("EmptyMapRenderer DOM", () => {
   it("renders placeholder with configure button", async () => {
-    const { EmptyMapRenderer } = await import("./EmptyMapRenderer");
+    const { EmptyMapRenderer } = await import("../../src/map/EmptyMapRenderer");
     const container = document.createElement("div");
     const plugin = createMockPlugin();
     const renderer = new EmptyMapRenderer(container, plugin, "test.md", null);

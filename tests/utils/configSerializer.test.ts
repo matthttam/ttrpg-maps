@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseMapConfig, resolveConfig, serializeMapConfig } from "./configSerializer";
+import { parseMapConfig, resolveConfig, serializeMapConfig } from "../../src/utils/configSerializer";
 
 describe("parseMapConfig", () => {
   it("parses a full config", () => {

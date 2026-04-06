@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getFAIcon, searchFAIcons, getFAIconNames, setFAIcon, loadGameIcons, isGameIconsLoaded } from "./faIcon";
+import { getFAIcon, searchFAIcons, getFAIconNames, setFAIcon, loadGameIcons, isGameIconsLoaded } from "../../src/utils/faIcon";
 import * as fs from "fs";
 import * as path from "path";
 

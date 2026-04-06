@@ -50,7 +50,7 @@ Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/g
 
 ### Test environment
 
-Tests run in jsdom. `src/__mocks__/obsidian.ts` mocks the Obsidian API classes. `src/__mocks__/obsidian-dom.ts` polyfills Obsidian's custom HTMLElement methods (`createDiv`, `createEl`, `empty`, `addClass`, `setText`). Coverage is scoped to `src/utils/`, `src/map/`, `src/types.ts`, `src/distance.ts`, and `src/DataManager.ts`.
+Tests live in `tests/` (outside `src/` so the Obsidian review bot doesn't scan them). Tests run in jsdom. `tests/__mocks__/obsidian.ts` mocks the Obsidian API classes. `tests/__mocks__/obsidian-dom.ts` polyfills Obsidian's custom HTMLElement methods (`createDiv`, `createEl`, `empty`, `addClass`, `setText`). Coverage is scoped to `src/utils/`, `src/map/`, `src/types.ts`, `src/distance.ts`, and `src/DataManager.ts`.
 
 ## Obsidian community plugin guidelines
 

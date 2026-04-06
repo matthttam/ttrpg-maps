@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createPinSvg, createCircleSvg, createHotspotSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "./markerPin";
-import { getFAIcon, getFAIconNames } from "./faIcon";
+import { createPinSvg, createCircleSvg, createHotspotSvg, createPinElement, PIN_PATH, PIN_VIEWBOX } from "../../src/utils/markerPin";
+import { getFAIcon, getFAIconNames } from "../../src/utils/faIcon";
 
 describe("createPinSvg", () => {
   it("creates an SVG element with correct viewBox", () => {

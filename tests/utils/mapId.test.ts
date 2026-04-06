@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateMapId, generateMarkerId } from "./mapId";
+import { generateMapId, generateMarkerId } from "../../src/utils/mapId";
 
 describe("generateMapId", () => {
   it("generates a string starting with map_", () => {

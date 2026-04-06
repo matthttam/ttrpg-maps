@@ -7,8 +7,8 @@ import {
   polylineUnitsDistance,
   segmentDistances,
   applyRounding,
-} from "./distance";
-import { DistanceScale, MapPoint } from "./types";
+} from "../src/distance";
+import { DistanceScale, MapPoint } from "../src/types";
 
 describe("pixelDistance", () => {
   it("returns 0 for identical points", () => {

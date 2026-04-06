@@ -1,6 +1,5 @@
 // Minimal mocks for Obsidian API used in tests
 // Obsidian exposes activeWindow as a global
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).activeWindow = globalThis.window ?? globalThis;
 export class MarkdownRenderChild {
   containerEl: HTMLElement;
@@ -26,7 +25,6 @@ export class App {
     read: async (file: TFile) => "",
     modify: async (file: TFile, content: string) => {},
     readBinary: async (file: TFile) => new ArrayBuffer(0),
-    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast
     createBinary: async (path: string, data: ArrayBuffer) => ({} as TFile),
     createFolder: async (path: string) => {},
   };
@@ -36,15 +34,12 @@ export class App {
   };
   metadataCache = {
     getFirstLinkpathDest: (linkpath: string, sourcePath: string) => null as TFile | null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getFileCache: (file: TFile) => null as any,
   };
 }
 
 export class Menu {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private items: any[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addItem(cb: (item: any) => void) {
     const item = {
       setTitle(t: string) { item._title = t; return item; },
@@ -80,7 +75,6 @@ export class Setting {
   setName(name: string) { return this; }
   setDesc(desc: string) { return this; }
   setClass(cls: string) { return this; }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addText(cb: (text: any) => void) {
     const text = {
       inputEl: document.createElement("input"),
@@ -92,7 +86,6 @@ export class Setting {
     cb(text);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addDropdown(cb: (dropdown: any) => void) {
     const dd = {
       addOption(v: string, l: string) { return dd; },
@@ -103,7 +96,6 @@ export class Setting {
     cb(dd);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addButton(cb: (btn: any) => void) {
     const btn = {
       setButtonText(t: string) { return btn; },
@@ -114,7 +106,6 @@ export class Setting {
     cb(btn);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addExtraButton(cb: (btn: any) => void) {
     const btn = {
       setIcon(i: string) { return btn; },
@@ -124,7 +115,6 @@ export class Setting {
     cb(btn);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addTextArea(cb: (textArea: any) => void) {
     const ta = {
       inputEl: document.createElement("textarea"),
@@ -134,7 +124,6 @@ export class Setting {
     cb(ta);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addToggle(cb: (toggle: any) => void) {
     const toggle = {
       setValue(v: boolean) { return toggle; },
@@ -143,7 +132,6 @@ export class Setting {
     cb(toggle);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addSlider(cb: (slider: any) => void) {
     const slider = {
       setLimits(min: number, max: number, step: number) { return slider; },
@@ -165,15 +153,12 @@ export class SuggestModal<T> {
   open() {}
   close() {}
   setPlaceholder(p: string) {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setInstructions(instructions: any[]) {}
   getSuggestions(query: string): T[] { return []; }
   renderSuggestion(item: T, el: HTMLElement): void {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChooseSuggestion(item: T, evt: any): void {}
   selectSuggestion(item: T): void {}
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function prepareFuzzySearch(query: string): (text: string) => any { return () => null; }
 export class FuzzySuggestModal<T> {
   app: App;
@@ -220,12 +205,9 @@ export function getIconIds(): string[] {
 
 export class Plugin {
   app: App = new App();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, obsidianmd/hardcoded-config-path
   manifest: any = { id: "ttrpg-maps", dir: ".obsidian/plugins/ttrpg-maps" };
   async loadData() { return {}; }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async saveData(data: any) {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerHoverLinkSource(id: string, info: any) {}
 }
 

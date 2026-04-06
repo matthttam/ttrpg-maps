@@ -9,7 +9,7 @@ import {
   MapState,
   TTRPGMapsSettings,
   DEFAULT_LAYER,
-} from "./types";
+} from "../src/types";
 
 describe("DEFAULT_SETTINGS", () => {
   it("has exactly one Default template", () => {

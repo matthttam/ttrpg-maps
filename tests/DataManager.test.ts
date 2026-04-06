@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App } from "obsidian";
-import { DataManager } from "./DataManager";
-import { DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID, MapState } from "./types";
+import { DataManager } from "../src/DataManager";
+import { DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID, MapState } from "../src/types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createMockPlugin(data?: any) {
   return {
     loadData: vi.fn().mockResolvedValue(data ?? null),
     saveData: vi.fn().mockResolvedValue(undefined),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -23,10 +21,8 @@ function createMockAdapter() {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createDataManager(pluginData?: any) {
   const app = new App();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (app.vault as any).adapter = createMockAdapter();
   const plugin = createMockPlugin(pluginData);
   const dm = new DataManager(app, plugin);
@@ -204,8 +200,7 @@ describe("DataManager", () => {
       const settings = await dm.loadSettings();
 
       const defaultTemplate = settings.markerTemplates.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (t: any) => t.id === "default"
+          (t: any) => t.id === "default"
       );
       expect(defaultTemplate).toBeDefined();
       expect(defaultTemplate!.name).toBe("Default");

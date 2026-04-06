@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { displayTitle, linkPath, buildMarkerLabel } from "./markerLabel";
+import { displayTitle, linkPath, buildMarkerLabel } from "../../src/utils/markerLabel";
 
 describe("displayTitle", () => {
   it("returns a simple filename as-is", () => {

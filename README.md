@@ -35,7 +35,7 @@ For a complete breakdown of every feature, see the **[detailed feature list](doc
 
 ### Manual installation
 
-1. Download `main.js`, `manifest.json`, `styles.css`, and `gi-icons.json` from the [latest release](https://github.com/matthttam/ttrpg-maps/releases/latest)
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/matthttam/ttrpg-maps/releases/latest)
 2. Create a folder at `<your-vault>/.obsidian/plugins/ttrpg-maps/`
 3. Place the downloaded files into that folder
 4. Restart Obsidian and enable the plugin in **Settings** > **Community plugins**

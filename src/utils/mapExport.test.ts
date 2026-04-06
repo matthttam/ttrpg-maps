@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App, Notice } from "obsidian";
+import { App } from "obsidian";
 import { exportMap } from "./mapExport";
 import { MapConfig, MapState, MapExportManifest } from "../types";
 
@@ -16,7 +16,9 @@ vi.mock("jszip", () => ({
 
 function createMockApp() {
   const app = new App();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (app.vault as any).getFileByPath = vi.fn();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (app.vault as any).readBinary = vi.fn();
   return app;
 }
@@ -27,6 +29,7 @@ function createMockPlugin() {
     dataManager: {
       flushSaves: vi.fn().mockResolvedValue(undefined),
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -60,6 +63,7 @@ describe("exportMap", () => {
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
       if (tag === "a") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return { href: "", download: "", click: vi.fn() } as any;
       }
       return document.createElementNS("http://www.w3.org/1999/xhtml", tag);
@@ -67,7 +71,9 @@ describe("exportMap", () => {
   });
 
   it("flushes pending saves before exporting", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault.getFileByPath as any).mockReturnValue({ path: "maps/dungeon.png", name: "dungeon.png" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
     mockGenerateAsync.mockResolvedValue(new Blob(["test"]));
 
@@ -77,6 +83,7 @@ describe("exportMap", () => {
   });
 
   it("shows notice and returns when image not found", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault.getFileByPath as any).mockReturnValue(null);
 
     await exportMap(app, plugin, testConfig, testState);
@@ -86,7 +93,9 @@ describe("exportMap", () => {
 
   it("adds manifest.json and image to the ZIP", async () => {
     const imageData = new ArrayBuffer(16);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault.getFileByPath as any).mockReturnValue({ path: "maps/dungeon.png", name: "dungeon.png" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault as any).readBinary.mockResolvedValue(imageData);
     mockGenerateAsync.mockResolvedValue(new Blob(["zipdata"]));
 
@@ -110,7 +119,9 @@ describe("exportMap", () => {
 
   it("generates ZIP as blob and triggers download", async () => {
     const blob = new Blob(["zipdata"]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault.getFileByPath as any).mockReturnValue({ path: "maps/dungeon.png", name: "dungeon.png" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
     mockGenerateAsync.mockResolvedValue(blob);
 
@@ -122,15 +133,19 @@ describe("exportMap", () => {
   });
 
   it("uses map ID in the download filename", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault.getFileByPath as any).mockReturnValue({ path: "maps/dungeon.png", name: "dungeon.png" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
     mockGenerateAsync.mockResolvedValue(new Blob(["test"]));
 
     const createElementSpy = vi.spyOn(document, "createElement");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let anchor: any;
     createElementSpy.mockImplementation((tag: string) => {
       if (tag === "a") {
         anchor = { href: "", download: "", click: vi.fn() };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return anchor as any;
       }
       return document.createElementNS("http://www.w3.org/1999/xhtml", tag);

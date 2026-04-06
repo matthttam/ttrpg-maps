@@ -46,7 +46,7 @@ export function importMap(
       const imageData = await imageEntry.async("arraybuffer");
 
       // Prompt user for destination folder
-      new FolderPickerModal(app, async (folderPath) => {
+      new FolderPickerModal(app, (folderPath) => { void (async () => {
         try {
           // Normalize folder path
           const folder = folderPath === "/" ? "" : folderPath.replace(/\/+$/, "");
@@ -84,7 +84,7 @@ export function importMap(
           console.error("[ttrpg-maps] Import failed:", e);
           new Notice("Map import failed. Check the console for details.");
         }
-      }).open();
+      })(); }).open();
     } catch (e) {
       console.error("[ttrpg-maps] Failed to read export file:", e);
       new Notice("Failed to read the export file.");

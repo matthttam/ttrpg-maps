@@ -196,33 +196,35 @@ export class TemplateEditModal extends Modal {
               this.app,
               this.draft.name,
               changed.map((f) => FIELD_LABELS[f] || f),
-              async () => {
+              () => {
                 commitDraft();
                 void this.plugin.dataManager.saveSettings(this.plugin.settings);
 
-                const allStates = await this.plugin.dataManager.loadAllMapStates();
-                let count = 0;
-                for (const state of allStates) {
-                  let stateChanged = false;
-                  for (const marker of state.markers) {
-                    if (marker.templateId !== this.draft.id) continue;
-                    for (const field of changed) {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      (marker as any)[field] = (this.draft as any)[field];
+                void (async () => {
+                  const allStates = await this.plugin.dataManager.loadAllMapStates();
+                  let count = 0;
+                  for (const state of allStates) {
+                    let stateChanged = false;
+                    for (const marker of state.markers) {
+                      if (marker.templateId !== this.draft.id) continue;
+                      for (const field of changed) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (marker as any)[field] = (this.draft as any)[field];
+                      }
+                      stateChanged = true;
+                      count++;
                     }
-                    stateChanged = true;
-                    count++;
+                    if (stateChanged) {
+                      this.plugin.dataManager.saveMapState(state.mapId, state);
+                    }
                   }
-                  if (stateChanged) {
-                    this.plugin.dataManager.saveMapState(state.mapId, state);
-                  }
-                }
 
-                await this.plugin.dataManager.flushSaves();
-                new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.draft.name}".`);
-                this.plugin.triggerMapRefresh();
-                this.onSaved();
-                this.close();
+                  await this.plugin.dataManager.flushSaves();
+                  new Notice(`Updated ${count} marker${count !== 1 ? "s" : ""} using "${this.draft.name}".`);
+                  this.plugin.triggerMapRefresh();
+                  this.onSaved();
+                  this.close();
+                })();
               }
             ).open();
           })

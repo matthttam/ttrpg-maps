@@ -58,6 +58,7 @@ describe("setFAIcon", () => {
 
   it("clears previous content before rendering", () => {
     const parent = document.createElement("div");
+     
     parent.innerHTML = "<span>old content</span>";
     setFAIcon(parent, "star");
     expect(parent.querySelector("span")).toBeNull();
@@ -66,6 +67,7 @@ describe("setFAIcon", () => {
 
   it("does nothing for an unknown icon", () => {
     const parent = document.createElement("div");
+     
     parent.innerHTML = "<span>existing</span>";
     setFAIcon(parent, "this-icon-definitely-does-not-exist-xyz");
     // Content should remain unchanged since the function returns early

@@ -66,6 +66,7 @@ describe("resolveUniquePath", () => {
   function createMockApp(existingPaths: string[]) {
     const app = new App();
     const existing = new Set(existingPaths);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (app.vault as any).adapter = {
       exists: vi.fn().mockImplementation((path: string) => Promise.resolve(existing.has(path))),
     };

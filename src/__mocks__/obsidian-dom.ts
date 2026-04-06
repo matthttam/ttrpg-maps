@@ -5,6 +5,7 @@
 
 // ResizeObserver is not available in jsdom
 if (typeof globalThis.ResizeObserver === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).ResizeObserver = class {
     observe() {}
     unobserve() {}
@@ -42,6 +43,7 @@ declare global {
 }
 
 if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.createDiv) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   HTMLElement.prototype.createDiv = function (opts?: any): HTMLDivElement {
     return createEl.call(this, "div", opts) as HTMLDivElement;
   };
@@ -53,11 +55,13 @@ if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.createDiv) {
     return createEl.call(this, tag, opts);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   HTMLElement.prototype.createSpan = function (opts?: any): HTMLSpanElement {
     return createEl.call(this, "span", opts) as HTMLSpanElement;
   };
 
   HTMLElement.prototype.empty = function (): void {
+     
     this.innerHTML = "";
   };
 

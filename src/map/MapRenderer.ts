@@ -115,10 +115,12 @@ export class MapRenderer extends MarkdownRenderChild {
     })();
   };
 
-  async onload(): Promise<void> {
-    this.state = await this.plugin.dataManager.loadMapState(this.config.id);
-    this.plugin.onMapRefresh(this.refreshCallback);
-    this.buildDOM();
+  onload(): void {
+    void (async () => {
+      this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+      this.plugin.onMapRefresh(this.refreshCallback);
+      this.buildDOM();
+    })();
   }
 
   onunload(): void {

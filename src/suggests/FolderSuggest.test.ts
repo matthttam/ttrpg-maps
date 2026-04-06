@@ -10,6 +10,7 @@ function createSuggest(folderPaths: string[]): FolderSuggest {
     f.name = p.split("/").pop() ?? p;
     return f;
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (app.vault as any).getAllFolders = () => folders;
   const inputEl = document.createElement("input");
   return new FolderSuggest(app, inputEl, vi.fn());

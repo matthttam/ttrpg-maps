@@ -4,7 +4,7 @@ Render interactive TTRPG maps from code blocks with markers, templates, and dist
 
 An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who want to embed interactive maps directly in their notes. Place markers, measure distances, and organize map data alongside your campaign notes.
 
-<!-- TODO: screenshot or GIF of a map with markers and measurement lines -->
+<img width="805" height="803" alt="image" src="https://github.com/user-attachments/assets/a915c5d3-41e5-46e0-b447-5577a4415174" />
 
 ## Features
 
@@ -50,7 +50,7 @@ Add an empty `ttrpgmap` code block to any note:
 
 The rendered block displays a **Configure Map** button. Click it to select your map image and set optional fields like dimensions and zoom range.
 
-<!-- TODO: screenshot of the empty placeholder with the Configure Map button -->
+<img width="917" height="166" alt="image" src="https://github.com/user-attachments/assets/f9747481-3498-48c9-884d-b7b4e221eba0" />
 
 Alternatively, you can set the fields directly as text in the code block:
 
@@ -73,7 +73,7 @@ See the [code block reference](docs/features.md#code-block-reference) for all av
 - **Zoom** - Scroll wheel, or use the +/- buttons (top-left)
 - **Reset view** - Click the center button (top-left)
 
-<!-- TODO: screenshot of map with zoom controls highlighted -->
+<img width="87" height="255" alt="image" src="https://github.com/user-attachments/assets/128ba815-f5a6-474e-927a-c3931660e9a5" />
 
 ### 3. Place markers
 
@@ -84,7 +84,7 @@ See the [code block reference](docs/features.md#code-block-reference) for all av
 
 Right-click a marker to edit, copy, resize, or delete it. Drag a marker to reposition it. Click a marker linked to a note to navigate there.
 
-<!-- TODO: screenshot of marker context menu -->
+<img width="321" height="281" alt="image" src="https://github.com/user-attachments/assets/fd95d630-5796-497e-839c-34a875784f1f" />
 
 ### 4. Measure distances
 
@@ -96,13 +96,17 @@ Right-click a marker to edit, copy, resize, or delete it. Drag a marker to repos
 
 Configure rounding in the measurement panel to snap distances to the nearest multiple.
 
-<!-- TODO: screenshot of measurement in action -->
+<img width="240" height="194" alt="image" src="https://github.com/user-attachments/assets/658a3897-754b-4751-94eb-3edf5b98f189" />
+<img width="803" height="624" alt="image" src="https://github.com/user-attachments/assets/5cfcdd20-8d77-4bbe-a943-4fe0faca4f65" />
+<img width="800" height="793" alt="image" src="https://github.com/user-attachments/assets/cd25067e-1f9f-4c8d-8d4f-55f31f966307" />
+
 
 ### 5. Manage templates
 
 Open **Settings** > **TTRPG Maps** to create and organize marker templates. Templates define default values for color, icon, shape, direction, and more. Use **Save & Update Markers** to push template changes to all existing markers that use it.
 
-<!-- TODO: screenshot of template settings -->
+<img width="775" height="668" alt="image" src="https://github.com/user-attachments/assets/d29bc99d-f9e6-49d5-a4ba-531644bc2cfe" />
+<img width="946" height="492" alt="image" src="https://github.com/user-attachments/assets/cacd2c91-8bad-4003-a683-7e775018a7f8" />
 
 ## How data is stored
 

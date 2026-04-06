@@ -152,6 +152,25 @@ export class MapSettingsModal extends Modal {
     });
     addHelpIcon(zoomSetting, "Zoom range (%) and step size per scroll increment");
 
+    // ── Navigation ──
+    const globalNewTab = this.plugin.settings.openLinksInNewTab ?? true;
+    const globalNewTabLabel = globalNewTab ? "New tab" : "Current tab";
+    const navSetting = new Setting(contentEl)
+      .setName("Open Links in")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("inherit", "Inherit")
+          .addOption("new", "New tab")
+          .addOption("current", "Current tab")
+          .setValue(this.state.openLinksInNewTab == null ? "inherit" : this.state.openLinksInNewTab ? "new" : "current")
+          .onChange((value) => {
+            if (value === "inherit") this.state.openLinksInNewTab = undefined;
+            else this.state.openLinksInNewTab = value === "new";
+            this.onLayerChange(this.state);
+          });
+      });
+    addHelpIcon(navSetting, `Inherit uses the global default (currently ${globalNewTabLabel}). Controls whether clicking a marker's linked note opens in a new tab or the current one.`);
+
     // ── Marker Scale ──
     contentEl.createEl("h3", { text: "Markers" });
 

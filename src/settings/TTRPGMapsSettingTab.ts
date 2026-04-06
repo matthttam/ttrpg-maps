@@ -82,6 +82,21 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
           });
       });
 
+    // ── Navigation ──
+    containerEl.createEl("h3", { text: "Navigation" });
+
+    new Setting(containerEl)
+      .setName("Open Links in New Tab")
+      .setDesc("When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.openLinksInNewTab ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.openLinksInNewTab = value;
+            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+          });
+      });
+
     // ── Marker Templates ──
     const templatesContainer = containerEl.createDiv();
     const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);

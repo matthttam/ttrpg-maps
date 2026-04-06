@@ -525,7 +525,7 @@ describe("MapRenderer marker click navigation", () => {
     wrapper.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     markerEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    expect(openLinkSpy).toHaveBeenCalledWith("Places/Tavern", "");
+    expect(openLinkSpy).toHaveBeenCalledWith("Places/Tavern", "", true);
   });
 
   it("dragging a marker beyond threshold does NOT navigate", async () => {

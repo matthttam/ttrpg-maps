@@ -81,7 +81,7 @@ export class TemplateEditModal extends Modal {
       shape: this.draft.shape,
     });
 
-    buildMarkerLabel(wrapper, "Example Note", "Example Description", "ttrpgmap-edit-preview-label");
+    buildMarkerLabel(wrapper, "Example Note", null, "Example Description", "ttrpgmap-edit-preview-label");
   }
 
   /** Update dirty indicators on all tracked fields */

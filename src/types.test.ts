@@ -67,6 +67,8 @@ describe("Marker template resolution", () => {
       y: 200,
       layerId: null,
       note: "My Castle",
+      alias: null,
+      previewNote: null,
       description: null,
       direction: "left",
       textPlacement: null,
@@ -104,6 +106,8 @@ describe("Marker template resolution", () => {
       y: 0,
       layerId: null,
       note: null,
+      alias: null,
+      previewNote: null,
       description: null,
       direction: null,
       textPlacement: null,
@@ -212,7 +216,7 @@ describe("MapMarker scale fields", () => {
   it("accepts per-marker scale and scaleToZoom", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
-      note: null, description: null, direction: null, textPlacement: null,
+      note: null, alias: null, previewNote: null, description: null, direction: null, textPlacement: null,
       color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: 0.5,
       scaleToZoom: false,
@@ -226,7 +230,7 @@ describe("MapMarker scale fields", () => {
   it("null values mean inherit from map/global", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
-      note: null, description: null, direction: null, textPlacement: null,
+      note: null, alias: null, previewNote: null, description: null, direction: null, textPlacement: null,
       color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null,
       scaleToZoom: null,
@@ -290,7 +294,7 @@ describe("MapMarker text scale fields", () => {
   it("accepts per-marker textScale and textScaleToZoom", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
-      note: null, description: null, direction: null, textPlacement: null,
+      note: null, alias: null, previewNote: null, description: null, direction: null, textPlacement: null,
       color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null, scaleToZoom: null,
       textScale: 0.75,
@@ -303,7 +307,7 @@ describe("MapMarker text scale fields", () => {
   it("null text scale values mean inherit", () => {
     const marker: MapMarker = {
       id: "test", templateId: "default", x: 0, y: 0, layerId: null,
-      note: null, description: null, direction: null, textPlacement: null,
+      note: null, alias: null, previewNote: null, description: null, direction: null, textPlacement: null,
       color: null, icon: null, iconColor: null, iconRotation: null, useBaseMarker: null, shape: null,
       scale: null, scaleToZoom: null,
       textScale: null,

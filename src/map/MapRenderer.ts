@@ -459,8 +459,8 @@ export class MapRenderer extends MarkdownRenderChild {
     }
 
     const sorted = [...this.state.markers].sort((a, b) => {
-      const nameA = a.note ? displayTitle(a.note) : "";
-      const nameB = b.note ? displayTitle(b.note) : "";
+      const nameA = a.note ? displayTitle(a.note, a.alias) : "";
+      const nameB = b.note ? displayTitle(b.note, b.alias) : "";
       return nameA.localeCompare(nameB);
     });
 
@@ -485,7 +485,7 @@ export class MapRenderer extends MarkdownRenderChild {
       });
 
       // Name
-      const name = marker.note ? displayTitle(marker.note) : "Unnamed";
+      const name = marker.note ? displayTitle(marker.note, marker.alias) : "Unnamed";
       row.createDiv({ cls: "ttrpgmap-marker-list-name", text: name });
 
       // Hidden indicator
@@ -1023,7 +1023,7 @@ export class MapRenderer extends MarkdownRenderChild {
       shape: marker.shape ?? "pin",
     });
 
-    buildMarkerLabel(markerEl, marker.note, marker.description, "ttrpgmap-marker-label");
+    buildMarkerLabel(markerEl, marker.note, marker.alias, marker.description, "ttrpgmap-marker-label");
 
     return markerEl;
   }
@@ -1039,6 +1039,25 @@ export class MapRenderer extends MarkdownRenderChild {
         this.plugin.app.workspace.openLinkText(navPath, "", newTab);
       });
     }
+
+    // Hover preview
+    markerEl.addEventListener("mouseenter", (e) => {
+      if (this.draggingMarker) return;
+      const showPreview = this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
+      if (!showPreview) return;
+      const previewPath = marker.previewNote
+        ? linkPath(marker.previewNote)
+        : (marker.note ? linkPath(marker.note) : null);
+      if (!previewPath) return;
+      this.plugin.app.workspace.trigger("hover-link", {
+        event: e,
+        source: "ttrpg-maps",
+        hoverParent: { hoverPopover: null },
+        targetEl: markerEl,
+        linktext: previewPath,
+        sourcePath: "",
+      });
+    });
 
     // Drag to reposition
     markerEl.addEventListener("mousedown", (e) => {
@@ -1095,7 +1114,7 @@ export class MapRenderer extends MarkdownRenderChild {
       id: generateMarkerId(),
       templateId, x, y,
       layerId,
-      note: null, description: null,
+      note: null, alias: null, previewNote: null, description: null,
       direction: template?.direction ?? "down",
       textPlacement: template?.textPlacement ?? "above",
       color: template?.color ?? "#ffffff",
@@ -1159,7 +1178,7 @@ export class MapRenderer extends MarkdownRenderChild {
       useBaseMarker: source.useBaseMarker ?? true,
       shape: source.shape ?? "pin",
     });
-    buildMarkerLabel(ghost, source.note, source.description, "ttrpgmap-marker-label");
+    buildMarkerLabel(ghost, source.note, source.alias, source.description, "ttrpgmap-marker-label");
 
     const onMove = (e: MouseEvent) => {
       ghost.style.left = `${e.clientX}px`;

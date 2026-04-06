@@ -56,6 +56,8 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     y: 200,
     layerId: null,
     note: null,
+    alias: null,
+    previewNote: null,
     description: null,
     direction: "down",
     textPlacement: "above",

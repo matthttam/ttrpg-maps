@@ -14,7 +14,7 @@ describe("displayTitle", () => {
     expect(displayTitle("World/Places/Tavern")).toBe("Tavern");
   });
 
-  it("returns the alias when a pipe is present", () => {
+  it("returns the alias when a pipe is present (legacy safety net)", () => {
     expect(displayTitle("Places/Tavern|The Red Dragon Inn")).toBe("The Red Dragon Inn");
   });
 
@@ -28,6 +28,22 @@ describe("displayTitle", () => {
 
   it("returns an empty string for empty input", () => {
     expect(displayTitle("")).toBe("");
+  });
+
+  it("returns the explicit alias when provided", () => {
+    expect(displayTitle("Places/Tavern", "My Alias")).toBe("My Alias");
+  });
+
+  it("falls through to path extraction when alias is null", () => {
+    expect(displayTitle("Places/Tavern", null)).toBe("Tavern");
+  });
+
+  it("falls through to path extraction when alias is empty string", () => {
+    expect(displayTitle("Places/Tavern", "")).toBe("Tavern");
+  });
+
+  it("explicit alias takes precedence over pipe alias", () => {
+    expect(displayTitle("Places/Tavern|Old Alias", "New Alias")).toBe("New Alias");
   });
 });
 
@@ -56,13 +72,13 @@ describe("buildMarkerLabel", () => {
 
   it("does nothing when both note and description are null", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, null, null, "label-cls");
+    buildMarkerLabel(container, null, null, null, "label-cls");
     expect(container.children.length).toBe(0);
   });
 
   it("creates a label with a title span when only note is provided", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, "Places/Tavern", null, "label-cls");
+    buildMarkerLabel(container, "Places/Tavern", null, null, "label-cls");
 
     const label = container.querySelector(".label-cls");
     expect(label).not.toBeNull();
@@ -77,7 +93,7 @@ describe("buildMarkerLabel", () => {
 
   it("creates a label with a description div when only description is provided", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, null, "A cozy inn", "label-cls");
+    buildMarkerLabel(container, null, null, "A cozy inn", "label-cls");
 
     const label = container.querySelector(".label-cls");
     expect(label).not.toBeNull();
@@ -92,7 +108,7 @@ describe("buildMarkerLabel", () => {
 
   it("creates a label with both title and description when both are provided", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, "Places/Tavern", "A cozy inn", "label-cls");
+    buildMarkerLabel(container, "Places/Tavern", null, "A cozy inn", "label-cls");
 
     const label = container.querySelector(".label-cls");
     expect(label).not.toBeNull();
@@ -108,7 +124,7 @@ describe("buildMarkerLabel", () => {
 
   it("applies the provided label class to the label element", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, "Note", null, "my-custom-class");
+    buildMarkerLabel(container, "Note", null, null, "my-custom-class");
 
     const label = container.firstElementChild as HTMLElement;
     expect(label.classList.contains("my-custom-class")).toBe(true);
@@ -116,9 +132,17 @@ describe("buildMarkerLabel", () => {
 
   it("uses displayTitle to strip the path from the note for the title text", () => {
     const container = makeContainer();
-    buildMarkerLabel(container, "World/Places/Tavern|The Red Dragon Inn", null, "label-cls");
+    buildMarkerLabel(container, "World/Places/Tavern|The Red Dragon Inn", null, null, "label-cls");
 
     const title = container.querySelector(".ttrpgmap-marker-title");
     expect(title!.textContent).toBe("The Red Dragon Inn");
+  });
+
+  it("uses alias for the title when provided", () => {
+    const container = makeContainer();
+    buildMarkerLabel(container, "Places/Tavern", "My Tavern", null, "label-cls");
+
+    const title = container.querySelector(".ttrpgmap-marker-title");
+    expect(title!.textContent).toBe("My Tavern");
   });
 });

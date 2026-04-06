@@ -53,6 +53,8 @@ export interface MapMarker {
   layerId: string | null; // null = default layer
   /** Overrides from template. Only set fields override. */
   note: string | null;
+  alias: string | null;
+  previewNote: string | null;
   description: string | null;
   direction: MarkerDirection | null;
   textPlacement: TextPlacement | null;
@@ -117,6 +119,7 @@ export interface MapState {
   markerTextScale?: number;
   scaleMarkerTextToZoom?: boolean;
   openLinksInNewTab?: boolean;
+  showHoverPreview?: boolean;
   zoomLocked?: boolean;
   panLocked?: boolean;
 }
@@ -130,6 +133,7 @@ export interface TTRPGMapsSettings {
   defaultMarkerTextScale?: number;
   defaultScaleMarkerTextToZoom?: boolean;
   openLinksInNewTab?: boolean;
+  showHoverPreview?: boolean;
 }
 
 /** IDs of predefined templates that cannot be renamed or deleted */

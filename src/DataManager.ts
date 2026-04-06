@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import type TTRPGMapsPlugin from "./main";
-import { MapState, TTRPGMapsSettings, DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID } from "./types";
+import { MapState, MapMarker, TTRPGMapsSettings, DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID } from "./types";
 
 const TTRPGMAP_DIR = ".ttrpgmap";
 
@@ -52,6 +52,19 @@ export class DataManager {
     }
   }
 
+  /** Migrate markers from legacy |alias syntax to separate alias field */
+  private migrateMarkers(markers: MapMarker[]): void {
+    for (const m of markers) {
+      if ((m as any).alias === undefined && m.note && m.note.indexOf("|") >= 0) {
+        const pipeIdx = m.note.indexOf("|");
+        m.alias = m.note.slice(pipeIdx + 1);
+        m.note = m.note.slice(0, pipeIdx);
+      }
+      if ((m as any).alias === undefined) m.alias = null;
+      if ((m as any).previewNote === undefined) m.previewNote = null;
+    }
+  }
+
   /** Ensure .ttrpgmap directory exists */
   private async ensureDir(): Promise<void> {
     const adapter = this.app.vault.adapter;
@@ -75,6 +88,7 @@ export class DataManager {
       try {
         const state = JSON.parse(raw) as MapState;
         this.ensureLayers(state);
+        this.migrateMarkers(state.markers);
         return state;
       } catch (e) {
         console.warn(`[ttrpg-maps] Failed to parse map state ${path}:`, e);
@@ -137,6 +151,7 @@ export class DataManager {
       try {
         const state = JSON.parse(raw) as MapState;
         this.ensureLayers(state);
+        this.migrateMarkers(state.markers);
         states.push(state);
       } catch (e) {
         console.warn(`[ttrpg-maps] Failed to parse ${file}:`, e);

@@ -11,6 +11,8 @@ export class MarkerEditModal extends Modal {
   private layers: MarkerLayer[];
   private marker: {
     note: string | null;
+    alias: string | null;
+    previewNote: string | null;
     description: string | null;
     templateId: string;
     layerId: string | null;
@@ -122,7 +124,7 @@ export class MarkerEditModal extends Modal {
       shape: (this.marker.shape ?? "pin") as "pin" | "circle" | "hotspot",
     });
 
-    buildMarkerLabel(wrapper, this.marker.note, this.marker.description, "ttrpgmap-edit-preview-label");
+    buildMarkerLabel(wrapper, this.marker.note, this.marker.alias, this.marker.description, "ttrpgmap-edit-preview-label");
   }
 
   onOpen(): void {
@@ -184,7 +186,7 @@ export class MarkerEditModal extends Modal {
     // ── Note ──
     new Setting(mainCol)
       .setName("Note")
-      .setDesc("Link to a note. Type # for headings, #^ for blocks, | for alias.")
+      .setDesc("Link to a note. Type # for headings, #^ for blocks.")
       .addText((text) => {
         text
           .setPlaceholder("Search for a note...")
@@ -196,6 +198,36 @@ export class MarkerEditModal extends Modal {
         new NoteLinkSuggest(this.app, text.inputEl, (value) => {
           this.marker.note = value || null;
           this.renderPreview(previewContainer);
+        });
+      });
+
+    // ── Alias ──
+    new Setting(mainCol)
+      .setName("Alias")
+      .setDesc("Display name shown instead of the note filename")
+      .addText((text) => {
+        text
+          .setPlaceholder("Display name...")
+          .setValue(this.marker.alias ?? "")
+          .onChange((value) => {
+            this.marker.alias = value || null;
+            this.renderPreview(previewContainer);
+          });
+      });
+
+    // ── Preview Note ──
+    new Setting(mainCol)
+      .setName("Preview Note")
+      .setDesc("Note shown on hover preview (blank uses the linked note)")
+      .addText((text) => {
+        text
+          .setPlaceholder("Search for a note...")
+          .setValue(this.marker.previewNote ?? "")
+          .onChange((value) => {
+            this.marker.previewNote = value || null;
+          });
+        new NoteLinkSuggest(this.app, text.inputEl, (value) => {
+          this.marker.previewNote = value || null;
         });
       });
 

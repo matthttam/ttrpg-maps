@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 import { MapConfig, DEFAULT_MAP_CONFIG } from "../types";
 import { generateMapId } from "./mapId";
 

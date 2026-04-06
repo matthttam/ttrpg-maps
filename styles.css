@@ -1658,3 +1658,28 @@
   height: 14px;
 }
 
+/* ===== Utility ===== */
+.ttrpgmap-hidden {
+  display: none !important;
+}
+
+.ttrpgmap-visibility-hidden {
+  visibility: hidden;
+}
+
+.ttrpgmap-cursor-grab {
+  cursor: grab;
+}
+
+.ttrpgmap-cursor-crosshair {
+  cursor: crosshair;
+}
+
+.ttrpgmap-cursor-copy {
+  cursor: copy;
+}
+
+.ttrpgmap-pixelated {
+  image-rendering: pixelated;
+}
+

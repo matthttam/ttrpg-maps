@@ -1,6 +1,6 @@
 import { App, Notice } from "obsidian";
 import * as JSZipModule from "jszip";
-const JSZip = (JSZipModule as any).default ?? JSZipModule;
+const JSZip = (JSZipModule as { default?: typeof JSZipModule }).default ?? JSZipModule;
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MapExportManifest } from "../types";
 

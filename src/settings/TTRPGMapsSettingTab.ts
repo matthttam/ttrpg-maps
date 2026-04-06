@@ -16,96 +16,94 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "TTRPG Maps" });
-
     // ── Marker Settings ──
-    containerEl.createEl("h3", { text: "Markers" });
+    new Setting(containerEl).setName("Markers").setHeading();
 
     const markerScaleSetting = new Setting(containerEl)
-      .setName("Default Marker Scale")
+      .setName("Default marker scale")
       .setDesc("Visual size of markers on all maps (%)");
 
     buildScaleSlider({
       setting: markerScaleSetting,
       value: this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
-      onChange: async (value) => {
+      onChange: (value) => {
         this.plugin.settings.defaultMarkerScale = value;
-        await this.plugin.dataManager.saveSettings(this.plugin.settings);
+        void this.plugin.dataManager.saveSettings(this.plugin.settings);
         this.plugin.triggerMapRefresh();
       },
     });
 
     new Setting(containerEl)
-      .setName("Scale Markers to Zoom")
+      .setName("Scale markers to zoom")
       .setDesc("Screen-constant keeps markers the same size on screen. Fixed to map makes markers shrink when zoomed out and grow when zoomed in.")
       .addDropdown((dropdown) => {
         dropdown
           .addOption("screen", "Screen-constant")
           .addOption("map", "Fixed to map")
           .setValue((this.plugin.settings.defaultScaleMarkersToZoom ?? true) ? "screen" : "map")
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.defaultScaleMarkersToZoom = value === "screen";
-            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+            void this.plugin.dataManager.saveSettings(this.plugin.settings);
             this.plugin.triggerMapRefresh();
           });
       });
 
     // ── Text Settings ──
-    containerEl.createEl("h3", { text: "Text" });
+    new Setting(containerEl).setName("Text").setHeading();
 
     const textScaleSetting = new Setting(containerEl)
-      .setName("Default Text Scale")
+      .setName("Default text scale")
       .setDesc("Visual size of marker text labels on all maps (%)");
 
     buildScaleSlider({
       setting: textScaleSetting,
       value: this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
-      onChange: async (value) => {
+      onChange: (value) => {
         this.plugin.settings.defaultMarkerTextScale = value;
-        await this.plugin.dataManager.saveSettings(this.plugin.settings);
+        void this.plugin.dataManager.saveSettings(this.plugin.settings);
         this.plugin.triggerMapRefresh();
       },
     });
 
     new Setting(containerEl)
-      .setName("Scale Text to Zoom")
+      .setName("Scale text to zoom")
       .setDesc("Screen-constant keeps text the same size on screen. Fixed to map makes text shrink when zoomed out and grow when zoomed in.")
       .addDropdown((dropdown) => {
         dropdown
           .addOption("screen", "Screen-constant")
           .addOption("map", "Fixed to map")
           .setValue((this.plugin.settings.defaultScaleMarkerTextToZoom ?? true) ? "screen" : "map")
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.defaultScaleMarkerTextToZoom = value === "screen";
-            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+            void this.plugin.dataManager.saveSettings(this.plugin.settings);
             this.plugin.triggerMapRefresh();
           });
       });
 
     // ── Navigation ──
-    containerEl.createEl("h3", { text: "Navigation" });
+    new Setting(containerEl).setName("Navigation").setHeading();
 
     new Setting(containerEl)
-      .setName("Open Links in New Tab")
+      .setName("Open links in new tab")
       .setDesc("When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.openLinksInNewTab ?? true)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.openLinksInNewTab = value;
-            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+            void this.plugin.dataManager.saveSettings(this.plugin.settings);
           });
       });
 
     new Setting(containerEl)
-      .setName("Show Hover Preview")
+      .setName("Show hover preview")
       .setDesc("Show a page preview when hovering over markers with linked notes.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.showHoverPreview ?? false)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.showHoverPreview = value;
-            await this.plugin.dataManager.saveSettings(this.plugin.settings);
+            void this.plugin.dataManager.saveSettings(this.plugin.settings);
           });
       });
 
@@ -115,13 +113,14 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
     rerender();
 
     // ── Support ──
-    containerEl.createEl("h3", { text: "Support" });
+    new Setting(containerEl).setName("Support").setHeading();
     new Setting(containerEl)
-      .setName("Enjoy TTRPG Maps?")
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
+      .setName("Enjoy TTRPG maps?")
       .setDesc("If this plugin is useful to you, consider buying me a coffee!")
       .addButton((button) => {
         button
-          .setButtonText("Buy Me a Coffee")
+          .setButtonText("Buy me a coffee")
           .setCta()
           .onClick(() => {
             window.open("https://buymeacoffee.com/matthttam");

@@ -7,7 +7,6 @@ import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
 import { serializeMapConfig, writeConfigToCodeBlock } from "../utils/configSerializer";
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel, linkPath, displayTitle } from "../utils/markerLabel";
-import { setFAIcon } from "../utils/faIcon";
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from "../distance";
 import { generateMarkerId } from "../utils/mapId";
 import { NO_ZOOM_SVG, NO_PAN_SVG } from "../icons/lockIcons";
@@ -108,10 +107,12 @@ export class MapRenderer extends MarkdownRenderChild {
     this.sectionInfo = sectionInfo;
   }
 
-  private refreshCallback = async () => {
-    this.state = await this.plugin.dataManager.loadMapState(this.config.id);
-    this.renderMarkers();
-    this.refreshMarkerList();
+  private refreshCallback = () => {
+    void (async () => {
+      this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+      this.renderMarkers();
+      this.refreshMarkerList();
+    })();
   };
 
   async onload(): Promise<void> {
@@ -167,18 +168,18 @@ export class MapRenderer extends MarkdownRenderChild {
     // Throttle layout during resize: hide overlays and pause image rendering
     this.resizeObserver = new ResizeObserver(() => {
       if (!this._resizeDebounce) {
-        this.markerOverlay.style.visibility = "hidden";
-        this.svgOverlay.style.display = "none";
-        this.imageEl.style.imageRendering = "pixelated";
+        this.markerOverlay.addClass("ttrpgmap-visibility-hidden");
+        this.svgOverlay.addClass("ttrpgmap-hidden");
+        this.imageEl.addClass("ttrpgmap-pixelated");
       } else {
         clearTimeout(this._resizeDebounce);
       }
       this._resizeDebounce = setTimeout(() => {
         this._resizeDebounce = null;
-        this.imageEl.style.imageRendering = "";
-        this.svgOverlay.style.display = "";
+        this.imageEl.removeClass("ttrpgmap-pixelated");
+        this.svgOverlay.removeClass("ttrpgmap-hidden");
         this.updateMarkerPositions();
-        this.markerOverlay.style.visibility = "";
+        this.markerOverlay.removeClass("ttrpgmap-visibility-hidden");
       }, 150);
     });
     this.resizeObserver.observe(this.wrapper);
@@ -218,7 +219,9 @@ export class MapRenderer extends MarkdownRenderChild {
     this.panLocked = this.state?.panLocked ?? false;
 
     const zoomLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Zoom" } });
-    zoomLockBtn.innerHTML = NO_ZOOM_SVG;
+    const zoomLockDoc = new DOMParser().parseFromString(NO_ZOOM_SVG, "image/svg+xml");
+    zoomLockBtn.empty();
+    zoomLockBtn.appendChild(zoomLockDoc.documentElement);
     if (this.zoomLocked) {
       zoomLockBtn.addClass("is-active");
       zoomInBtn.addClass("ttrpgmap-btn-disabled");
@@ -233,7 +236,9 @@ export class MapRenderer extends MarkdownRenderChild {
     });
 
     const panLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Pan" } });
-    panLockBtn.innerHTML = NO_PAN_SVG;
+    const panLockDoc = new DOMParser().parseFromString(NO_PAN_SVG, "image/svg+xml");
+    panLockBtn.empty();
+    panLockBtn.appendChild(panLockDoc.documentElement);
     if (this.panLocked) panLockBtn.addClass("is-active");
     panLockBtn.addEventListener("click", () => {
       this.panLocked = !this.panLocked;
@@ -248,11 +253,11 @@ export class MapRenderer extends MarkdownRenderChild {
     // Toggle button (always visible)
     const toggleBtn = panel.createDiv({ cls: "ttrpgmap-measure-toggle" });
     setIcon(toggleBtn, "ruler");
-    toggleBtn.setAttribute("aria-label", "Measurement Tools");
+    toggleBtn.setAttribute("aria-label", "Measurement tools");
 
     // Drawer content (hidden by default)
     this.drawerWrapper = panel.createDiv({ cls: "ttrpgmap-measure-drawer" });
-    this.drawerWrapper.style.display = "none";
+    this.drawerWrapper.addClass("ttrpgmap-hidden");
 
     // Tool buttons row
     const toolRow = this.drawerWrapper.createDiv({ cls: "ttrpgmap-measure-tools" });
@@ -301,7 +306,7 @@ export class MapRenderer extends MarkdownRenderChild {
     modeDown.selected = currentMode === "down";
 
     // "multiple of" label
-    const multipleLabel = roundingRow.createEl("span", { cls: "ttrpgmap-measure-rounding-of", text: "multiple of" });
+    const multipleLabel = roundingRow.createEl("span", { cls: "ttrpgmap-measure-rounding-of", text: "Multiple of" });
 
     // Multiple input
     const multipleInput = roundingRow.createEl("input", {
@@ -320,9 +325,9 @@ export class MapRenderer extends MarkdownRenderChild {
     // Show/hide rounding controls based on mode
     const updateMultipleVisibility = () => {
       const isNone = modeSelect.value === "none";
-      multipleLabel.style.display = isNone ? "none" : "";
-      multipleInput.style.display = isNone ? "none" : "";
-      rawLabel.style.display = isNone ? "none" : "";
+      multipleLabel.toggleClass("ttrpgmap-hidden", isNone);
+      multipleInput.toggleClass("ttrpgmap-hidden", isNone);
+      rawLabel.toggleClass("ttrpgmap-hidden", isNone);
     };
     updateMultipleVisibility();
 
@@ -372,20 +377,20 @@ export class MapRenderer extends MarkdownRenderChild {
     // Toggle drawer
     toggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isOpen = this.drawerWrapper.style.display !== "none";
-      this.drawerWrapper.style.display = isOpen ? "none" : "flex";
+      const isOpen = !this.drawerWrapper.hasClass("ttrpgmap-hidden");
+      this.drawerWrapper.toggleClass("ttrpgmap-hidden", isOpen);
     });
   }
 
   private buildTotalDisplay(): void {
     this.totalDisplay = this.wrapper.createDiv({ cls: "ttrpgmap-measure-total" });
-    this.totalDisplay.style.display = "none";
+    this.totalDisplay.addClass("ttrpgmap-hidden");
   }
 
   private buildSettingsButton(): void {
     const btn = this.wrapper.createDiv({ cls: "ttrpgmap-settings-btn" });
     btn.setText("⚙");
-    btn.setAttribute("aria-label", "Map Settings");
+    btn.setAttribute("aria-label", "Map settings");
     btn.addEventListener("click", () => this.openSettings());
   }
 
@@ -395,7 +400,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
     // Wrapper for pin tab + list (sits above toggle)
     const listWrapper = panel.createDiv({ cls: "ttrpgmap-marker-list-wrapper" });
-    listWrapper.style.display = "none";
+    listWrapper.addClass("ttrpgmap-hidden");
 
     // Pin tab attached to top-left of list
     const pinBtn = listWrapper.createDiv({ cls: "ttrpgmap-marker-list-pin-tab" });
@@ -429,15 +434,15 @@ export class MapRenderer extends MarkdownRenderChild {
     // Toggle button at the bottom
     const toggleBtn = panel.createDiv({ cls: "ttrpgmap-marker-list-toggle" });
     setIcon(toggleBtn, "list");
-    toggleBtn.setAttribute("aria-label", "Marker List");
+    toggleBtn.setAttribute("aria-label", "Marker list");
 
     toggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isOpen = listWrapper.style.display !== "none";
+      const isOpen = !listWrapper.hasClass("ttrpgmap-hidden");
       if (isOpen && !pinned) {
-        listWrapper.style.display = "none";
+        listWrapper.addClass("ttrpgmap-hidden");
       } else {
-        listWrapper.style.display = "flex";
+        listWrapper.removeClass("ttrpgmap-hidden");
         this.renderMarkerList(listScroll);
       }
     });
@@ -447,7 +452,7 @@ export class MapRenderer extends MarkdownRenderChild {
   private refreshMarkerList(): void {
     if (this.markerListScroll) {
       const wrapper = this.markerListScroll.closest(".ttrpgmap-marker-list-wrapper") as HTMLElement | null;
-      if (wrapper && wrapper.style.display !== "none") {
+      if (wrapper && !wrapper.hasClass("ttrpgmap-hidden")) {
         this.renderMarkerList(this.markerListScroll);
       }
     }
@@ -581,22 +586,34 @@ export class MapRenderer extends MarkdownRenderChild {
     const ratio = natW && natH ? natW / natH : 0;
 
     if (height && width) {
+       
       this.wrapper.style.width = width;
+       
       this.wrapper.style.height = height;
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "100%"; }
     } else if (height && !width) {
+       
       this.wrapper.style.height = height;
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       if (this.imageEl) { this.imageEl.style.height = "100%"; this.imageEl.style.width = "auto"; }
       const px = parseFloat(height);
+       
       this.wrapper.style.width = (ratio && !height.includes("%")) ? `${Math.round(px * ratio)}px` : "auto";
     } else if (!height && width) {
+       
       this.wrapper.style.width = width;
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "auto"; }
       const px = parseFloat(width);
+       
       this.wrapper.style.height = (ratio && !width.includes("%")) ? `${Math.round(px / ratio)}px` : "auto";
     } else {
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       this.wrapper.style.width = "100%";
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       this.wrapper.style.height = "auto";
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       if (this.imageEl) { this.imageEl.style.width = "100%"; this.imageEl.style.height = "auto"; }
     }
   }
@@ -605,6 +622,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
   private applyTransform(): void {
     const scale = this.zoom / 100;
+     
     this.mapContainer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${scale})`;
     this.updateMarkerPositions();
   }
@@ -719,10 +737,12 @@ export class MapRenderer extends MarkdownRenderChild {
       if (this.resizeTarget === "marker") {
         this.resizingMarker.scale = newScale;
         const stz = this.resizingMarker.scaleToZoom ?? this.getMarkerScaleToZoom();
+         
         this.resizeMarkerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(newScale, stz)));
       } else {
         this.resizingMarker.textScale = newScale;
         const stz = this.resizingMarker.textScaleToZoom ?? this.getTextScaleToZoom();
+         
         this.resizeMarkerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(newScale, stz)));
       }
       this.updateResizeLabel(newScale);
@@ -746,7 +766,9 @@ export class MapRenderer extends MarkdownRenderChild {
       this.draggingMarker.y = this.dragOrigY + dy / scale / sy;
       // Position in screen coords (marker is in the overlay, not the scaled container)
       const screen = this.toScreenCoords(this.draggingMarker.x, this.draggingMarker.y);
+       
       this.dragMarkerEl.style.left = `${screen.x}px`;
+       
       this.dragMarkerEl.style.top = `${screen.y}px`;
       return;
     }
@@ -814,6 +836,7 @@ export class MapRenderer extends MarkdownRenderChild {
               if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
               marker.textScale = clamp(marker.textScale + scaleDelta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
               const stz = marker.textScaleToZoom ?? this.getTextScaleToZoom();
+               
               markerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(marker.textScale, stz)));
             }
           } else {
@@ -827,6 +850,7 @@ export class MapRenderer extends MarkdownRenderChild {
               if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
               marker.scale = clamp(marker.scale + scaleDelta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
               const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
+               
               markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(marker.scale, stz)));
             }
           }
@@ -928,7 +952,9 @@ export class MapRenderer extends MarkdownRenderChild {
       const marker = markerMap.get(id);
       if (!marker) return;
       const { x, y } = this.toScreenCoords(marker.x, marker.y);
+       
       el.style.left = `${x}px`;
+       
       el.style.top = `${y}px`;
     });
   }
@@ -950,15 +976,17 @@ export class MapRenderer extends MarkdownRenderChild {
 
       // Update visibility
       const visible = this.isMarkerVisible(marker);
-      el.style.display = visible ? "" : "none";
+      el.toggleClass("ttrpgmap-hidden", !visible);
 
       // Update scales
       const markerBaseScale = this.getMarkerBaseScale(marker);
       const markerScaleToZoom = marker.scaleToZoom ?? mapScaleToZoom;
+       
       el.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
 
       const textBaseScale = this.getTextBaseScale(marker);
       const textScaleToZoom = marker.textScaleToZoom ?? mapTextScaleToZoom;
+       
       el.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
     });
 
@@ -1018,9 +1046,13 @@ export class MapRenderer extends MarkdownRenderChild {
 
     const { x, y } = this.toScreenCoords(marker.x, marker.y);
     const markerEl = this.markerOverlay.createDiv({ cls: "ttrpgmap-marker" });
+     
     markerEl.style.left = `${x}px`;
+     
     markerEl.style.top = `${y}px`;
+     
     markerEl.style.setProperty("--marker-color", color);
+     
     markerEl.style.setProperty("--marker-icon-color", iconColor);
     markerEl.dataset.direction = direction;
     markerEl.dataset.textPlacement = textPlacement;
@@ -1029,11 +1061,13 @@ export class MapRenderer extends MarkdownRenderChild {
     // Compute effective scale for marker pin/icon
     const markerBaseScale = this.getMarkerBaseScale(marker);
     const markerScaleToZoom = marker.scaleToZoom ?? mapScaleToZoom;
+     
     markerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
 
     // Compute effective scale for text label
     const textBaseScale = this.getTextBaseScale(marker);
     const textScaleToZoom = marker.textScaleToZoom ?? mapTextScaleToZoom;
+     
     markerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
 
     if (isMeasuring) {
@@ -1065,7 +1099,7 @@ export class MapRenderer extends MarkdownRenderChild {
         if (this.hasDragged) { this.hasDragged = false; return; }
         e.stopPropagation();
         const newTab = this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? true;
-        this.plugin.app.workspace.openLinkText(navPath, "", newTab);
+        void this.plugin.app.workspace.openLinkText(navPath, "", newTab);
       });
     }
 
@@ -1110,9 +1144,9 @@ export class MapRenderer extends MarkdownRenderChild {
       if (this.resizingMarker) this.commitResize();
       const menu = new Menu();
       menu.addItem((item) => { item.setTitle("Edit"); item.setIcon("pencil"); item.onClick(() => this.editMarker(marker)); });
-      menu.addItem((item) => { item.setTitle("Copy Marker"); item.setIcon("copy"); item.onClick(() => this.startCopyMarker(marker)); });
-      menu.addItem((item) => { item.setTitle("Resize Marker"); item.setIcon("maximize-2"); item.onClick(() => this.enterResizeMode(marker, markerEl, "marker")); });
-      menu.addItem((item) => { item.setTitle("Resize Text"); item.setIcon("a-large-small"); item.onClick(() => this.enterResizeMode(marker, markerEl, "text")); });
+      menu.addItem((item) => { item.setTitle("Copy marker"); item.setIcon("copy"); item.onClick(() => this.startCopyMarker(marker)); });
+      menu.addItem((item) => { item.setTitle("Resize marker"); item.setIcon("maximize-2"); item.onClick(() => this.enterResizeMode(marker, markerEl, "marker")); });
+      menu.addItem((item) => { item.setTitle("Resize text"); item.setIcon("a-large-small"); item.onClick(() => this.enterResizeMode(marker, markerEl, "text")); });
       menu.addItem((item) => { item.setTitle("Delete"); item.setIcon("trash-2"); item.onClick(() => this.deleteMarker(marker)); });
       menu.showAtMouseEvent(e);
     });
@@ -1181,18 +1215,24 @@ export class MapRenderer extends MarkdownRenderChild {
 
   private startCopyMarker(source: MapMarker): void {
     this.pendingCopy = source;
-    this.wrapper.style.cursor = "copy";
+    this.wrapper.removeClass("ttrpgmap-cursor-grab");
+    this.wrapper.removeClass("ttrpgmap-cursor-crosshair");
+    this.wrapper.addClass("ttrpgmap-cursor-copy");
     this.wrapper.addClass("ttrpgmap-copy-mode");
 
     // Create ghost preview fixed to the viewport
     const ghost = activeWindow.document.body.createDiv({ cls: "ttrpgmap-marker ttrpgmap-copy-ghost" });
+     
     ghost.style.setProperty("--marker-color", source.color ?? "#ffffff");
+     
     ghost.style.setProperty("--marker-icon-color", source.iconColor ?? "#000000");
     const markerBaseScale = this.getMarkerBaseScale(source);
     const markerScaleToZoom = source.scaleToZoom ?? this.getMarkerScaleToZoom();
+     
     ghost.style.setProperty("--marker-scale", String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
     const textBaseScale = this.getTextBaseScale(source);
     const textScaleToZoom = source.textScaleToZoom ?? this.getTextScaleToZoom();
+     
     ghost.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
     ghost.dataset.direction = source.direction ?? "down";
     ghost.dataset.textPlacement = source.textPlacement ?? "above";
@@ -1210,14 +1250,18 @@ export class MapRenderer extends MarkdownRenderChild {
     buildMarkerLabel(ghost, source.note, source.alias, source.description, "ttrpgmap-marker-label");
 
     const onMove = (e: MouseEvent) => {
+       
       ghost.style.left = `${e.clientX}px`;
+       
       ghost.style.top = `${e.clientY}px`;
     };
     this.wrapper.addEventListener("mousemove", onMove);
 
     const cancel = () => {
       this.pendingCopy = null;
-      this.wrapper.style.cursor = "grab";
+      this.wrapper.removeClass("ttrpgmap-cursor-copy");
+      this.wrapper.removeClass("ttrpgmap-cursor-crosshair");
+      this.wrapper.addClass("ttrpgmap-cursor-grab");
       this.wrapper.removeClass("ttrpgmap-copy-mode");
       ghost.remove();
       this.wrapper.removeEventListener("mousemove", onMove);
@@ -1344,10 +1388,12 @@ export class MapRenderer extends MarkdownRenderChild {
       if (this.resizeTarget === "marker") {
         this.resizingMarker.scale = this.resizeStartScale;
         const stz = this.resizingMarker.scaleToZoom ?? this.getMarkerScaleToZoom();
+         
         this.resizeMarkerEl.style.setProperty("--marker-scale", String(this.computeEffectiveScale(this.resizeStartScale, stz)));
       } else {
         this.resizingMarker.textScale = this.resizeStartScale;
         const stz = this.resizingMarker.textScaleToZoom ?? this.getTextScaleToZoom();
+         
         this.resizeMarkerEl.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(this.resizeStartScale, stz)));
       }
     }
@@ -1382,11 +1428,13 @@ export class MapRenderer extends MarkdownRenderChild {
 
     if (defaultTemplate) {
       menu.addItem((item) => {
-        item.setTitle("Place Marker");
+        item.setTitle("Place marker");
         item.setIcon("map-pin");
         if (hasMultipleLayers) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const sub = (item as any).setSubmenu();
           for (const layer of layers) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sub.addItem((subItem: any) => {
               subItem.setTitle(layer.name);
               subItem.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
@@ -1405,13 +1453,16 @@ export class MapRenderer extends MarkdownRenderChild {
 
       const folders = this.plugin.settings.templateFolders;
       const topLevel = sortByName(templates.filter((t) => !t.folderId));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const addTemplateToMenu = (m: any, template: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         m.addItem((item: any) => {
           item.setTitle(template.name);
           item.setIcon(template.shape === "hotspot" ? "circle-dashed" : "map-pin");
           if (hasMultipleLayers) {
             const sub = item.setSubmenu();
             for (const layer of layers) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               sub.addItem((subItem: any) => {
                 subItem.setTitle(layer.name);
                 subItem.onClick(() => this.placeMarker(mapX, mapY, template.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id));
@@ -1430,6 +1481,7 @@ export class MapRenderer extends MarkdownRenderChild {
       for (const folder of sortByName(folders)) {
         const folderTemplates = sortByName(templates.filter((t) => t.folderId === folder.id));
         if (folderTemplates.length === 0) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         menu.addItem((item: any) => {
           item.setTitle(folder.name);
           item.setIcon("folder");
@@ -1443,9 +1495,10 @@ export class MapRenderer extends MarkdownRenderChild {
 
     menu.addSeparator();
     menu.addItem((item) => {
-      item.setTitle("Edit Templates");
+      item.setTitle("Edit templates");
       item.setIcon("settings");
       item.onClick(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const setting = (this.plugin.app as any).setting;
         setting.open();
         setting.openTabById(this.plugin.manifest.id);
@@ -1470,7 +1523,10 @@ export class MapRenderer extends MarkdownRenderChild {
     this.clearActiveSvg();
     this.updateToolbarState();
     this.updateMeasureMode();
-    this.wrapper.style.cursor = this.mode === "pan" ? "grab" : "crosshair";
+    this.wrapper.removeClass("ttrpgmap-cursor-grab");
+    this.wrapper.removeClass("ttrpgmap-cursor-crosshair");
+    this.wrapper.removeClass("ttrpgmap-cursor-copy");
+    this.wrapper.addClass(this.mode === "pan" ? "ttrpgmap-cursor-grab" : "ttrpgmap-cursor-crosshair");
   }
 
   private cancelDrawing(): void {
@@ -1484,7 +1540,9 @@ export class MapRenderer extends MarkdownRenderChild {
     this.updateToolbarState();
     this.updateMeasureMode();
     this.hideTotalDisplay();
-    this.wrapper.style.cursor = "grab";
+    this.wrapper.removeClass("ttrpgmap-cursor-crosshair");
+    this.wrapper.removeClass("ttrpgmap-cursor-copy");
+    this.wrapper.addClass("ttrpgmap-cursor-grab");
     this.wrapper.removeClass("ttrpgmap-panning");
   }
 
@@ -1749,15 +1807,15 @@ export class MapRenderer extends MarkdownRenderChild {
     if (!this.totalDisplay) return;
     const total = this.calculateTotalDistance();
     if (total === null || total === 0) {
-      this.totalDisplay.style.display = "none";
+      this.totalDisplay.addClass("ttrpgmap-hidden");
       return;
     }
-    this.totalDisplay.style.display = "block";
+    this.totalDisplay.removeClass("ttrpgmap-hidden");
     this.totalDisplay.textContent = `Total Distance: ${this.formatDistance(total)}`;
   }
 
   private hideTotalDisplay(): void {
-    if (this.totalDisplay) this.totalDisplay.style.display = "none";
+    if (this.totalDisplay) this.totalDisplay.addClass("ttrpgmap-hidden");
   }
 
   private finishMeasuring(): void {
@@ -1817,7 +1875,7 @@ export class MapRenderer extends MarkdownRenderChild {
         this.config = updated;
         this.applyWrapperSize();
         if (this.sectionInfo) {
-          writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
+          void writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
         }
       },
       (updatedState) => {

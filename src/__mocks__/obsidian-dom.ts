@@ -28,12 +28,16 @@ declare global {
     empty(): void;
     addClass(...classes: string[]): void;
     removeClass(...classes: string[]): void;
+    toggleClass(cls: string, value: boolean): void;
+    hasClass(cls: string): boolean;
     setText(text: string): void;
   }
   interface Element {
     setText(text: string): void;
     addClass(...classes: string[]): void;
     removeClass(...classes: string[]): void;
+    toggleClass(cls: string, value: boolean): void;
+    hasClass(cls: string): boolean;
   }
 }
 
@@ -65,6 +69,14 @@ if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.createDiv) {
     this.classList.remove(...classes);
   };
 
+  HTMLElement.prototype.toggleClass = function (cls: string, value: boolean): void {
+    this.classList.toggle(cls, value);
+  };
+
+  HTMLElement.prototype.hasClass = function (cls: string): boolean {
+    return this.classList.contains(cls);
+  };
+
   HTMLElement.prototype.setText = function (text: string): void {
     this.textContent = text;
   };
@@ -80,6 +92,14 @@ if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.createDiv) {
 
   Element.prototype.removeClass = function (...classes: string[]): void {
     this.classList.remove(...classes);
+  };
+
+  Element.prototype.toggleClass = function (cls: string, value: boolean): void {
+    this.classList.toggle(cls, value);
+  };
+
+  Element.prototype.hasClass = function (cls: string): boolean {
+    return this.classList.contains(cls);
   };
 }
 

@@ -13,7 +13,7 @@ export class FolderPickerModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h3", { text: "Choose image destination" });
+    new Setting(contentEl).setName("Choose image destination").setHeading();
 
     new Setting(contentEl)
       .setName("Folder")

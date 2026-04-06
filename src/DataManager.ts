@@ -55,13 +55,15 @@ export class DataManager {
   /** Migrate markers from legacy |alias syntax to separate alias field */
   private migrateMarkers(markers: MapMarker[]): void {
     for (const m of markers) {
-      if ((m as any).alias === undefined && m.note && m.note.indexOf("|") >= 0) {
+      // Loaded JSON may lack fields added in later versions
+      const raw = m as Partial<Record<"alias" | "previewNote", string | null>>;
+      if (raw.alias === undefined && m.note && m.note.indexOf("|") >= 0) {
         const pipeIdx = m.note.indexOf("|");
         m.alias = m.note.slice(pipeIdx + 1);
         m.note = m.note.slice(0, pipeIdx);
       }
-      if ((m as any).alias === undefined) m.alias = null;
-      if ((m as any).previewNote === undefined) m.previewNote = null;
+      if (raw.alias === undefined) m.alias = null;
+      if (raw.previewNote === undefined) m.previewNote = null;
     }
   }
 
@@ -110,13 +112,13 @@ export class DataManager {
 
     this.pendingStates.set(mapId, state);
 
-    const timeout = setTimeout(async () => {
+    const timeout = setTimeout(() => { void (async () => {
       this.saveTimeouts.delete(mapId);
       this.pendingStates.delete(mapId);
       await this.ensureDir();
       const path = this.getMapStatePath(mapId);
       await this.app.vault.adapter.write(path, JSON.stringify(state, null, 2));
-    }, 300);
+    })(); }, 300);
 
     this.saveTimeouts.set(mapId, timeout);
   }

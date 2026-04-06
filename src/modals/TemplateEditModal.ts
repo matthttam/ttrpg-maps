@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
-import { MarkerTemplate, MapMarker, PREDEFINED_TEMPLATE_IDS } from "../types";
+import { MarkerTemplate, PREDEFINED_TEMPLATE_IDS } from "../types";
 import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel } from "../utils/markerLabel";
 import { buildTextPlacementField, buildPinSelectorField, buildIconField } from "./sharedFields";
@@ -12,14 +12,14 @@ const APPLY_FIELDS: (keyof MarkerTemplate)[] = [
 
 /** Human-readable labels for each field */
 const FIELD_LABELS: Record<string, string> = {
-  direction: "Pin Direction",
-  textPlacement: "Text Placement",
-  color: "Pin Color",
+  direction: "Pin direction",
+  textPlacement: "Text placement",
+  color: "Pin color",
   icon: "Icon",
-  iconColor: "Icon Color",
-  iconRotation: "Icon Rotation",
-  useBaseMarker: "Use Pin Shape",
-  shape: "Pin Shape",
+  iconColor: "Icon color",
+  iconRotation: "Icon rotation",
+  useBaseMarker: "Use pin shape",
+  shape: "Pin shape",
 };
 
 /** Get the fields that changed between snapshot and current template */
@@ -48,6 +48,7 @@ export class TemplateEditModal extends Modal {
     // Snapshot original values for dirty tracking
     this.snapshot = {};
     for (const key of APPLY_FIELDS) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.snapshot as any)[key] = template[key];
     }
   }
@@ -97,14 +98,14 @@ export class TemplateEditModal extends Modal {
     // Show indicator if any of its fields changed
     for (const [el, keys] of elements) {
       const dirty = keys.some((k) => changed.includes(k as keyof MarkerTemplate));
-      el.style.display = dirty ? "" : "none";
+      if (dirty) { el.removeClass("ttrpgmap-hidden"); } else { el.addClass("ttrpgmap-hidden"); }
     }
   }
 
   /** Add a red dot indicator to a setting and track it */
   private addDirtyIndicator(setting: Setting, ...fields: string[]): void {
     const dot = setting.nameEl.createSpan({ cls: "ttrpgmap-dirty-indicator", text: " *" });
-    dot.style.display = "none";
+    dot.addClass("ttrpgmap-hidden");
     for (const f of fields) {
       this.changedIndicators.set(f, dot);
     }
@@ -117,7 +118,7 @@ export class TemplateEditModal extends Modal {
     contentEl.addClass("ttrpgmap-modal");
     this.changedIndicators.clear();
 
-    contentEl.createEl("h2", { text: "Edit Template" });
+    new Setting(contentEl).setName("Edit template").setHeading();
 
     const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
@@ -150,13 +151,13 @@ export class TemplateEditModal extends Modal {
             this.draft.name = value;
             const err = this.validateName(value);
             nameError.setText(err ?? "");
-            nameError.style.display = err ? "" : "none";
+            if (err) { nameError.removeClass("ttrpgmap-hidden"); } else { nameError.addClass("ttrpgmap-hidden"); }
           });
         }
       })
       .then((s) => {
         nameError = s.controlEl.createDiv({ cls: "ttrpgmap-field-error" });
-        nameError.style.display = "none";
+        nameError.addClass("ttrpgmap-hidden");
       });
 
     // ── Shared fields ──
@@ -181,7 +182,7 @@ export class TemplateEditModal extends Modal {
     actionSetting
       .addButton((btn) =>
         btn
-          .setButtonText("Save & Update Markers")
+          .setButtonText("Save & update markers")
           .setWarning()
           .onClick(() => {
             const nameErr = this.validateName(this.draft.name);
@@ -197,7 +198,7 @@ export class TemplateEditModal extends Modal {
               changed.map((f) => FIELD_LABELS[f] || f),
               async () => {
                 commitDraft();
-                this.plugin.dataManager.saveSettings(this.plugin.settings);
+                void this.plugin.dataManager.saveSettings(this.plugin.settings);
 
                 const allStates = await this.plugin.dataManager.loadAllMapStates();
                 let count = 0;
@@ -206,6 +207,7 @@ export class TemplateEditModal extends Modal {
                   for (const marker of state.markers) {
                     if (marker.templateId !== this.draft.id) continue;
                     for (const field of changed) {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       (marker as any)[field] = (this.draft as any)[field];
                     }
                     stateChanged = true;
@@ -233,7 +235,7 @@ export class TemplateEditModal extends Modal {
             const nameErr = this.validateName(this.draft.name);
             if (nameErr) { new Notice(nameErr); return; }
             commitDraft();
-            this.plugin.dataManager.saveSettings(this.plugin.settings);
+            void this.plugin.dataManager.saveSettings(this.plugin.settings);
             this.onSaved();
             this.close();
           })
@@ -266,7 +268,7 @@ class ConfirmApplyModal extends Modal {
     this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
-    contentEl.createEl("h2", { text: "Confirm Apply" });
+    new Setting(contentEl).setName("Confirm apply").setHeading();
     contentEl.createEl("p", {
       text: `The following changes will be applied to all markers using the "${this.templateName}" template:`,
     });
@@ -283,8 +285,8 @@ class ConfirmApplyModal extends Modal {
 
     new Setting(contentEl)
       .addButton((btn) =>
-        btn.setButtonText("Yes, Apply").setWarning().onClick(() => {
-          this.onConfirm();
+        btn.setButtonText("Yes, apply").setWarning().onClick(() => {
+          void this.onConfirm();
           this.close();
         })
       )

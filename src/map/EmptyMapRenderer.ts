@@ -28,19 +28,19 @@ export class EmptyMapRenderer extends MarkdownRenderChild {
 
     const configureBtn = buttons.createEl("button", {
       cls: "ttrpgmap-configure-btn",
-      text: "Configure Map",
+      text: "Configure map",
     });
     configureBtn.addEventListener("click", () => {
       new ConfigureMapModal(this.plugin.app, this.plugin, (config) => {
         if (!this.sectionInfo) return;
         const lines = serializeMapConfig(config);
-        writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, lines);
+        void writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, lines);
       }).open();
     });
 
     const importBtn = buttons.createEl("button", {
       cls: "ttrpgmap-configure-btn",
-      text: "Import Map",
+      text: "Import map",
     });
     importBtn.addEventListener("click", () => {
       if (!this.sectionInfo) return;

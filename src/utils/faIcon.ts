@@ -29,7 +29,7 @@ export function setFAIcon(parent: HTMLElement, iconName: string): void {
   const icon = getFAIcon(iconName);
   if (!icon) return;
 
-  parent.innerHTML = "";
+  parent.empty();
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", icon.viewBox);
   svg.setAttribute("fill", "currentColor");

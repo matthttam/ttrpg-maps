@@ -28,7 +28,7 @@ interface FieldContext {
 /** Text Placement dropdown. Returns the Setting for adding extras (e.g. reset button). */
 export function buildTextPlacementField(ctx: FieldContext): Setting {
   const setting = new Setting(ctx.contentEl)
-    .setName("Text Placement")
+    .setName("Text placement")
     .setDesc("Where the label appears relative to the marker")
     .addDropdown((dropdown) => {
       dropdown.addOption("above", "Above");
@@ -106,14 +106,14 @@ export function buildIconField(ctx: FieldContext): {
     iconPreview.empty();
     if (ctx.state.icon) {
       setFAIcon(iconPreview, ctx.state.icon);
-      iconPreview.style.display = "";
+      iconPreview.removeClass("ttrpgmap-hidden");
       const icon = getFAIcon(ctx.state.icon);
       sourceEl.setText(icon ? (icon.set === "gi" ? "Game Icons" : "FA") : "");
-      sourceEl.style.display = icon ? "" : "none";
+      if (icon) { sourceEl.removeClass("ttrpgmap-hidden"); } else { sourceEl.addClass("ttrpgmap-hidden"); }
     } else {
-      iconPreview.style.display = "none";
+      iconPreview.addClass("ttrpgmap-hidden");
       sourceEl.setText("");
-      sourceEl.style.display = "none";
+      sourceEl.addClass("ttrpgmap-hidden");
     }
   }
 
@@ -122,6 +122,7 @@ export function buildIconField(ctx: FieldContext): {
 
     // Auto-size input to content width
     function autoSize() {
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       inputEl.style.width = "0";
       inputEl.style.width = Math.max(inputEl.scrollWidth, 80) + "px";
     }
@@ -240,7 +241,9 @@ interface ScaleSliderOpts {
  */
 export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
   const { setting, value, onChange, disabled = false } = opts;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let sliderRef: { setValue: (v: number) => any; setDisabled: (d: boolean) => any } | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let textRef: { setValue: (v: string) => any; setDisabled: (d: boolean) => any } | null = null;
 
   setting.addSlider((slider) => {
@@ -260,6 +263,7 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
   });
 
   setting.addText((text) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     textRef = text as any;
     text.inputEl.type = "number";
     text.inputEl.min = "25";

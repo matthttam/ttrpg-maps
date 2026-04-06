@@ -238,7 +238,7 @@ describe("MapRenderer DOM", () => {
 
     const total = container.querySelector(".ttrpgmap-measure-total");
     expect(total).not.toBeNull();
-    expect((total as HTMLElement).style.display).toBe("none");
+    expect((total as HTMLElement).classList.contains("ttrpgmap-hidden")).toBe(true);
   });
 
   it("renders rounding controls in the measurement drawer", async () => {
@@ -269,7 +269,7 @@ describe("MapRenderer DOM", () => {
 
     const drawer = container.querySelector(".ttrpgmap-measure-drawer");
     expect(drawer).not.toBeNull();
-    expect((drawer as HTMLElement).style.display).toBe("none");
+    expect((drawer as HTMLElement).classList.contains("ttrpgmap-hidden")).toBe(true);
   });
 
   it("renders measurement toggle button", async () => {
@@ -408,7 +408,7 @@ describe("MapRenderer copy marker", () => {
 
     expect((renderer as any).pendingCopy).toBe(marker);
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
-    expect(wrapper.style.cursor).toBe("copy");
+    expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(true);
     expect(wrapper.classList.contains("ttrpgmap-copy-mode")).toBe(true);
   });
 
@@ -445,7 +445,8 @@ describe("MapRenderer copy marker", () => {
 
     expect((renderer as any).pendingCopy).toBeNull();
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
-    expect(wrapper.style.cursor).toBe("grab");
+    expect(wrapper.classList.contains("ttrpgmap-cursor-grab")).toBe(true);
+    expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(false);
     expect(wrapper.classList.contains("ttrpgmap-copy-mode")).toBe(false);
   });
 
@@ -499,7 +500,8 @@ describe("MapRenderer copy marker", () => {
 
     expect((renderer as any).pendingCopy).toBeNull();
     const wrapper = container.querySelector(".ttrpgmap-wrapper") as HTMLElement;
-    expect(wrapper.style.cursor).toBe("grab");
+    expect(wrapper.classList.contains("ttrpgmap-cursor-grab")).toBe(true);
+    expect(wrapper.classList.contains("ttrpgmap-cursor-copy")).toBe(false);
   });
 });
 

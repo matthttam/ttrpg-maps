@@ -1,6 +1,6 @@
 import { App, Notice } from "obsidian";
 import * as JSZipModule from "jszip";
-const JSZip = (JSZipModule as any).default ?? JSZipModule;
+const JSZip = (JSZipModule as { default?: typeof JSZipModule }).default ?? JSZipModule;
 import type TTRPGMapsPlugin from "../main";
 import { MapExportManifest } from "../types";
 import { generateMapId } from "./mapId";
@@ -17,7 +17,7 @@ export function importMap(
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".zip";
-  input.addEventListener("change", async () => {
+  input.addEventListener("change", () => { void (async () => {
     const file = input.files?.[0];
     if (!file) return;
     try {
@@ -89,19 +89,19 @@ export function importMap(
       console.error("[ttrpg-maps] Failed to read export file:", e);
       new Notice("Failed to read the export file.");
     }
-  });
+  })(); });
   input.click();
 }
 
 /** Validate that a parsed manifest has the required fields */
-export function validateManifest(data: any): data is MapExportManifest {
+export function validateManifest(data: unknown): data is MapExportManifest {
+  if (data == null || typeof data !== "object") return false;
+  const obj = data as Record<string, unknown>;
   return (
-    data != null &&
-    typeof data === "object" &&
-    data.config != null &&
-    data.state != null &&
-    typeof data.imageFilename === "string" &&
-    data.imageFilename.length > 0
+    obj.config != null &&
+    obj.state != null &&
+    typeof obj.imageFilename === "string" &&
+    obj.imageFilename.length > 0
   );
 }
 

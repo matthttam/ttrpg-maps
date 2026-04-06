@@ -12,6 +12,10 @@ interface TemplateExport {
   folders: TemplateFolder[];
 }
 
+/** WeakMaps to track per-container UI state without using `as any` */
+const collapsedFoldersMap = new WeakMap<HTMLElement, Set<string>>();
+const editingFolderIdMap = new WeakMap<HTMLElement, string | null>();
+
 function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void): void {
   const modal = new Modal(app);
   modal.onOpen = () => {
@@ -19,17 +23,17 @@ function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void
     contentEl.empty();
     modal.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
-    contentEl.createEl("h2", { text: "Restore Default Templates" });
+    new Setting(contentEl).setName("Restore default templates").setHeading();
     contentEl.createEl("p", { text: "This will replace all your current templates and folders with the built-in defaults. Any custom templates will be lost." });
 
     new Setting(contentEl)
       .addButton((btn) =>
         btn.setButtonText("Cancel").onClick(() => modal.close()))
       .addButton((btn) =>
-        btn.setButtonText("Restore Defaults").setWarning().onClick(async () => {
+        btn.setButtonText("Restore defaults").setWarning().onClick(() => {
           plugin.settings.markerTemplates = defaultTemplateData.templates as MarkerTemplate[];
           plugin.settings.templateFolders = defaultTemplateData.folders as TemplateFolder[];
-          await plugin.dataManager.saveSettings(plugin.settings);
+          void plugin.dataManager.saveSettings(plugin.settings);
           plugin.triggerMapRefresh();
           rerender();
           modal.close();
@@ -59,7 +63,7 @@ function importTemplates(plugin: TTRPGMapsPlugin, rerender: () => void): void {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".json";
-  input.addEventListener("change", async () => {
+  input.addEventListener("change", () => { void (async () => {
     const file = input.files?.[0];
     if (!file) return;
     try {
@@ -125,7 +129,7 @@ function importTemplates(plugin: TTRPGMapsPlugin, rerender: () => void): void {
       new Notice("Failed to import templates. Check that the file is valid JSON.");
       console.warn("[ttrpg-maps] Template import error:", e);
     }
-  });
+  })(); });
   input.click();
 }
 
@@ -202,7 +206,7 @@ function renderTemplateRow(
       folderId: template.folderId ?? null,
     };
     plugin.settings.markerTemplates.push(duplicate);
-    plugin.dataManager.saveSettings(plugin.settings);
+    void plugin.dataManager.saveSettings(plugin.settings);
     rerender();
     new TemplateEditModal(plugin.app, plugin, duplicate, rerender).open();
   });
@@ -214,7 +218,7 @@ function renderTemplateRow(
       const defaults = DEFAULT_SETTINGS.markerTemplates.find((t) => t.id === template.id);
       if (defaults) {
         Object.assign(template, { ...defaults });
-        plugin.dataManager.saveSettings(plugin.settings);
+        void plugin.dataManager.saveSettings(plugin.settings);
         rerender();
       }
     });
@@ -225,7 +229,7 @@ function renderTemplateRow(
       const idx = plugin.settings.markerTemplates.indexOf(template);
       if (idx > -1) {
         plugin.settings.markerTemplates.splice(idx, 1);
-        plugin.dataManager.saveSettings(plugin.settings);
+        void plugin.dataManager.saveSettings(plugin.settings);
         rerender();
       }
     });
@@ -261,7 +265,7 @@ function makeDropTarget(
     const template = plugin.settings.markerTemplates.find((t) => t.id === templateId);
     if (!template) return;
     template.folderId = folderId;
-    plugin.dataManager.saveSettings(plugin.settings);
+    void plugin.dataManager.saveSettings(plugin.settings);
     rerender();
   });
 }
@@ -278,8 +282,11 @@ function renderFolder(
   const folderEl = container.createDiv({ cls: "ttrpgmap-folder" });
 
   // Track collapsed state on the container across rerenders
-  const collapsedSet: Set<string> = (container as any)._collapsedFolders ?? new Set();
-  (container as any)._collapsedFolders = collapsedSet;
+  let collapsedSet = collapsedFoldersMap.get(container);
+  if (!collapsedSet) {
+    collapsedSet = new Set();
+    collapsedFoldersMap.set(container, collapsedSet);
+  }
   const isCollapsed = collapsedSet.has(folder.id);
 
   // Folder header
@@ -308,7 +315,7 @@ function renderFolder(
       const val = input.value.trim();
       if (val && val !== folder.name) {
         folder.name = val;
-        plugin.dataManager.saveSettings(plugin.settings);
+        void plugin.dataManager.saveSettings(plugin.settings);
       }
       input.replaceWith(nameSpan);
       nameSpan.textContent = folder.name;
@@ -336,13 +343,13 @@ function renderFolder(
       if (t.folderId === folder.id) t.folderId = null;
     }
     plugin.settings.templateFolders = plugin.settings.templateFolders.filter((f) => f.id !== folder.id);
-    plugin.dataManager.saveSettings(plugin.settings);
+    void plugin.dataManager.saveSettings(plugin.settings);
     rerender();
   });
 
   // Folder contents (drop target)
   const contents = folderEl.createDiv({ cls: "ttrpgmap-folder-contents" });
-  if (isCollapsed) contents.style.display = "none";
+  if (isCollapsed) contents.addClass("ttrpgmap-hidden");
   makeDropTarget(contents, plugin, folder.id, rerender);
 
   // Toggle collapse on chevron or header info click
@@ -350,11 +357,11 @@ function renderFolder(
     const collapsed = collapsedSet.has(folder.id);
     if (collapsed) {
       collapsedSet.delete(folder.id);
-      contents.style.display = "";
+      contents.removeClass("ttrpgmap-hidden");
       chevronEl.removeClass("is-collapsed");
     } else {
       collapsedSet.add(folder.id);
-      contents.style.display = "none";
+      contents.addClass("ttrpgmap-hidden");
       chevronEl.addClass("is-collapsed");
     }
   };
@@ -385,17 +392,17 @@ export function renderTemplateManager(
   container.addClass("ttrpgmap-template-list-container");
 
   // Track which folder should start in edit mode after rerender
-  let editingFolderId: string | null = (container as any)._editingFolderId ?? null;
-  (container as any)._editingFolderId = null;
+  let editingFolderId: string | null = editingFolderIdMap.get(container) ?? null;
+  editingFolderIdMap.set(container, null);
 
   // Header row with "Add Template" and "Add Folder" buttons
   const header = container.createDiv({ cls: "setting-item setting-item-heading" });
   const headerInfo = header.createDiv({ cls: "setting-item-info" });
-  headerInfo.createDiv({ cls: "setting-item-name", text: "Marker Templates" });
+  headerInfo.createDiv({ cls: "setting-item-name", text: "Marker templates" });
   headerInfo.createDiv({ cls: "setting-item-description", text: "Create and manage reusable marker presets" });
   const headerControl = header.createDiv({ cls: "setting-item-control" });
 
-  const restoreBtn = headerControl.createEl("button", { text: "Restore Defaults" });
+  const restoreBtn = headerControl.createEl("button", { text: "Restore defaults" });
   restoreBtn.addEventListener("click", () => restoreDefaults(plugin.app, plugin, rerender));
 
   const importBtn = headerControl.createEl("button", { text: "Import" });
@@ -404,19 +411,19 @@ export function renderTemplateManager(
   const exportBtn = headerControl.createEl("button", { text: "Export" });
   exportBtn.addEventListener("click", () => exportTemplates(plugin));
 
-  const addFolderBtn = headerControl.createEl("button", { text: "Add Folder" });
+  const addFolderBtn = headerControl.createEl("button", { text: "Add folder" });
   addFolderBtn.addEventListener("click", () => {
     const existingNames = new Set(plugin.settings.templateFolders.map((f) => f.name.toLowerCase()));
     let n = 1;
     while (existingNames.has(`folder ${n}`.toLowerCase())) n++;
     const id = `folder_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     plugin.settings.templateFolders.push({ id, name: `Folder ${n}` });
-    plugin.dataManager.saveSettings(plugin.settings);
-    (container as any)._editingFolderId = id;
+    void plugin.dataManager.saveSettings(plugin.settings);
+    editingFolderIdMap.set(container, id);
     rerender();
   });
 
-  const addBtn = headerControl.createEl("button", { cls: "mod-cta", text: "Add Template" });
+  const addBtn = headerControl.createEl("button", { cls: "mod-cta", text: "Add template" });
   addBtn.addEventListener("click", () => {
     const existingNames = new Set(
       plugin.settings.markerTemplates.map((t) => t.name.toLowerCase())
@@ -431,7 +438,7 @@ export function renderTemplateManager(
       name: `Template ${n}`,
     };
     plugin.settings.markerTemplates.push(newTemplate);
-    plugin.dataManager.saveSettings(plugin.settings);
+    void plugin.dataManager.saveSettings(plugin.settings);
     rerender();
   });
 

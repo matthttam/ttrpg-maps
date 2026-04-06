@@ -29,7 +29,7 @@ export class ConfigureMapModal extends Modal {
     this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
     contentEl.addClass("ttrpgmap-modal");
 
-    contentEl.createEl("h2", { text: "Configure Map" });
+    new Setting(contentEl).setName("Configure map").setHeading();
 
     new Setting(contentEl)
       .setName("Image")
@@ -48,39 +48,39 @@ export class ConfigureMapModal extends Modal {
       .setName("Height")
       .setDesc("Display height (blank = auto from width/image)")
       .addText((text) =>
-        text.setPlaceholder("e.g. 500 or 80%").onChange((value) => (this.height = value))
+        text.setPlaceholder("500 or 80%").onChange((value) => (this.height = value))
       );
 
     new Setting(contentEl)
       .setName("Width")
       .setDesc("Display width (blank = auto from height/image)")
       .addText((text) =>
-        text.setPlaceholder("e.g. 800 or 100%").onChange((value) => (this.width = value))
+        text.setPlaceholder("800 or 100%").onChange((value) => (this.width = value))
       );
 
-    contentEl.createEl("h3", { text: "Zoom" });
+    new Setting(contentEl).setName("Zoom").setHeading();
 
     new Setting(contentEl)
-      .setName("Minimum Zoom %")
+      .setName("Minimum zoom %")
       .addText((text) =>
         text.setValue(String(this.zoomMin)).onChange((v) => (this.zoomMin = parseInt(v, 10) || 50))
       );
 
     new Setting(contentEl)
-      .setName("Maximum Zoom %")
+      .setName("Maximum zoom %")
       .addText((text) =>
         text.setValue(String(this.zoomMax)).onChange((v) => (this.zoomMax = parseInt(v, 10) || 200))
       );
 
     new Setting(contentEl)
-      .setName("Zoom Step %")
+      .setName("Zoom step %")
       .addText((text) =>
         text.setValue(String(this.zoomStep)).onChange((v) => (this.zoomStep = parseInt(v, 10) || 10))
       );
 
     new Setting(contentEl).addButton((btn) =>
       btn
-        .setButtonText("Create Map")
+        .setButtonText("Create map")
         .setCta()
         .onClick(() => {
           if (!this.imagePath) {

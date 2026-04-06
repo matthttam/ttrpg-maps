@@ -135,7 +135,7 @@ export class MarkerEditModal extends Modal {
 
     const template = this.getTemplate();
 
-    contentEl.createEl("h2", { text: "Edit Marker" });
+    new Setting(contentEl).setName("Edit marker").setHeading();
 
     const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
@@ -217,7 +217,7 @@ export class MarkerEditModal extends Modal {
 
     // ── Preview Note ──
     new Setting(mainCol)
-      .setName("Preview Note")
+      .setName("Preview note")
       .setDesc("Note shown on hover preview (blank uses the linked note)")
       .addText((text) => {
         text
@@ -287,7 +287,7 @@ export class MarkerEditModal extends Modal {
     const hasScaleOverride = this.marker.scale != null;
 
     const markerScaleSetting = new Setting(contentEl)
-      .setName("Marker Size")
+      .setName("Marker size")
       .setDesc("Override the map marker scale for this marker");
 
     const scaleControls = buildScaleSlider({
@@ -315,7 +315,7 @@ export class MarkerEditModal extends Modal {
 
     // ── Scale to Zoom ──
     new Setting(contentEl)
-      .setName("Scale to Zoom")
+      .setName("Scale to zoom")
       .setDesc("How this marker behaves when zooming")
       .addDropdown((dropdown) => {
         dropdown
@@ -334,7 +334,7 @@ export class MarkerEditModal extends Modal {
     const hasTextScaleOverride = this.marker.textScale != null;
 
     const textScaleSetting = new Setting(contentEl)
-      .setName("Text Size")
+      .setName("Text size")
       .setDesc("Override the text label scale for this marker");
 
     const textScaleControls = buildScaleSlider({
@@ -362,7 +362,7 @@ export class MarkerEditModal extends Modal {
 
     // ── Text Scale to Zoom ──
     new Setting(contentEl)
-      .setName("Text Scale to Zoom")
+      .setName("Text scale to zoom")
       .setDesc("How this marker's text behaves when zooming")
       .addDropdown((dropdown) => {
         dropdown
@@ -384,7 +384,7 @@ export class MarkerEditModal extends Modal {
     actionSetting
       .addButton((btn) =>
         btn
-          .setButtonText("Reset to Template & Save")
+          .setButtonText("Reset to template & save")
           .setWarning()
           .onClick(() => {
             const tpl = this.getTemplate();

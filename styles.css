@@ -856,6 +856,16 @@
   color: var(--marker-icon-color, #000000);
 }
 
+/* When a pin is rotated 90deg (left/right), its visual width exceeds its layout box.
+   Set a horizontal overhang variable so labels can compensate. */
+.ttrpgmap-marker {
+  --pin-overhang-x: 0px;
+}
+.ttrpgmap-marker[data-direction="left"],
+.ttrpgmap-marker[data-direction="right"] {
+  --pin-overhang-x: calc((50px - 37.5px) / 2 * var(--marker-scale, 1));
+}
+
 /* Direction rotations for map markers (only when using pin shape, not standalone) */
 .ttrpgmap-marker[data-direction="up"] .ttrpgmap-marker-pin:not(.ttrpgmap-pin--standalone) {
   transform: rotate(180deg);
@@ -908,14 +918,14 @@
 
 .ttrpgmap-marker[data-text-placement="left"] .ttrpgmap-marker-label {
   right: 100%;
-  margin-right: calc(6px * var(--marker-text-scale, 1));
+  margin-right: calc(var(--pin-overhang-x) + 6px * var(--marker-text-scale, 1));
   bottom: 50%;
   transform: translateY(50%);
 }
 
 .ttrpgmap-marker[data-text-placement="right"] .ttrpgmap-marker-label {
   left: 100%;
-  margin-left: calc(6px * var(--marker-text-scale, 1));
+  margin-left: calc(var(--pin-overhang-x) + 6px * var(--marker-text-scale, 1));
   bottom: 50%;
   transform: translateY(50%);
 }

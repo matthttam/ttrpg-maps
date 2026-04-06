@@ -62,6 +62,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
     color: "#ffffff",
     icon: null,
     iconColor: "#000000",
+    iconRotation: 0,
     useBaseMarker: true,
     shape: "pin",
     scale: null,
@@ -102,7 +103,7 @@ describe("MapRenderer DOM", () => {
     expect(zoomControls).not.toBeNull();
 
     const buttons = zoomControls!.querySelectorAll(".ttrpgmap-zoom-btn");
-    expect(buttons.length).toBe(3); // +, -, center
+    expect(buttons.length).toBe(6); // +, -, center, fit, lock zoom, lock pan
 
     const label = zoomControls!.querySelector(".ttrpgmap-zoom-label");
     expect(label).not.toBeNull();

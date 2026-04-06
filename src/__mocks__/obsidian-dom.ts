@@ -3,6 +3,15 @@
  * Obsidian extends HTMLElement with helpers like createDiv, createEl, empty, addClass, etc.
  */
 
+// ResizeObserver is not available in jsdom
+if (typeof globalThis.ResizeObserver === "undefined") {
+  (globalThis as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 interface CreateElOpts {
   cls?: string;
   text?: string;

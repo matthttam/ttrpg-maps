@@ -42,7 +42,7 @@ export async function extractAndLoadGameIcons(
     const binary = Uint8Array.from(atob(GI_ICONS_COMPRESSED), (c) => c.charCodeAt(0));
     const ds = new DecompressionStream("deflate");
     const writer = ds.writable.getWriter();
-    writer.write(binary);
+    void writer.write(binary);
     void writer.close();
     const reader = ds.readable.getReader();
     const chunks: Uint8Array[] = [];

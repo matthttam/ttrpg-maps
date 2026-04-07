@@ -6,14 +6,6 @@ import { LayerEditModal } from "./LayerEditModal";
 import { buildScaleSlider } from "./sharedFields";
 import { exportMap } from "../utils/mapExport";
 
-/** Add a (?) icon to the right side of a setting row that shows a tooltip on hover */
-function addHelpIcon(setting: Setting, tooltip: string): void {
-  const icon = setting.controlEl.createSpan({ cls: "ttrpgmap-help-icon" });
-  setIcon(icon, "help-circle");
-  icon.setAttribute("aria-label", tooltip);
-  icon.setAttribute("data-tooltip-position", "top");
-}
-
 export class MapSettingsModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private config: MapConfig;
@@ -37,20 +29,19 @@ export class MapSettingsModal extends Modal {
     this.onLayerChange = onLayerChange;
   }
 
-  private loadImageDimensions(container: HTMLElement): void {
-    container.empty();
+  private loadImageDimensions(descEl: HTMLElement): void {
     const file = this.app.vault.getFileByPath(this.config.image);
     if (!file) {
-      container.setText("Image not found");
+      descEl.setText("Image not found");
       return;
     }
     const resourcePath = this.app.vault.getResourcePath(file);
     const img = new Image();
     img.onload = () => {
-      container.setText(`Native size: ${img.naturalWidth} \u00d7 ${img.naturalHeight} px`);
+      descEl.setText(`Native size: ${img.naturalWidth} \u00d7 ${img.naturalHeight} px`);
     };
     img.onerror = () => {
-      container.setText("Could not load image");
+      descEl.setText("Could not load image");
     };
     img.src = resourcePath;
   }
@@ -58,43 +49,44 @@ export class MapSettingsModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
+    this.modalEl.addClass("ttrpgmap-modal-container");
 
-    new Setting(contentEl).setName("Map settings").setHeading();
+    const mapGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(mapGroup).setName("Map settings").setHeading();
+    const mapItems = mapGroup.createDiv({ cls: "setting-items" });
 
-    const imageDimsEl = createSpan({ cls: "ttrpgmap-image-dims" });
-
-    const imageSetting = new Setting(contentEl)
+    // ── Image ──
+    const imageSetting = new Setting(mapItems)
       .setName("Image")
+      .setDesc("Search for a map image in your vault")
       .addText((text) => {
         text
           .setPlaceholder("Search for an image...")
           .setValue(this.config.image)
           .onChange((value) => {
             this.config.image = value;
-            this.loadImageDimensions(imageDimsEl);
+            this.loadImageDimensions(imageSetting.descEl);
           });
         new ImageSuggest(this.app, text.inputEl, (value) => {
           this.config.image = value;
-          this.loadImageDimensions(imageDimsEl);
+          this.loadImageDimensions(imageSetting.descEl);
         });
       });
-    imageSetting.descEl.appendChild(imageDimsEl);
-    this.loadImageDimensions(imageDimsEl);
-    addHelpIcon(imageSetting, "Search for a map image in your vault");
+    this.loadImageDimensions(imageSetting.descEl);
 
-    const idSetting = new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Map ID")
+      .setDesc("Unique identifier. Use different IDs to have separate markers on the same image.")
       .addText((text) =>
         text
           .setValue(this.config.id)
           .onChange((value) => (this.config.id = value))
       );
-    addHelpIcon(idSetting, "Unique identifier. Use different IDs to have separate markers on the same image.");
 
-    const sizeSetting = new Setting(contentEl)
-      .setName("Map size");
+    // ── Map Size ──
+    const sizeSetting = new Setting(mapItems)
+      .setName("Map size")
+      .setDesc("Display dimensions (blank = auto from image aspect ratio)");
     const sizeControl = sizeSetting.controlEl;
     sizeControl.addClass("ttrpgmap-size-control");
     sizeControl.createSpan({ text: "Height:", cls: "ttrpgmap-size-label" });
@@ -118,10 +110,11 @@ export class MapSettingsModal extends Modal {
     widthInput.addEventListener("input", () => {
       this.config.width = widthInput.value || null;
     });
-    addHelpIcon(sizeSetting, "Display dimensions (blank = auto from image aspect ratio)");
 
-    const zoomSetting = new Setting(contentEl)
-      .setName("Zoom range");
+    // ── Zoom ──
+    const zoomSetting = new Setting(mapItems)
+      .setName("Zoom range")
+      .setDesc("Zoom range (%) and step size per scroll increment");
     const zoomControl = zoomSetting.controlEl;
     zoomControl.addClass("ttrpgmap-size-control");
     zoomControl.createSpan({ text: "Min:", cls: "ttrpgmap-size-label" });
@@ -151,13 +144,13 @@ export class MapSettingsModal extends Modal {
     zoomStepInput.addEventListener("input", () => {
       this.config.zoomStep = parseInt(zoomStepInput.value, 10) || 10;
     });
-    addHelpIcon(zoomSetting, "Zoom range (%) and step size per scroll increment");
 
     // ── Navigation ──
     const globalNewTab = this.plugin.settings.openLinksInNewTab ?? true;
     const globalNewTabLabel = globalNewTab ? "New tab" : "Current tab";
-    const navSetting = new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Open links in")
+      .setDesc(`Inherit uses the global default (currently ${globalNewTabLabel})`)
       .addDropdown((dropdown) => {
         dropdown
           .addOption("inherit", "Inherit")
@@ -170,12 +163,12 @@ export class MapSettingsModal extends Modal {
             this.onLayerChange(this.state);
           });
       });
-    addHelpIcon(navSetting, `Inherit uses the global default (currently ${globalNewTabLabel}). Controls whether clicking a marker's linked note opens in a new tab or the current one.`);
 
     const globalHover = this.plugin.settings.showHoverPreview ?? false;
     const globalHoverLabel = globalHover ? "On" : "Off";
-    const hoverSetting = new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Hover preview")
+      .setDesc(`Inherit uses the global default (currently ${globalHoverLabel})`)
       .addDropdown((dropdown) => {
         dropdown
           .addOption("inherit", "Inherit")
@@ -188,24 +181,17 @@ export class MapSettingsModal extends Modal {
             this.onLayerChange(this.state);
           });
       });
-    addHelpIcon(hoverSetting, `Inherit uses the global default (currently ${globalHoverLabel}). Show a page preview when hovering markers with linked notes.`);
 
     // ── Marker Scale ──
-    new Setting(contentEl).setName("Markers").setHeading();
+    const markerGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(markerGroup).setName("Markers").setHeading();
+    const markerItems = markerGroup.createDiv({ cls: "setting-items" });
 
     const globalScale = this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE;
     const hasOverride = this.state.markerScale != null;
     const effectiveScale = this.state.markerScale ?? globalScale;
 
-    const scaleDescEl = createSpan();
-    const updateScaleDesc = (val: number, isOverride: boolean) => {
-      scaleDescEl.textContent = isOverride
-        ? `Map override: ${Math.round(val * 100)}% (global default: ${Math.round(globalScale * 100)}%)`
-        : `Using global default: ${Math.round(globalScale * 100)}%`;
-    };
-    updateScaleDesc(effectiveScale, hasOverride);
-
-    const scaleSetting = new Setting(contentEl)
+    const scaleSetting = new Setting(markerItems)
       .setName("Marker size");
 
     const scaleControls = buildScaleSlider({
@@ -213,7 +199,8 @@ export class MapSettingsModal extends Modal {
       value: effectiveScale,
       onChange: (value) => {
         this.state.markerScale = value;
-        updateScaleDesc(value, true);
+        const desc = `Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalScale * 100)}%)`;
+        scaleSetting.setDesc(desc);
         this.onLayerChange(this.state);
       },
       disabled: !hasOverride,
@@ -227,26 +214,28 @@ export class MapSettingsModal extends Modal {
             scaleControls.setDisabled(false);
             scaleControls.setValue(globalScale);
             this.state.markerScale = globalScale;
-            updateScaleDesc(globalScale, true);
+            scaleSetting.setDesc(`Map override: ${Math.round(globalScale * 100)}% (global default: ${Math.round(globalScale * 100)}%)`);
           } else {
             scaleControls.setDisabled(true);
             scaleControls.setValue(globalScale);
             this.state.markerScale = undefined;
-            updateScaleDesc(globalScale, false);
+            scaleSetting.setDesc(`Using global default: ${Math.round(globalScale * 100)}%`);
           }
           this.onLayerChange(this.state);
         });
     });
 
-    scaleSetting.descEl.appendChild(scaleDescEl);
-    addHelpIcon(scaleSetting, "Override the global marker size for this map. Toggle enables the override.");
+    scaleSetting.setDesc(hasOverride
+      ? `Map override: ${Math.round(effectiveScale * 100)}% (global default: ${Math.round(globalScale * 100)}%)`
+      : `Using global default: ${Math.round(globalScale * 100)}%`);
 
     // Scale to Zoom
     const globalScaleToZoom = this.plugin.settings.defaultScaleMarkersToZoom ?? true;
     const globalZoomLabel = globalScaleToZoom ? "Screen-constant" : "Fixed to map";
 
-    const markerZoomSetting = new Setting(contentEl)
+    new Setting(markerItems)
       .setName("Scale markers to zoom")
+      .setDesc(`Inherit uses the global default (currently ${globalZoomLabel})`)
       .addDropdown((dropdown) => {
         dropdown
           .addOption("inherit", "Inherit")
@@ -259,24 +248,17 @@ export class MapSettingsModal extends Modal {
             this.onLayerChange(this.state);
           });
       });
-    addHelpIcon(markerZoomSetting, `Inherit uses the global default (currently ${globalZoomLabel}). Screen-constant keeps markers the same size on screen. Fixed to map makes markers scale with zoom.`);
 
     // ── Text Scale ──
-    new Setting(contentEl).setName("Text").setHeading();
+    const textGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(textGroup).setName("Text").setHeading();
+    const textItems = textGroup.createDiv({ cls: "setting-items" });
 
     const globalTextScale = this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE;
     const hasTextOverride = this.state.markerTextScale != null;
     const effectiveTextScale = this.state.markerTextScale ?? globalTextScale;
 
-    const textScaleDescEl = createSpan();
-    const updateTextScaleDesc = (val: number, isOverride: boolean) => {
-      textScaleDescEl.textContent = isOverride
-        ? `Map override: ${Math.round(val * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`
-        : `Using global default: ${Math.round(globalTextScale * 100)}%`;
-    };
-    updateTextScaleDesc(effectiveTextScale, hasTextOverride);
-
-    const textScaleSetting = new Setting(contentEl)
+    const textScaleSetting = new Setting(textItems)
       .setName("Text size");
 
     const textScaleControls = buildScaleSlider({
@@ -284,7 +266,7 @@ export class MapSettingsModal extends Modal {
       value: effectiveTextScale,
       onChange: (value) => {
         this.state.markerTextScale = value;
-        updateTextScaleDesc(value, true);
+        textScaleSetting.setDesc(`Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`);
         this.onLayerChange(this.state);
       },
       disabled: !hasTextOverride,
@@ -298,26 +280,28 @@ export class MapSettingsModal extends Modal {
             textScaleControls.setDisabled(false);
             textScaleControls.setValue(globalTextScale);
             this.state.markerTextScale = globalTextScale;
-            updateTextScaleDesc(globalTextScale, true);
+            textScaleSetting.setDesc(`Map override: ${Math.round(globalTextScale * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`);
           } else {
             textScaleControls.setDisabled(true);
             textScaleControls.setValue(globalTextScale);
             this.state.markerTextScale = undefined;
-            updateTextScaleDesc(globalTextScale, false);
+            textScaleSetting.setDesc(`Using global default: ${Math.round(globalTextScale * 100)}%`);
           }
           this.onLayerChange(this.state);
         });
     });
 
-    textScaleSetting.descEl.appendChild(textScaleDescEl);
-    addHelpIcon(textScaleSetting, "Override the global text label size for this map. Toggle enables the override.");
+    textScaleSetting.setDesc(hasTextOverride
+      ? `Map override: ${Math.round(effectiveTextScale * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`
+      : `Using global default: ${Math.round(globalTextScale * 100)}%`);
 
     // Scale Text to Zoom
     const globalTextScaleToZoom = this.plugin.settings.defaultScaleMarkerTextToZoom ?? true;
     const globalTextZoomLabel = globalTextScaleToZoom ? "Screen-constant" : "Fixed to map";
 
-    const textZoomSetting = new Setting(contentEl)
+    new Setting(textItems)
       .setName("Scale text to zoom")
+      .setDesc(`Inherit uses the global default (currently ${globalTextZoomLabel})`)
       .addDropdown((dropdown) => {
         dropdown
           .addOption("inherit", "Inherit")
@@ -330,31 +314,28 @@ export class MapSettingsModal extends Modal {
             this.onLayerChange(this.state);
           });
       });
-    addHelpIcon(textZoomSetting, `Inherit uses the global default (currently ${globalTextZoomLabel}). Screen-constant keeps text the same size on screen. Fixed to map makes text scale with zoom.`);
 
     // ── Marker Layers ──
-    new Setting(contentEl).setName("Layers").setHeading();
-    const layersContainer = contentEl.createDiv({ cls: "ttrpgmap-layers-container" });
+    const layerGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(layerGroup).setName("Layers").setHeading();
+    const layersContainer = layerGroup.createDiv({ cls: "setting-items" });
     this.renderLayers(layersContainer);
 
     // ── Footer: Export + Save ──
-    const footer = new Setting(contentEl);
-    footer.settingEl.addClass("ttrpgmap-modal-footer");
-    footer.addButton((btn) => {
-      btn.setButtonText("Export");
-      setIcon(btn.buttonEl, "download");
-      btn.buttonEl.addClass("ttrpgmap-export-btn");
-      btn.onClick(() => { void exportMap(this.app, this.plugin, this.config, this.state); });
-    });
-    footer.addButton((btn) =>
-      btn
-        .setButtonText("Save")
-        .setCta()
-        .onClick(() => {
-          this.onSave(this.config);
-          this.close();
-        })
-    );
+    new Setting(contentEl)
+      .addButton((btn) => {
+        btn.setButtonText("Export map");
+        btn.onClick(() => { void exportMap(this.app, this.plugin, this.config, this.state); });
+      })
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save")
+          .setCta()
+          .onClick(() => {
+            this.onSave(this.config);
+            this.close();
+          })
+      );
 
     // Prevent auto-focus on the first input
     activeWindow.setTimeout(() => {
@@ -373,104 +354,98 @@ export class MapSettingsModal extends Modal {
 
   private renderLayers(container: HTMLElement): void {
     container.empty();
-    container.addClass("ttrpgmap-template-list-container");
 
     // Header row with "Add Layer" button
-    const header = container.createDiv({ cls: "setting-item setting-item-heading" });
-    const headerInfo = header.createDiv({ cls: "setting-item-info" });
-    headerInfo.createDiv({ cls: "setting-item-name", text: "Marker layers" });
-    headerInfo.createDiv({ cls: "setting-item-description", text: "Control marker visibility based on zoom level" });
-    const headerControl = header.createDiv({ cls: "setting-item-control" });
-    const addBtn = headerControl.createEl("button", { text: "Add layer" });
-    addBtn.addEventListener("click", () => {
-      const existingNames = new Set(this.state.layers.map((l) => l.name.toLowerCase()));
-      let n = 1;
-      while (existingNames.has(`layer ${n}`.toLowerCase())) n++;
-      const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const newLayer: MarkerLayer = {
-        id,
-        name: `Layer ${n}`,
-        zoomMin: this.config.zoomMin,
-        zoomMax: this.config.zoomMax,
-      };
-      this.state.layers.push(newLayer);
-      this.onLayerChange(this.state);
-      this.renderLayers(container);
-      new LayerEditModal(this.app, newLayer, (saved) => {
-        Object.assign(newLayer, saved);
-        this.onLayerChange(this.state);
-        this.renderLayers(container);
-      }).open();
-    });
+    new Setting(container)
+      .setName("Marker layers")
+      .setDesc("Control marker visibility based on zoom level")
+      .setHeading()
+      .addButton((btn) => {
+        btn.setButtonText("Add layer");
+        btn.onClick(() => {
+          const existingNames = new Set(this.state.layers.map((l) => l.name.toLowerCase()));
+          let n = 1;
+          while (existingNames.has(`layer ${n}`.toLowerCase())) n++;
+          const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          const newLayer: MarkerLayer = {
+            id,
+            name: `Layer ${n}`,
+            zoomMin: this.config.zoomMin,
+            zoomMax: this.config.zoomMax,
+          };
+          this.state.layers.push(newLayer);
+          this.onLayerChange(this.state);
+          this.renderLayers(container);
+          new LayerEditModal(this.app, newLayer, (saved) => {
+            Object.assign(newLayer, saved);
+            this.onLayerChange(this.state);
+            this.renderLayers(container);
+          }).open();
+        });
+      });
 
     const layerList = container.createDiv({ cls: "ttrpgmap-layer-list" });
 
     for (const layer of this.state.layers) {
       const isDefault = layer.id === DEFAULT_LAYER_ID;
 
-      const row = layerList.createDiv({ cls: "setting-item" });
-      const info = row.createDiv({ cls: "setting-item-info" });
-      const nameRow = info.createDiv({ cls: "setting-item-name ttrpgmap-layer-name-row" });
-
-      const iconEl = nameRow.createDiv({ cls: "ttrpgmap-layer-icon" });
-      setIcon(iconEl, "layers");
-
-      nameRow.createSpan({ text: layer.name });
-
-      info.createDiv({
-        cls: "setting-item-description",
-        text: this.formatZoomRange(layer),
-      });
-
-      const control = row.createDiv({ cls: "setting-item-control" });
+      const row = new Setting(layerList)
+        .setName(layer.name)
+        .setDesc(this.formatZoomRange(layer));
 
       // Edit button
-      const editBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Edit layer" } });
-      setIcon(editBtn, "pencil");
-      editBtn.addEventListener("click", () => {
-        new LayerEditModal(this.app, layer, (saved) => {
-          Object.assign(layer, saved);
-          this.onLayerChange(this.state);
-          this.renderLayers(container);
-        }).open();
+      row.addExtraButton((btn) => {
+        btn.setIcon("pencil");
+        btn.setTooltip("Edit layer");
+        btn.onClick(() => {
+          new LayerEditModal(this.app, layer, (saved) => {
+            Object.assign(layer, saved);
+            this.onLayerChange(this.state);
+            this.renderLayers(container);
+          }).open();
+        });
       });
 
       if (isDefault) {
-        const resetBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Reset to defaults" } });
-        setIcon(resetBtn, "rotate-ccw");
-        resetBtn.addEventListener("click", () => {
-          layer.name = DEFAULT_LAYER.name;
-          layer.zoomMin = DEFAULT_LAYER.zoomMin;
-          layer.zoomMax = DEFAULT_LAYER.zoomMax;
-          this.onLayerChange(this.state);
-          this.renderLayers(container);
-        });
-      } else {
-        const deleteBtn = control.createDiv({ cls: "clickable-icon", attr: { "aria-label": "Delete layer" } });
-        setIcon(deleteBtn, "trash-2");
-        deleteBtn.addEventListener("click", () => {
-          void (async () => {
-            const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
-            if (count > 0) {
-              const msg = `${count} marker${count === 1 ? "" : "s"} will be moved to the Default Layer.`;
-              const confirmed = await new Promise<boolean>((resolve) => {
-                const confirmModal = new Modal(this.app);
-                confirmModal.titleEl.setText("Confirm");
-                confirmModal.contentEl.createEl("p", { text: msg });
-                new Setting(confirmModal.contentEl)
-                  .addButton((btn) => btn.setButtonText("Cancel").onClick(() => { resolve(false); confirmModal.close(); }))
-                  .addButton((btn) => btn.setButtonText("Confirm").setWarning().onClick(() => { resolve(true); confirmModal.close(); }));
-                confirmModal.open();
-              });
-              if (!confirmed) return;
-            }
-            for (const m of this.state.markers) {
-              if (m.layerId === layer.id) m.layerId = null;
-            }
-            this.state.layers = this.state.layers.filter((l) => l.id !== layer.id);
+        row.addExtraButton((btn) => {
+          btn.setIcon("rotate-ccw");
+          btn.setTooltip("Reset to defaults");
+          btn.onClick(() => {
+            layer.name = DEFAULT_LAYER.name;
+            layer.zoomMin = DEFAULT_LAYER.zoomMin;
+            layer.zoomMax = DEFAULT_LAYER.zoomMax;
             this.onLayerChange(this.state);
             this.renderLayers(container);
-          })();
+          });
+        });
+      } else {
+        row.addExtraButton((btn) => {
+          btn.setIcon("trash-2");
+          btn.setTooltip("Delete layer");
+          btn.onClick(() => {
+            void (async () => {
+              const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
+              if (count > 0) {
+                const msg = `${count} marker${count === 1 ? "" : "s"} will be moved to the Default Layer.`;
+                const confirmed = await new Promise<boolean>((resolve) => {
+                  const confirmModal = new Modal(this.app);
+                  confirmModal.titleEl.setText("Confirm");
+                  confirmModal.contentEl.createEl("p", { text: msg });
+                  new Setting(confirmModal.contentEl)
+                    .addButton((b) => b.setButtonText("Cancel").onClick(() => { resolve(false); confirmModal.close(); }))
+                    .addButton((b) => b.setButtonText("Confirm").setWarning().onClick(() => { resolve(true); confirmModal.close(); }));
+                  confirmModal.open();
+                });
+                if (!confirmed) return;
+              }
+              for (const m of this.state.markers) {
+                if (m.layerId === layer.id) m.layerId = null;
+              }
+              this.state.layers = this.state.layers.filter((l) => l.id !== layer.id);
+              this.onLayerChange(this.state);
+              this.renderLayers(container);
+            })();
+          });
         });
       }
     }

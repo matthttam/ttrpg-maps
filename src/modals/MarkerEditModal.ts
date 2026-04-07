@@ -130,7 +130,7 @@ export class MarkerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide", "mod-settings");
+    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide");
     contentEl.addClass("ttrpgmap-modal");
 
     const template = this.getTemplate();

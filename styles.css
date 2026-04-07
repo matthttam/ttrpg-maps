@@ -489,6 +489,7 @@
   flex-shrink: 0;
   color: var(--text-muted);
 }
+
 .ttrpgmap-marker-list-hidden-icon svg {
   width: 12px;
   height: 12px;
@@ -500,12 +501,14 @@
   align-items: center;
   gap: 8px;
 }
+
 .ttrpgmap-layer-icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   color: var(--text-muted);
 }
+
 .ttrpgmap-layer-icon svg {
   width: 18px;
   height: 18px;
@@ -537,8 +540,15 @@
 }
 
 @keyframes ttrpgmap-tooltip-delay {
-  0%, 80% { opacity: 0; }
-  100% { opacity: 1; }
+
+  0%,
+  80% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .ttrpgmap-marker-list-preview {
@@ -625,8 +635,15 @@
 }
 
 @keyframes ttrpgmap-bounce {
-  0%, 100% { margin-top: 0; }
-  50% { margin-top: -12px; }
+
+  0%,
+  100% {
+    margin-top: 0;
+  }
+
+  50% {
+    margin-top: -12px;
+  }
 }
 
 /* Resize mode */
@@ -861,6 +878,7 @@
 .ttrpgmap-marker {
   --pin-overhang-x: 0px;
 }
+
 .ttrpgmap-marker[data-direction="left"],
 .ttrpgmap-marker[data-direction="right"] {
   --pin-overhang-x: calc((50px - 37.5px) / 2 * var(--marker-scale, 1));
@@ -986,8 +1004,7 @@
 
 /* ===== Modal styles ===== */
 .ttrpgmap-modal-container {
-  width: 70ch;
-  max-width: 90vw;
+  width: 90ch;
 }
 
 .ttrpgmap-modal-container--wide {
@@ -1005,7 +1022,7 @@
   padding-left: 0;
 }
 
-.ttrpgmap-modal .setting-item + .setting-item:not(.setting-item-heading) {
+.ttrpgmap-modal .setting-item+.setting-item:not(.setting-item-heading) {
   border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
@@ -1039,22 +1056,7 @@
 }
 
 .ttrpgmap-layer-list {
-  margin-left: 24px;
-}
-
-.ttrpgmap-layer-list > .setting-item,
-.ttrpgmap-layer-list > .setting-item + .setting-item {
-  padding: 6px 12px;
-  border-top: var(--border-width) solid var(--background-modifier-border);
-}
-
-.ttrpgmap-layer-list > .setting-item:last-child {
-  padding-bottom: 12px;
-}
-
-/* Full-width border above the setting item after the layers container (Save button) */
-.ttrpgmap-layers-container + .setting-item {
-  border-top: var(--border-width) solid var(--background-modifier-border);
+  padding-left: 24px;
 }
 
 /* Inline labeled inputs (Map Size, Zoom Range) */
@@ -1102,9 +1104,9 @@
 }
 
 /* Borders between template rows in global settings (not inside layer list or modal) */
-.ttrpgmap-template-list-container > .setting-item + .setting-item:not(.setting-item-heading),
-.ttrpgmap-template-list-container > div > .setting-item + .setting-item:not(.setting-item-heading),
-.ttrpgmap-folder-contents > .setting-item + .setting-item {
+.ttrpgmap-template-list-container>.setting-item+.setting-item:not(.setting-item-heading),
+.ttrpgmap-template-list-container>div>.setting-item+.setting-item:not(.setting-item-heading),
+.ttrpgmap-folder-contents>.setting-item+.setting-item {
   border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -1406,18 +1408,23 @@
 .ttrpgmap-edit-preview-wrapper[data-direction="up"] .ttrpgmap-edit-preview-pin:not(.ttrpgmap-pin--standalone) {
   transform: rotate(180deg);
 }
+
 .ttrpgmap-edit-preview-wrapper[data-direction="up"] .ttrpgmap-edit-preview-icon {
   transform: translate(-50%, -50%) rotate(-180deg);
 }
+
 .ttrpgmap-edit-preview-wrapper[data-direction="left"] .ttrpgmap-edit-preview-pin:not(.ttrpgmap-pin--standalone) {
   transform: rotate(90deg);
 }
+
 .ttrpgmap-edit-preview-wrapper[data-direction="left"] .ttrpgmap-edit-preview-icon {
   transform: translate(-50%, -50%) rotate(-90deg);
 }
+
 .ttrpgmap-edit-preview-wrapper[data-direction="right"] .ttrpgmap-edit-preview-pin:not(.ttrpgmap-pin--standalone) {
   transform: rotate(-90deg);
 }
+
 .ttrpgmap-edit-preview-wrapper[data-direction="right"] .ttrpgmap-edit-preview-icon {
   transform: translate(-50%, -50%) rotate(90deg);
 }
@@ -1697,4 +1704,3 @@
   width: 100%;
   height: auto;
 }
-

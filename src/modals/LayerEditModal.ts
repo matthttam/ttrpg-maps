@@ -1,24 +1,33 @@
 import { App, Modal, Setting } from "obsidian";
 import { MarkerLayer, DEFAULT_LAYER_ID } from "../types";
 
+interface LayerEditOptions {
+  layer: MarkerLayer;
+  mapZoomMin: number;
+  mapZoomMax: number;
+  onSave: (layer: MarkerLayer) => void;
+}
+
 export class LayerEditModal extends Modal {
   private layer: MarkerLayer;
   private isDefault: boolean;
+  private mapZoomMin: number;
+  private mapZoomMax: number;
   private onSave: (layer: MarkerLayer) => void;
 
-  constructor(app: App, layer: MarkerLayer, onSave: (layer: MarkerLayer) => void) {
+  constructor(app: App, opts: LayerEditOptions) {
     super(app);
-    this.layer = { ...layer };
-    this.isDefault = layer.id === DEFAULT_LAYER_ID;
-    this.onSave = onSave;
+    this.layer = { ...opts.layer };
+    this.isDefault = opts.layer.id === DEFAULT_LAYER_ID;
+    this.mapZoomMin = opts.mapZoomMin;
+    this.mapZoomMax = opts.mapZoomMax;
+    this.onSave = opts.onSave;
   }
 
   private validate(): string | null {
     const { zoomMin, zoomMax } = this.layer;
-    if (zoomMin != null && !Number.isInteger(zoomMin)) return "Minimum zoom must be a whole number.";
-    if (zoomMax != null && !Number.isInteger(zoomMax)) return "Maximum zoom must be a whole number.";
     if (zoomMin != null && zoomMax != null) {
-      if (zoomMin >= zoomMax) return "Minimum zoom must be less than maximum zoom.";
+      if (zoomMin >= zoomMax) return "The zoomed-out limit must be less than the zoomed-in limit.";
     }
     return null;
   }
@@ -49,38 +58,143 @@ export class LayerEditModal extends Modal {
       nameSetting.setDesc("The default layer name cannot be changed.");
     }
 
-    new Setting(items)
-      .setName("Minimum zoom")
-      .setDesc("Markers on this layer are hidden below this zoom %. Leave blank for no limit.")
-      .addText((text) => {
-        text
-          .setPlaceholder("50")
-          .setValue(this.layer.zoomMin != null ? String(this.layer.zoomMin) : "")
-          .onChange((value) => {
-            this.layer.zoomMin = value ? parseFloat(value) || 0 : null;
-            errorEl.addClass("ttrpgmap-hidden");
-          });
-        text.inputEl.type = "number";
-        text.inputEl.step = "1";
-      });
+    // ── Zoom visibility range slider ──
+    new Setting(items).setName("Visibility range");
 
-    new Setting(items)
-      .setName("Maximum zoom")
-      .setDesc("Markers on this layer are hidden above this zoom %. Leave blank for no limit.")
-      .addText((text) => {
-        text
-          .setPlaceholder("200")
-          .setValue(this.layer.zoomMax != null ? String(this.layer.zoomMax) : "")
-          .onChange((value) => {
-            this.layer.zoomMax = value ? parseFloat(value) || 0 : null;
-            errorEl.addClass("ttrpgmap-hidden");
-          });
-        text.inputEl.type = "number";
-        text.inputEl.step = "1";
-      });
+    const rangeContainer = items.createDiv({ cls: "ttrpgmap-zoom-range" });
+
+    const trackMin = this.mapZoomMin;
+    const trackMax = this.mapZoomMax;
+    const currentMin = this.layer.zoomMin ?? trackMin;
+    const currentMax = this.layer.zoomMax ?? trackMax;
+
+    // Labels row with editable text inputs for bounds
+    const labelsRow = rangeContainer.createDiv({ cls: "ttrpgmap-zoom-range-labels" });
+
+    const leftGroup = labelsRow.createDiv({ cls: "ttrpgmap-zoom-range-bound" });
+    leftGroup.createSpan({ text: "Zoomed" });
+    leftGroup.createEl("br");
+    leftGroup.createSpan({ text: "out" });
+
+    const minText = labelsRow.createEl("input", {
+      cls: "ttrpgmap-zoom-range-text",
+      type: "number",
+      attr: { min: String(trackMin), max: String(trackMax), step: "1" },
+      value: currentMin <= trackMin ? "" : String(currentMin),
+    });
+    minText.placeholder = String(trackMin);
+
+    const rangeDisplay = labelsRow.createSpan({ cls: "ttrpgmap-zoom-range-display" });
+
+    const maxText = labelsRow.createEl("input", {
+      cls: "ttrpgmap-zoom-range-text",
+      type: "number",
+      attr: { min: String(trackMin), max: String(trackMax), step: "1" },
+      value: currentMax >= trackMax ? "" : String(currentMax),
+    });
+    maxText.placeholder = String(trackMax);
+
+    const rightGroup = labelsRow.createDiv({ cls: "ttrpgmap-zoom-range-bound" });
+    rightGroup.createSpan({ text: "Zoomed" });
+    rightGroup.createEl("br");
+    rightGroup.createSpan({ text: "in" });
+
+    // Track with two range inputs
+    const track = rangeContainer.createDiv({ cls: "ttrpgmap-zoom-range-track" });
+    const highlight = track.createDiv({ cls: "ttrpgmap-zoom-range-highlight" });
+
+    const minSlider = track.createEl("input", {
+      cls: "ttrpgmap-zoom-range-input",
+      type: "range",
+      attr: { min: String(trackMin), max: String(trackMax), step: "1" },
+      value: String(currentMin),
+    });
+
+    const maxSlider = track.createEl("input", {
+      cls: "ttrpgmap-zoom-range-input",
+      type: "range",
+      attr: { min: String(trackMin), max: String(trackMax), step: "1" },
+      value: String(currentMax),
+    });
+
+    const getValues = () => ({
+      lo: parseInt(minSlider.value, 10),
+      hi: parseInt(maxSlider.value, 10),
+    });
+
+    let updatingFromSlider = false;
+
+    const updateAll = () => {
+      const { lo, hi } = getValues();
+
+      // Update text inputs (guard against re-entrancy from input events)
+      updatingFromSlider = true;
+      minText.value = lo <= trackMin ? "" : String(lo);
+      maxText.value = hi >= trackMax ? "" : String(hi);
+      updatingFromSlider = false;
+
+      // Update display
+      if (lo <= trackMin && hi >= trackMax) {
+        rangeDisplay.setText("Always visible");
+      } else {
+        const loLabel = lo <= trackMin ? `${trackMin}%` : `${lo}%`;
+        const hiLabel = hi >= trackMax ? `${trackMax}%` : `${hi}%`;
+        rangeDisplay.setText(`${loLabel} \u2013 ${hiLabel}`);
+      }
+
+      // Position the highlight bar
+      const range = trackMax - trackMin;
+      const leftPct = ((lo - trackMin) / range) * 100;
+      const rightPct = ((trackMax - hi) / range) * 100;
+      highlight.setCssStyles({ left: `${leftPct}%`, right: `${rightPct}%` });
+
+      // Update layer state
+      this.layer.zoomMin = lo <= trackMin ? null : lo;
+      this.layer.zoomMax = hi >= trackMax ? null : hi;
+
+      errorEl.addClass("ttrpgmap-hidden");
+    };
 
     const errorEl = contentEl.createDiv({ cls: "ttrpgmap-field-error" });
     errorEl.addClass("ttrpgmap-hidden");
+
+    updateAll();
+
+    // Slider events
+    minSlider.addEventListener("input", () => {
+      const { lo, hi } = getValues();
+      if (lo > hi) minSlider.value = maxSlider.value;
+      updateAll();
+    });
+
+    maxSlider.addEventListener("input", () => {
+      const { lo, hi } = getValues();
+      if (hi < lo) maxSlider.value = minSlider.value;
+      updateAll();
+    });
+
+    // Text input events -- only validate and sync on blur or Enter
+    const syncMinText = () => {
+      const val = minText.value ? parseInt(minText.value, 10) : trackMin;
+      if (isNaN(val)) return;
+      const clamped = Math.max(trackMin, Math.min(trackMax, val));
+      const hi = parseInt(maxSlider.value, 10);
+      minSlider.value = String(clamped > hi ? hi : clamped);
+      updateAll();
+    };
+    minText.addEventListener("blur", syncMinText);
+    minText.addEventListener("keydown", (e) => { if (e.key === "Enter") syncMinText(); });
+
+    const syncMaxText = () => {
+      const val = maxText.value ? parseInt(maxText.value, 10) : trackMax;
+      if (isNaN(val)) return;
+      const clamped = Math.max(trackMin, Math.min(trackMax, val));
+      const lo = parseInt(minSlider.value, 10);
+      maxSlider.value = String(clamped < lo ? lo : clamped);
+      updateAll();
+    };
+    maxText.addEventListener("blur", syncMaxText);
+    maxText.addEventListener("keydown", (e) => { if (e.key === "Enter") syncMaxText(); });
 
     new Setting(contentEl)
       .addButton((btn) =>

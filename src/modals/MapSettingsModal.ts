@@ -375,10 +375,15 @@ export class MapSettingsModal extends Modal {
           this.state.layers.push(newLayer);
           this.onLayerChange(this.state);
           this.renderLayers(container);
-          new LayerEditModal(this.app, newLayer, (saved) => {
-            Object.assign(newLayer, saved);
-            this.onLayerChange(this.state);
-            this.renderLayers(container);
+          new LayerEditModal(this.app, {
+            layer: newLayer,
+            mapZoomMin: this.config.zoomMin,
+            mapZoomMax: this.config.zoomMax,
+            onSave: (saved) => {
+              Object.assign(newLayer, saved);
+              this.onLayerChange(this.state);
+              this.renderLayers(container);
+            },
           }).open();
         });
       });
@@ -397,10 +402,15 @@ export class MapSettingsModal extends Modal {
         btn.setIcon("pencil");
         btn.setTooltip("Edit layer");
         btn.onClick(() => {
-          new LayerEditModal(this.app, layer, (saved) => {
-            Object.assign(layer, saved);
-            this.onLayerChange(this.state);
-            this.renderLayers(container);
+          new LayerEditModal(this.app, {
+            layer,
+            mapZoomMin: this.config.zoomMin,
+            mapZoomMax: this.config.zoomMax,
+            onSave: (saved) => {
+              Object.assign(layer, saved);
+              this.onLayerChange(this.state);
+              this.renderLayers(container);
+            },
           }).open();
         });
       });

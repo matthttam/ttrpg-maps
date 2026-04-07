@@ -66,7 +66,7 @@ export class MarkerEditModal extends Modal {
   }
 
   private addInlineResetButton(container: HTMLElement, onReset: () => void): void {
-    const btn = container.createDiv({ cls: "clickable-icon ttrpgmap-inline-reset", attr: { "aria-label": "Reset to template default" } });
+    const btn = container.createDiv({ cls: "clickable-icon extra-setting-button", attr: { "aria-label": "Reset to template default" } });
     setIcon(btn, "history");
     btn.addEventListener("click", () => {
       if (this.getTemplate()) {
@@ -130,20 +130,23 @@ export class MarkerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide");
-    contentEl.addClass("ttrpgmap-modal");
+    this.modalEl.addClass("ttrpgmap-modal--x-wide");
 
     const template = this.getTemplate();
 
-    new Setting(contentEl).setName("Edit marker").setHeading();
+    // ── Two-column layout: settings left, preview right ──
+    const headerGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(headerGroup).setName("Edit marker").setHeading();
 
-    const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
+    const layout = headerGroup.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
     const previewContainer = layout.createDiv({ cls: "ttrpgmap-edit-preview" });
     this.renderPreview(previewContainer);
 
-    // ── Template ──
-    new Setting(mainCol)
+    // ── Template & Layer ──
+    const infoItems = mainCol.createDiv({ cls: "setting-items" });
+
+    new Setting(infoItems)
       .setName("Template")
       .addDropdown((dropdown) => {
         for (const t of this.plugin.settings.markerTemplates) {
@@ -167,9 +170,8 @@ export class MarkerEditModal extends Modal {
         });
       });
 
-    // ── Layer ──
     if (this.layers.length > 1) {
-      new Setting(mainCol)
+      new Setting(infoItems)
         .setName("Layer")
         .setDesc("Visibility layer for zoom-based show/hide")
         .addDropdown((dropdown) => {
@@ -183,8 +185,7 @@ export class MarkerEditModal extends Modal {
         });
     }
 
-    // ── Note ──
-    new Setting(mainCol)
+    new Setting(infoItems)
       .setName("Note")
       .setDesc("Link to a note. Type # for headings, #^ for blocks.")
       .addText((text) => {
@@ -201,8 +202,7 @@ export class MarkerEditModal extends Modal {
         });
       });
 
-    // ── Alias ──
-    new Setting(mainCol)
+    new Setting(infoItems)
       .setName("Alias")
       .setDesc("Display name shown instead of the note filename")
       .addText((text) => {
@@ -215,8 +215,7 @@ export class MarkerEditModal extends Modal {
           });
       });
 
-    // ── Preview Note ──
-    new Setting(mainCol)
+    new Setting(infoItems)
       .setName("Preview note")
       .setDesc("Note shown on hover preview (blank uses the linked note)")
       .addText((text) => {
@@ -231,8 +230,7 @@ export class MarkerEditModal extends Modal {
         });
       });
 
-    // ── Description ──
-    new Setting(mainCol)
+    new Setting(infoItems)
       .setName("Description")
       .setDesc("Additional text shown below the note name")
       .addTextArea((textArea) => {
@@ -246,11 +244,11 @@ export class MarkerEditModal extends Modal {
         textArea.inputEl.rows = 3;
       });
 
-    // ── Shared fields (text placement, pin, icon) ──
+    // ── Appearance fields (text placement, pin, icon) ──
     const fieldState = this.getFieldState();
     const ctx = {
       app: this.app,
-      contentEl: mainCol,
+      contentEl: infoItems,
       state: fieldState,
       onChanged: () => {
         this.syncFromFieldState(fieldState);
@@ -281,12 +279,14 @@ export class MarkerEditModal extends Modal {
       iconRotationInput.setValue(this.marker.iconRotation);
     });
 
-    // ── Remaining fields are full-width (below the 2-column layout) ──
+    // ── Scale settings (full-width, below the two-column layout) ──
+    const scaleGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(scaleGroup).setName("Size overrides").setHeading();
+    const scaleItems = scaleGroup.createDiv({ cls: "setting-items" });
 
-    // ── Scale ──
     const hasScaleOverride = this.marker.scale != null;
 
-    const markerScaleSetting = new Setting(contentEl)
+    const markerScaleSetting = new Setting(scaleItems)
       .setName("Marker size")
       .setDesc("Override the map marker scale for this marker");
 
@@ -313,8 +313,7 @@ export class MarkerEditModal extends Modal {
         });
     });
 
-    // ── Scale to Zoom ──
-    new Setting(contentEl)
+    new Setting(scaleItems)
       .setName("Scale to zoom")
       .setDesc("How this marker behaves when zooming")
       .addDropdown((dropdown) => {
@@ -330,10 +329,9 @@ export class MarkerEditModal extends Modal {
           });
       });
 
-    // ── Text Scale ──
     const hasTextScaleOverride = this.marker.textScale != null;
 
-    const textScaleSetting = new Setting(contentEl)
+    const textScaleSetting = new Setting(scaleItems)
       .setName("Text size")
       .setDesc("Override the text label scale for this marker");
 
@@ -360,8 +358,7 @@ export class MarkerEditModal extends Modal {
         });
     });
 
-    // ── Text Scale to Zoom ──
-    new Setting(contentEl)
+    new Setting(scaleItems)
       .setName("Text scale to zoom")
       .setDesc("How this marker's text behaves when zooming")
       .addDropdown((dropdown) => {
@@ -378,10 +375,7 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Save / Cancel ──
-    const actionSetting = new Setting(contentEl);
-    actionSetting.controlEl.addClass("ttrpgmap-action-row");
-
-    actionSetting
+    new Setting(contentEl)
       .addButton((btn) =>
         btn
           .setButtonText("Reset to template & save")

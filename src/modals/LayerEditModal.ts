@@ -26,12 +26,12 @@ export class LayerEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
 
-    new Setting(contentEl).setName(this.isDefault ? "Edit default layer" : "Edit layer").setHeading();
+    const group = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(group).setName(this.isDefault ? "Edit default layer" : "Edit layer").setHeading();
+    const items = group.createDiv({ cls: "setting-items" });
 
-    const nameSetting = new Setting(contentEl)
+    const nameSetting = new Setting(items)
       .setName("Name")
       .addText((text) => {
         text
@@ -49,7 +49,7 @@ export class LayerEditModal extends Modal {
       nameSetting.setDesc("The default layer name cannot be changed.");
     }
 
-    new Setting(contentEl)
+    new Setting(items)
       .setName("Minimum zoom")
       .setDesc("Markers on this layer are hidden below this zoom %. Leave blank for no limit.")
       .addText((text) => {
@@ -64,7 +64,7 @@ export class LayerEditModal extends Modal {
         text.inputEl.step = "1";
       });
 
-    new Setting(contentEl)
+    new Setting(items)
       .setName("Maximum zoom")
       .setDesc("Markers on this layer are hidden above this zoom %. Leave blank for no limit.")
       .addText((text) => {

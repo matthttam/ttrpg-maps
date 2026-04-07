@@ -53,7 +53,7 @@ describe("setMapIcon", () => {
     const svg = parent.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg!.getAttribute("fill")).toBe("currentColor");
-    expect(svg!.getAttribute("class")).toBe("ttrpgmap-fa-icon");
+    expect(svg!.getAttribute("class")).toBe("ttrpgmap-map-icon");
   });
 
   it("clears previous content before rendering", () => {

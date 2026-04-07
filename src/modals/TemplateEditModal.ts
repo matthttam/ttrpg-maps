@@ -113,16 +113,18 @@ export class TemplateEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "ttrpgmap-modal-container--wide", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
+    this.modalEl.addClass("ttrpgmap-modal--x-wide");
     this.changedIndicators.clear();
 
-    new Setting(contentEl).setName("Edit template").setHeading();
+    const headerGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(headerGroup).setName("Edit template").setHeading();
 
-    const layout = contentEl.createDiv({ cls: "ttrpgmap-modal-layout" });
+    const layout = headerGroup.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
     const previewContainer = layout.createDiv({ cls: "ttrpgmap-edit-preview" });
     this.renderPreview(previewContainer);
+
+    const items = mainCol.createDiv({ cls: "setting-items" });
 
     const onChanged = () => {
       this.renderPreview(previewContainer);
@@ -131,7 +133,7 @@ export class TemplateEditModal extends Modal {
 
     const ctx = {
       app: this.app,
-      contentEl: mainCol,
+      contentEl: items,
       state: this.draft,
       onChanged,
     };
@@ -139,7 +141,7 @@ export class TemplateEditModal extends Modal {
     // ── Name ──
     const isPredefined = PREDEFINED_TEMPLATE_IDS.has(this.draft.id);
     let nameError: HTMLElement;
-    new Setting(mainCol)
+    new Setting(items)
       .setName("Name")
       .addText((text) => {
         text.setValue(this.draft.name);
@@ -265,20 +267,21 @@ class ConfirmApplyModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
 
-    new Setting(contentEl).setName("Confirm apply").setHeading();
-    contentEl.createEl("p", {
+    const group = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(group).setName("Confirm apply").setHeading();
+    const items = group.createDiv({ cls: "setting-items" });
+
+    items.createEl("p", {
       text: `The following changes will be applied to all markers using the "${this.templateName}" template:`,
     });
 
-    const list = contentEl.createEl("ul", { cls: "ttrpgmap-confirm-list" });
+    const list = items.createEl("ul", { cls: "ttrpgmap-confirm-list" });
     for (const label of this.fieldLabels) {
       list.createEl("li", { text: label });
     }
 
-    contentEl.createEl("p", {
+    items.createEl("p", {
       text: "This will override custom values on those fields. Are you sure?",
       cls: "ttrpgmap-muted",
     });

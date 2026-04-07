@@ -21,10 +21,10 @@ function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void
   modal.onOpen = () => {
     const { contentEl } = modal;
     contentEl.empty();
-    modal.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
-    new Setting(contentEl).setName("Restore default templates").setHeading();
-    contentEl.createEl("p", { text: "This will replace all your current templates and folders with the built-in defaults. Any custom templates will be lost." });
+    const group = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(group).setName("Restore default templates").setHeading();
+    const items = group.createDiv({ cls: "setting-items" });
+    items.createEl("p", { text: "This will replace all your current templates and folders with the built-in defaults. Any custom templates will be lost." });
 
     new Setting(contentEl)
       .addButton((btn) =>

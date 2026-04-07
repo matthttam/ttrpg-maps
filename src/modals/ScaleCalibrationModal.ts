@@ -13,13 +13,14 @@ export class ScaleCalibrationModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
 
-    new Setting(contentEl).setName("Set distance scale").setHeading();
-    contentEl.createEl("p", { text: "You drew a reference line on the map. How many units does it represent?" });
+    const group = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(group).setName("Set distance scale").setHeading();
+    const items = group.createDiv({ cls: "setting-items" });
 
-    new Setting(contentEl)
+    items.createEl("p", { text: "You drew a reference line on the map. How many units does it represent?" });
+
+    new Setting(items)
       .setName("Distance")
       .setDesc("How many units does this line represent?")
       .addText((text) =>
@@ -28,7 +29,7 @@ export class ScaleCalibrationModal extends Modal {
           .onChange((value) => (this.units = parseFloat(value) || 0))
       );
 
-    new Setting(contentEl)
+    new Setting(items)
       .setName("Unit label")
       .setDesc("Feet, miles, km, meters")
       .addText((text) =>

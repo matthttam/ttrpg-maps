@@ -76,7 +76,7 @@ export function setMapIcon(parent: HTMLElement, iconName: string): void {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", icon.viewBox);
   svg.setAttribute("fill", "currentColor");
-  svg.setAttribute("class", "ttrpgmap-fa-icon");
+  svg.setAttribute("class", "ttrpgmap-map-icon");
   const path = document.createElementNS(SVG_NS, "path");
   path.setAttribute("d", icon.path);
   svg.appendChild(path);

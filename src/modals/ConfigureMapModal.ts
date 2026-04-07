@@ -26,12 +26,12 @@ export class ConfigureMapModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container", "mod-settings");
-    contentEl.addClass("ttrpgmap-modal");
 
-    new Setting(contentEl).setName("Configure map").setHeading();
+    const mapGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(mapGroup).setName("Configure map").setHeading();
+    const mapItems = mapGroup.createDiv({ cls: "setting-items" });
 
-    new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Image")
       .setDesc("Search for a map image in your vault (required)")
       .addText((text) => {
@@ -44,35 +44,37 @@ export class ConfigureMapModal extends Modal {
         });
       });
 
-    new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Height")
       .setDesc("Display height (blank = auto from width/image)")
       .addText((text) =>
         text.setPlaceholder("500 or 80%").onChange((value) => (this.height = value))
       );
 
-    new Setting(contentEl)
+    new Setting(mapItems)
       .setName("Width")
       .setDesc("Display width (blank = auto from height/image)")
       .addText((text) =>
         text.setPlaceholder("800 or 100%").onChange((value) => (this.width = value))
       );
 
-    new Setting(contentEl).setName("Zoom").setHeading();
+    const zoomGroup = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(zoomGroup).setName("Zoom").setHeading();
+    const zoomItems = zoomGroup.createDiv({ cls: "setting-items" });
 
-    new Setting(contentEl)
+    new Setting(zoomItems)
       .setName("Minimum zoom %")
       .addText((text) =>
         text.setValue(String(this.zoomMin)).onChange((v) => (this.zoomMin = parseInt(v, 10) || 50))
       );
 
-    new Setting(contentEl)
+    new Setting(zoomItems)
       .setName("Maximum zoom %")
       .addText((text) =>
         text.setValue(String(this.zoomMax)).onChange((v) => (this.zoomMax = parseInt(v, 10) || 200))
       );
 
-    new Setting(contentEl)
+    new Setting(zoomItems)
       .setName("Zoom step %")
       .addText((text) =>
         text.setValue(String(this.zoomStep)).onChange((v) => (this.zoomStep = parseInt(v, 10) || 10))

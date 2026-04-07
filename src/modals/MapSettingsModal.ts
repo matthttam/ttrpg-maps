@@ -49,7 +49,7 @@ export class MapSettingsModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("ttrpgmap-modal-container");
+    this.modalEl.addClass("ttrpgmap-modal--wide");
 
     const mapGroup = contentEl.createDiv({ cls: "setting-group" });
     new Setting(mapGroup).setName("Map settings").setHeading();
@@ -359,7 +359,6 @@ export class MapSettingsModal extends Modal {
     new Setting(container)
       .setName("Marker layers")
       .setDesc("Control marker visibility based on zoom level")
-      .setHeading()
       .addButton((btn) => {
         btn.setButtonText("Add layer");
         btn.onClick(() => {

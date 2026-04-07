@@ -496,23 +496,6 @@
 }
 
 /* ── Layer rows ── */
-.ttrpgmap-layer-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ttrpgmap-layer-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  color: var(--text-muted);
-}
-
-.ttrpgmap-layer-icon svg {
-  width: 18px;
-  height: 18px;
-}
 
 /* Description tooltip */
 .ttrpgmap-marker-list-has-desc::after {
@@ -1003,56 +986,12 @@
 }
 
 /* ===== Modal styles ===== */
-.ttrpgmap-modal-container {
+.ttrpgmap-modal--wide {
   width: 90ch;
 }
 
-.ttrpgmap-modal-container--wide {
-  width: 950px;
-}
-
-.ttrpgmap-modal {
-  overflow-x: hidden;
-  padding-right: 12px;
-}
-
-/* Reset all setting-item borders in our modals, then add them only between siblings */
-.ttrpgmap-modal .setting-item {
-  border-top: none;
-  padding-left: 0;
-}
-
-.ttrpgmap-modal .setting-item+.setting-item:not(.setting-item-heading) {
-  border-top: var(--border-width) solid var(--background-modifier-border);
-}
-
-.ttrpgmap-modal .setting-item-description {
-  padding-top: 0;
-}
-
-.ttrpgmap-modal-footer .setting-item-control {
-  display: flex;
-  width: 100%;
-  justify-content: space-between;
-}
-
-.ttrpgmap-export-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Match modal headings to the settings-tab style */
-.ttrpgmap-modal h2,
-.ttrpgmap-modal h3 {
-  border: none;
-  box-shadow: none;
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
+.ttrpgmap-modal--x-wide {
+  width: 120ch;
 }
 
 .ttrpgmap-layer-list {
@@ -1078,11 +1017,6 @@
 
 .ttrpgmap-size-separator {
   color: var(--text-muted);
-}
-
-.ttrpgmap-image-dims {
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
 }
 
 .ttrpgmap-modal-layout {
@@ -1273,22 +1207,6 @@
   margin-left: auto;
 }
 
-.ttrpgmap-inline-reset {
-  color: var(--text-faint);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.ttrpgmap-inline-reset svg {
-  width: 14px;
-  height: 14px;
-}
-
-.ttrpgmap-inline-reset:hover {
-  color: var(--text-normal);
-}
-
 .ttrpgmap-icon-rotation-row {
   display: flex;
   align-items: center;
@@ -1404,6 +1322,17 @@
   height: 26px;
 }
 
+/* When a preview pin is rotated 90deg (left/right), its visual width exceeds its layout box.
+   Set a horizontal overhang variable so labels can compensate. */
+.ttrpgmap-edit-preview-wrapper {
+  --pin-overhang-x: 0px;
+}
+
+.ttrpgmap-edit-preview-wrapper[data-direction="left"],
+.ttrpgmap-edit-preview-wrapper[data-direction="right"] {
+  --pin-overhang-x: 8px;
+}
+
 /* Direction rotations in the preview */
 .ttrpgmap-edit-preview-wrapper[data-direction="up"] .ttrpgmap-edit-preview-pin:not(.ttrpgmap-pin--standalone) {
   transform: rotate(180deg);
@@ -1457,30 +1386,23 @@
   margin-top: 4px;
 }
 
-/* Text left: push pin to the right so label extends leftward into space */
-.ttrpgmap-edit-preview-wrapper[data-text-placement="left"] {
-  margin-left: auto;
-  margin-right: 24px;
-}
-
-.ttrpgmap-edit-preview-wrapper[data-text-placement="left"] .ttrpgmap-edit-preview-label {
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-right: 6px;
-}
-
-/* Text right: push pin to the left so label extends rightward into space */
+/* Text left/right: switch to horizontal flex row so label + pin center naturally */
+.ttrpgmap-edit-preview-wrapper[data-text-placement="left"],
 .ttrpgmap-edit-preview-wrapper[data-text-placement="right"] {
-  margin-right: auto;
-  margin-left: 24px;
+  flex-direction: row;
+  align-items: center;
 }
 
+.ttrpgmap-edit-preview-wrapper[data-text-placement="left"] .ttrpgmap-edit-preview-label,
 .ttrpgmap-edit-preview-wrapper[data-text-placement="right"] .ttrpgmap-edit-preview-label {
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 6px;
+  position: static;
+  transform: none;
+  margin: 0 calc(var(--pin-overhang-x) + 6px);
+}
+
+/* Label goes before the pin for left placement */
+.ttrpgmap-edit-preview-wrapper[data-text-placement="left"] .ttrpgmap-edit-preview-label {
+  order: -1;
 }
 
 /* ===== Dirty field indicator ===== */
@@ -1644,25 +1566,6 @@
 .ttrpgmap-scale-input {
   width: 55px !important;
   text-align: center;
-}
-
-/* Help icon: small (?) next to setting names */
-.ttrpgmap-help-icon {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  opacity: 0.5;
-  cursor: help;
-  vertical-align: middle;
-}
-
-.ttrpgmap-help-icon:hover {
-  opacity: 1;
-}
-
-.ttrpgmap-help-icon svg {
-  width: 14px;
-  height: 14px;
 }
 
 /* ===== Utility ===== */

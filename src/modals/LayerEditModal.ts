@@ -54,7 +54,7 @@ export class LayerEditModal extends Modal {
       .setDesc("Markers on this layer are hidden below this zoom %. Leave blank for no limit.")
       .addText((text) => {
         text
-          .setPlaceholder("Any")
+          .setPlaceholder("50")
           .setValue(this.layer.zoomMin != null ? String(this.layer.zoomMin) : "")
           .onChange((value) => {
             this.layer.zoomMin = value ? parseFloat(value) || 0 : null;
@@ -69,7 +69,7 @@ export class LayerEditModal extends Modal {
       .setDesc("Markers on this layer are hidden above this zoom %. Leave blank for no limit.")
       .addText((text) => {
         text
-          .setPlaceholder("Any")
+          .setPlaceholder("200")
           .setValue(this.layer.zoomMax != null ? String(this.layer.zoomMax) : "")
           .onChange((value) => {
             this.layer.zoomMax = value ? parseFloat(value) || 0 : null;

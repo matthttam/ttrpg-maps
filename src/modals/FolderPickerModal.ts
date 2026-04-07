@@ -3,7 +3,7 @@ import { FolderSuggest } from "../suggests/FolderSuggest";
 
 export class FolderPickerModal extends Modal {
   private onChoose: (folderPath: string) => void;
-  private selectedFolder = "/";
+  private selectedFolder = "";
 
   constructor(app: App, onChoose: (folderPath: string) => void) {
     super(app);

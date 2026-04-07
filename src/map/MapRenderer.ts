@@ -1791,9 +1791,11 @@ export class MapRenderer extends MarkdownRenderChild {
     const label = this.state?.distanceScale?.unitLabel ?? "";
     const display = this.formatNumber(rounded);
     const isRounding = (this.state?.roundingMode ?? "none") !== "none" && (this.state?.roundingMultiple ?? 0) > 0;
-    if (isRounding && this.state?.showRawDistance && rounded !== value) {
+    if (isRounding && this.state?.showRawDistance) {
       const rawDisplay = this.formatNumber(value);
-      return `${display} (${rawDisplay}) ${label}`;
+      if (rawDisplay !== display) {
+        return `${display} (${rawDisplay}) ${label}`;
+      }
     }
     return `${display} ${label}`;
   }

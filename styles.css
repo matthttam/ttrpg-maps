@@ -121,7 +121,11 @@
   align-items: flex-end;
 }
 
-.ttrpgmap-measure-toggle {
+/* Shared overlay button base */
+.ttrpgmap-measure-toggle,
+.ttrpgmap-toolbar-btn,
+.ttrpgmap-settings-btn,
+.ttrpgmap-marker-list-toggle {
   width: 32px;
   height: 32px;
   display: flex;
@@ -134,12 +138,16 @@
   color: var(--text-normal);
 }
 
-.ttrpgmap-measure-toggle:hover {
+.ttrpgmap-measure-toggle:hover,
+.ttrpgmap-toolbar-btn:hover,
+.ttrpgmap-settings-btn:hover,
+.ttrpgmap-marker-list-toggle:hover {
   background: var(--background-secondary-alt, var(--background-secondary));
   filter: brightness(1.1);
 }
 
-.ttrpgmap-measure-toggle svg {
+.ttrpgmap-measure-toggle svg,
+.ttrpgmap-toolbar-btn svg {
   width: 16px;
   height: 16px;
 }
@@ -162,27 +170,7 @@
 }
 
 .ttrpgmap-toolbar-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  cursor: pointer;
   font-size: 16px;
-  color: var(--text-normal);
-}
-
-.ttrpgmap-toolbar-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.ttrpgmap-toolbar-btn:hover {
-  background: var(--background-secondary-alt, var(--background-secondary));
-  filter: brightness(1.1);
 }
 
 .ttrpgmap-toolbar-btn-active {
@@ -336,22 +324,7 @@
   bottom: 10px;
   right: 10px;
   z-index: 10;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  cursor: pointer;
   font-size: 16px;
-  color: var(--text-normal);
-}
-
-.ttrpgmap-settings-btn:hover {
-  background: var(--background-secondary-alt, var(--background-secondary));
-  filter: brightness(1.1);
 }
 
 /* ===== Marker List Panel (bottom-left) ===== */
@@ -367,24 +340,13 @@
 
 /* Toggle button fades independently */
 .ttrpgmap-marker-list-toggle {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
   border-radius: 0 0 4px 4px;
-  cursor: pointer;
-  color: var(--text-normal);
   opacity: 0.5;
   transition: opacity 0.15s ease;
 }
 
 .ttrpgmap-marker-list-toggle:hover {
   opacity: 1;
-  background: var(--background-secondary-alt, var(--background-secondary));
-  filter: brightness(1.1);
 }
 
 /* Wrapper for pin tab + list */
@@ -494,8 +456,6 @@
   width: 12px;
   height: 12px;
 }
-
-/* ── Layer rows ── */
 
 /* Description tooltip */
 .ttrpgmap-marker-list-has-desc::after {
@@ -1310,6 +1270,7 @@
   flex-direction: column;
   align-items: center;
   position: relative;
+  --pin-overhang-x: 0px;
 }
 
 .ttrpgmap-edit-preview-pin {
@@ -1320,12 +1281,6 @@
 .ttrpgmap-edit-preview-icon {
   width: 26px;
   height: 26px;
-}
-
-/* When a preview pin is rotated 90deg (left/right), its visual width exceeds its layout box.
-   Set a horizontal overhang variable so labels can compensate. */
-.ttrpgmap-edit-preview-wrapper {
-  --pin-overhang-x: 0px;
 }
 
 .ttrpgmap-edit-preview-wrapper[data-direction="left"],

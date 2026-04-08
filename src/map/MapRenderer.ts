@@ -214,10 +214,10 @@ export class MapRenderer extends MarkdownRenderChild {
     const zoomOutBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "−" });
     zoomOutBtn.addEventListener("click", () => this.adjustZoom(-this.config.zoomStep));
 
-    controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-center-btn", text: "◎", attr: { "aria-label": "Center map" } })
+    controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-center-btn", text: "◎", attr: { "aria-label": "Center map", "data-tooltip-position": "right" } })
       .addEventListener("click", () => this.centerMap());
 
-    const fitBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", attr: { "aria-label": "Fit to Screen" } });
+    const fitBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", attr: { "aria-label": "Fit to screen", "data-tooltip-position": "right" } });
     setIcon(fitBtn, "maximize");
     fitBtn.addEventListener("click", () => this.fitToScreen());
 
@@ -225,7 +225,7 @@ export class MapRenderer extends MarkdownRenderChild {
     this.zoomLocked = this.state?.zoomLocked ?? false;
     this.panLocked = this.state?.panLocked ?? false;
 
-    const zoomLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Zoom" } });
+    const zoomLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock zoom", "data-tooltip-position": "right" } });
     const zoomLockDoc = new DOMParser().parseFromString(NO_ZOOM_SVG, "image/svg+xml");
     zoomLockBtn.empty();
     zoomLockBtn.appendChild(zoomLockDoc.documentElement);
@@ -242,7 +242,7 @@ export class MapRenderer extends MarkdownRenderChild {
       if (this.state) { this.state.zoomLocked = this.zoomLocked; this.plugin.dataManager.saveMapState(this.config.id, this.state); }
     });
 
-    const panLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock Pan" } });
+    const panLockBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-lock-btn", attr: { "aria-label": "Lock pan", "data-tooltip-position": "right" } });
     const panLockDoc = new DOMParser().parseFromString(NO_PAN_SVG, "image/svg+xml");
     panLockBtn.empty();
     panLockBtn.appendChild(panLockDoc.documentElement);

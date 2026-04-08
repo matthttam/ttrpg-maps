@@ -1,4 +1,4 @@
-import { App, Modal, Setting, setIcon } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MarkerLayer, DEFAULT_LAYER, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
 import { ImageSuggest } from "../suggests/ImageSuggest";

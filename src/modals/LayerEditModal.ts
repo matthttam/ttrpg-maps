@@ -122,16 +122,12 @@ export class LayerEditModal extends Modal {
       hi: parseInt(maxSlider.value, 10),
     });
 
-    let updatingFromSlider = false;
-
     const updateAll = () => {
       const { lo, hi } = getValues();
 
-      // Update text inputs (guard against re-entrancy from input events)
-      updatingFromSlider = true;
+      // Update text inputs
       minText.value = lo <= trackMin ? "" : String(lo);
       maxText.value = hi >= trackMax ? "" : String(hi);
-      updatingFromSlider = false;
 
       // Update display
       if (lo <= trackMin && hi >= trackMax) {

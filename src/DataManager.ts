@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import type TTRPGMapsPlugin from "./main";
 import { MapState, MapMarker, TTRPGMapsSettings, DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID } from "./types";
-import { generateMapId } from "./utils/mapId";
+
 
 const TTRPGMAP_DIR = ".ttrpgmap";
 

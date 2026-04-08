@@ -48,7 +48,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
 
 Maps are rendered from `ttrpgmap` code blocks in your notes. The code block specifies an image path and optional settings. The plugin renders the image inside an interactive container with pan and zoom.
 
-<!-- TODO: screenshot of a rendered map with the zoom controls visible -->
+<img width="1207" height="1208" alt="image" src="https://github.com/user-attachments/assets/ad346472-f640-4d6b-b687-d267533049a4" />
 
 **Zoom controls** appear in the top-left corner:
 - **+** button zooms in by the configured step
@@ -74,7 +74,7 @@ The current zoom level is displayed as a percentage between the buttons.
 
 Right-click anywhere on the map to open the context menu. Select a template to place a marker at that location.
 
-<!-- TODO: screenshot of the right-click context menu showing template options -->
+![Place Marker](https://github.com/user-attachments/assets/540af662-c53f-4e3e-8f65-51fd62d97225)
 
 - The **Default** template is always available
 - Custom templates appear as additional menu items
@@ -87,7 +87,7 @@ After selecting a template, the **marker edit modal** opens so you can customize
 
 The marker edit modal lets you configure every aspect of a marker.
 
-<!-- TODO: screenshot of the marker edit modal -->
+<img width="1456" height="1660" alt="image" src="https://github.com/user-attachments/assets/9211f13d-a721-4e09-9919-8a4092428e1e" />
 
 | Field | Description |
 |---|---|
@@ -118,7 +118,7 @@ A **live preview** in the modal shows how the marker will look as you change set
 
 ### Marker Interactions on the Map
 
-<!-- TODO: screenshot showing a marker being dragged -->
+![Marker Dragging](https://github.com/user-attachments/assets/86303499-ede1-4408-b424-a876a32a396c)
 
 | Action | Behavior |
 |---|---|
@@ -148,7 +148,7 @@ When enabled, hovering over a marker with a linked note shows Obsidian's built-i
 
 Right-click a marker and choose **Copy Marker** to enter copy mode.
 
-<!-- TODO: screenshot of copy mode with the ghost preview following the cursor -->
+![Marker Copy](https://github.com/user-attachments/assets/085ef656-d198-4240-ae5e-56793c5c32d5)
 
 - The cursor changes to a copy icon
 - A ghost preview of the marker follows the cursor
@@ -160,7 +160,7 @@ Right-click a marker and choose **Copy Marker** to enter copy mode.
 
 Right-click a marker and choose **Resize Marker** or **Resize Text** to enter resize mode.
 
-<!-- TODO: screenshot of resize mode showing the drag handle with scale label -->
+![Marker Resize](https://github.com/user-attachments/assets/ea145bfd-c64f-4670-9e42-3d47a94287d1)
 
 - A drag handle appears next to the marker with a grip icon, scale readout (e.g. "1.50x"), and a label ("Marker" or "Text")
 - Drag the handle left or right to scale up or down (range 0.1x - 5.0x)
@@ -174,15 +174,16 @@ Right-click a marker and choose **Resize Marker** or **Resize Text** to enter re
 
 ### Pin Shapes
 
-Markers support three base shapes:
+Markers support four base shapes:
 
-<!-- TODO: screenshot showing all three shapes side by side -->
+![Marker Types](https://github.com/user-attachments/assets/40477128-4331-4af3-b5dc-56490a558126)
 
 | Shape | Description |
 |---|---|
 | **Pin** | Traditional teardrop/location marker. Points in a configurable direction. Icon renders inside the pin |
 | **Circle** | Circular background with centered anchor. Icon renders inside |
 | **Hotspot** | Invisible by default. Shows a dashed circle outline on hover. Useful for clickable regions without visual clutter |
+| **Icon Only** | Turning off the marker uses the selected icon as the pin shape. |
 
 Set `Use Pin Shape` to off in the marker edit modal to render the icon **standalone** (no pin or circle background). The icon renders at full size directly on the map.
 
@@ -193,7 +194,7 @@ Over 5,500 icons are available:
 - **~1,400 Font Awesome** icons (bundled inline for fast loading)
 - **~4,100 Game Icons** (loaded at runtime)
 
-<!-- TODO: screenshot of the icon search dropdown -->
+![Icon Listing](https://github.com/user-attachments/assets/24898abe-a34c-460d-ad9c-63ac13c629a1)
 
 Type in the icon field to search by name (up to 100 results). The dropdown shows a preview, the icon name, and the source library (FA or Game Icons). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance.
 
@@ -212,7 +213,7 @@ Both use a color picker.
 
 Markers can display a text label with a **title** (from the linked note name or alias) and a **description**.
 
-<!-- TODO: screenshot of a marker with a label showing title and description -->
+<img width="313" height="303" alt="image" src="https://github.com/user-attachments/assets/224cb6ee-7083-4176-bddb-5d8f648d774e" />
 
 Label placement options:
 - **Above** - Label appears above the marker
@@ -259,7 +260,7 @@ Each level can also configure **zoom behavior**:
 
 Open **Settings** > **TTRPG Maps** to manage templates.
 
-<!-- TODO: screenshot of the template manager in settings -->
+<img width="1185" height="868" alt="image" src="https://github.com/user-attachments/assets/0a69b4b0-e31e-4b12-ae6e-98806ba8f685" />
 
 - **Add Template** - Opens the template edit modal immediately with the name field focused and selected. On save the template is created; on cancel nothing is added
 - **Add Folder** - Creates a folder with inline rename
@@ -274,7 +275,7 @@ A built-in **Default** template is always present and cannot be deleted (but can
 
 ### Template Folders
 
-<!-- TODO: screenshot of template folders in settings -->
+<img width="1185" height="868" alt="image" src="https://github.com/user-attachments/assets/a28ef3b1-1b94-4dcb-9d3f-d29e5b7057f0" />
 
 Templates can be organized into folders:
 - Drag templates into or out of folders
@@ -311,7 +312,7 @@ A **Restore Defaults** button resets all templates and folders to the built-in d
 
 The measurement panel is accessed via the **ruler icon** button in the top-right area of the map.
 
-<!-- TODO: screenshot of the measurement panel expanded -->
+<img width="341" height="287" alt="image" src="https://github.com/user-attachments/assets/0fcb9f41-1a94-4b8c-95b8-b0f133016fca" />
 
 ### Calibration
 
@@ -325,7 +326,7 @@ Calibration sets the distance scale for the map.
 
 The scale is saved per-map and persists across sessions. You must calibrate before measuring. A zero-length calibration line (clicking the same point twice) is rejected with a notice. Clicking **Cancel** or closing the calibration modal clears the drawn line and returns to calibration mode.
 
-<!-- TODO: screenshot of the calibration modal -->
+<img width="849" height="642" alt="image" src="https://github.com/user-attachments/assets/a7ac6506-6ff6-4d9e-921a-b609d560d6b9" />
 
 ### Point-to-Point Measurement
 
@@ -339,7 +340,7 @@ The scale is saved per-map and persists across sessions. You must calibrate befo
 
 The live preview is useful for finding a specific distance from a point before committing.
 
-<!-- TODO: screenshot showing a multi-point measurement path with segment labels -->
+<img width="582" height="385" alt="image" src="https://github.com/user-attachments/assets/90b84ad6-1af2-4275-a51f-2f5fee6fc628" />
 
 ### Freehand Measurement
 
@@ -350,7 +351,7 @@ The live preview is useful for finding a specific distance from a point before c
 5. The total distance readout updates with each stroke
 6. Double-click, right-click, or press **Escape** to finish
 
-<!-- TODO: screenshot showing a freehand measurement curve -->
+![Measuring Free Hand](https://github.com/user-attachments/assets/abfbd0f7-a0aa-4a60-a444-36f87b373fa6)
 
 ### Rounding
 
@@ -385,7 +386,8 @@ During measurement, markers and their labels are dimmed and non-interactive. Hov
 
 Layers control which markers are visible at different zoom levels.
 
-<!-- TODO: screenshot of map settings showing the layers section -->
+<img width="1095" height="1795" alt="image" src="https://github.com/user-attachments/assets/29e17013-e557-4d74-a54c-5c616dd03602" />
+<img width="845" height="535" alt="image" src="https://github.com/user-attachments/assets/ce5ca129-0dfd-4d96-9865-98237d42c4b9" />
 
 Each layer defines a zoom range using a **dual-handle range slider**:
 - The slider spans the map's configured zoom range (e.g., 50% to 200%)
@@ -422,7 +424,7 @@ The marker edit modal shows a **Layer** dropdown when the map has more than one 
 
 The marker list is a collapsible panel in the bottom-left corner of the map.
 
-<!-- TODO: screenshot of the marker list panel expanded -->
+<img width="371" height="486" alt="image" src="https://github.com/user-attachments/assets/d9c721ac-4619-4a74-98d5-873e2853da00" />
 
 - **Toggle** - Click the list icon to show or hide the panel
 - **Pin** - Click the pin icon to keep the panel visible (otherwise it hides when the mouse leaves)
@@ -500,7 +502,7 @@ Same controls as marker scale, but for label text.
 
 Access via **Settings** > **TTRPG Maps**.
 
-<!-- TODO: screenshot of the global settings tab -->
+<img width="1644" height="1495" alt="image" src="https://github.com/user-attachments/assets/fdec983d-7832-4ace-9585-d47626475f41" />
 
 ### Markers section
 
@@ -566,7 +568,7 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 
 ### Map background (right-click)
 
-<!-- TODO: screenshot of map context menu -->
+<img width="303" height="465" alt="image" src="https://github.com/user-attachments/assets/259f0b3c-b603-443f-b1b5-53659db68b97" />
 
 | Item | Action |
 |---|---|
@@ -579,7 +581,7 @@ When the map has multiple layers, each template entry expands into a submenu to 
 
 ### Marker (right-click)
 
-<!-- TODO: screenshot of marker context menu -->
+<img width="321" height="296" alt="image" src="https://github.com/user-attachments/assets/9db56641-190c-4801-a65b-ef4fb87133ee" />
 
 | Item | Action |
 |---|---|

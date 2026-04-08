@@ -26,6 +26,8 @@ gi-icons.json
 .*
 !.gitignore
 !.github
+!.nvmrc
+!.prettierrc
 
 # Data files
 data.json

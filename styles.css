@@ -565,6 +565,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.ttrpgmap-marker-layer-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ttrpgmap-marker-dragging {

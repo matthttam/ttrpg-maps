@@ -1,7 +1,7 @@
-import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
+import { MarkdownRenderChild, Menu, Notice, setIcon, parseLinktext } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MapMarker, MapPoint, MarkerTemplate, RoundingMode, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
-import { MapSettingsModal, type IdAction } from "../modals/MapSettingsModal";
+import { MapSettingsModal } from "../modals/MapSettingsModal";
 import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
 import { serializeMapConfig, writeConfigToCodeBlock } from "../utils/configSerializer";
@@ -991,9 +991,9 @@ export class MapRenderer extends MarkdownRenderChild {
       const marker = markerMap.get(id);
       if (!marker) return;
 
-      // Update visibility
+      // Update visibility (fade instead of instant hide)
       const visible = this.isMarkerVisible(marker);
-      el.toggleClass("ttrpgmap-hidden", !visible);
+      el.toggleClass("ttrpgmap-marker-layer-hidden", !visible);
 
       // Update scales
       const markerBaseScale = this.getMarkerBaseScale(marker);
@@ -1007,15 +1007,6 @@ export class MapRenderer extends MarkdownRenderChild {
       el.style.setProperty("--marker-text-scale", String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
     });
 
-    // Check if any markers became visible/hidden that weren't rendered
-    const renderedIds = new Set<string>();
-    els.forEach((el) => { if (el.dataset.markerId) renderedIds.add(el.dataset.markerId); });
-    for (const marker of this.state.markers) {
-      if (this.isMarkerVisible(marker) && !renderedIds.has(marker.id)) {
-        needsFullRender = true;
-        break;
-      }
-    }
     if (needsFullRender) this.renderMarkers();
   }
 
@@ -1057,8 +1048,8 @@ export class MapRenderer extends MarkdownRenderChild {
     const isMeasuring = this.mode !== "pan";
 
     for (const marker of this.state.markers) {
-      if (!this.isMarkerVisible(marker)) continue;
       const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring);
+      if (!this.isMarkerVisible(marker)) markerEl.addClass("ttrpgmap-marker-layer-hidden");
       if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
     }
 
@@ -1125,7 +1116,7 @@ export class MapRenderer extends MarkdownRenderChild {
       markerEl.addEventListener("click", (e) => {
         if (this.hasDragged) { this.hasDragged = false; return; }
         e.stopPropagation();
-        const newTab = this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? true;
+        const newTab = this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? false;
         void this.plugin.app.workspace.openLinkText(navPath, "", newTab);
       });
     }
@@ -1146,7 +1137,8 @@ export class MapRenderer extends MarkdownRenderChild {
       let previewPath: string | null = null;
       if (marker.previewNote) {
         const p = linkPath(marker.previewNote);
-        if (p && this.plugin.app.metadataCache.getFirstLinkpathDest(p, "")) {
+        const { path: basePath } = parseLinktext(p);
+        if (basePath && this.plugin.app.metadataCache.getFirstLinkpathDest(basePath, "")) {
           previewPath = p;
         }
       }
@@ -1922,34 +1914,54 @@ export class MapRenderer extends MarkdownRenderChild {
       this.plugin,
       this.config,
       this.state,
-      (updatedConfig, updatedState, oldId, idAction) => {
+      // onSave: normal settings save (no ID change)
+      (updatedConfig, updatedState) => {
         this.config = updatedConfig;
         this.state = updatedState;
         this.applyWrapperSize();
         if (this.sectionInfo) {
           void writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
         }
-        // Handle ID change actions
-        if (oldId && idAction) {
-          void (async () => {
-            if (idAction === "migrate") {
-              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
-              await this.plugin.dataManager.deleteMapState(oldId);
-            } else if (idAction === "delete") {
-              await this.plugin.dataManager.deleteMapState(oldId);
-              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
-            } else if (idAction === "orphan") {
-              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
-            }
-            await this.plugin.dataManager.flushSaves();
-            this.renderMarkers();
-            this.refreshMarkerList();
-          })();
-        } else {
-          this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+        this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+        this.renderMarkers();
+        this.refreshMarkerList();
+      },
+      // onIdChanged: executes immediately when the user picks an action
+      (oldId, newId, action) => {
+        void (async () => {
+          const dm = this.plugin.dataManager;
+          const freshState = (): MapState => ({ mapId: newId, markers: [], layers: [{ id: "default", name: "Default Layer", zoomMin: null, zoomMax: null }], distanceScale: null });
+          if (action === "migrate") {
+            // Move data to new ID, delete old
+            const currentState = await dm.loadMapState(oldId);
+            currentState.mapId = newId;
+            dm.saveMapState(newId, currentState);
+            await dm.deleteMapState(oldId);
+            this.state = currentState;
+          } else if (action === "copy") {
+            // Copy data to new ID, keep old
+            const currentState = await dm.loadMapState(oldId);
+            currentState.mapId = newId;
+            dm.saveMapState(newId, currentState);
+            this.state = currentState;
+          } else if (action === "orphan") {
+            // Fresh state, keep old data behind
+            this.state = freshState();
+            dm.saveMapState(newId, this.state);
+          } else if (action === "delete") {
+            // Fresh state, delete old data
+            await dm.deleteMapState(oldId);
+            this.state = freshState();
+            dm.saveMapState(newId, this.state);
+          }
+          await dm.flushSaves();
+          this.config.id = newId;
+          if (this.sectionInfo) {
+            void writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
+          }
           this.renderMarkers();
           this.refreshMarkerList();
-        }
+        })();
       },
     ).open();
   }

@@ -88,7 +88,7 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
       .setDesc("When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.")
       .addToggle((toggle) => {
         toggle
-          .setValue(this.plugin.settings.openLinksInNewTab ?? true)
+          .setValue(this.plugin.settings.openLinksInNewTab ?? false)
           .onChange((value) => {
             this.plugin.settings.openLinksInNewTab = value;
             void this.plugin.dataManager.saveSettings(this.plugin.settings);

@@ -288,7 +288,7 @@ export class MarkerEditModal extends Modal {
     const isExpanded = sizeOverridesExpanded.get(this.app) ?? false;
 
     const scaleHeading = new Setting(scaleGroup).setName("Size overrides").setHeading();
-    const chevron = scaleHeading.nameEl.createDiv({ cls: "ttrpgmap-folder-chevron" });
+    const chevron = createSpan({ cls: "ttrpgmap-folder-chevron" });
     setIcon(chevron, "chevron-down");
     scaleHeading.nameEl.insertBefore(chevron, scaleHeading.nameEl.firstChild);
     scaleHeading.settingEl.setCssStyles({ cursor: "pointer" });

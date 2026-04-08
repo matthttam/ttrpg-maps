@@ -6,18 +6,15 @@ import { LayerEditModal } from "./LayerEditModal";
 import { buildScaleSlider } from "./sharedFields";
 import { exportMap } from "../utils/mapExport";
 
-export type IdAction = "migrate" | "delete" | "orphan" | null;
-
 export class MapSettingsModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private config: MapConfig;
   private state: MapState;
   private originalConfig: string;
   private originalState: string;
-  private originalId: string;
-  private pendingIdAction: IdAction = null;
   private _idTextEl: HTMLInputElement | null = null;
-  private onSave: (config: MapConfig, state: MapState, oldId: string | null, idAction: IdAction) => void;
+  private onSave: (config: MapConfig, state: MapState) => void;
+  private onIdChanged: (oldId: string, newId: string, action: "migrate" | "copy" | "delete" | "orphan") => void;
   private saved = false;
 
   constructor(
@@ -25,7 +22,8 @@ export class MapSettingsModal extends Modal {
     plugin: TTRPGMapsPlugin,
     config: MapConfig,
     state: MapState,
-    onSave: (config: MapConfig, state: MapState, oldId: string | null, idAction: IdAction) => void,
+    onSave: (config: MapConfig, state: MapState) => void,
+    onIdChanged: (oldId: string, newId: string, action: "migrate" | "copy" | "delete" | "orphan") => void,
   ) {
     super(app);
     this.plugin = plugin;
@@ -33,8 +31,8 @@ export class MapSettingsModal extends Modal {
     this.state = JSON.parse(JSON.stringify(state));
     this.originalConfig = JSON.stringify(config);
     this.originalState = JSON.stringify(state);
-    this.originalId = config.id;
     this.onSave = onSave;
+    this.onIdChanged = onIdChanged;
   }
 
   private isDirty(): boolean {
@@ -61,9 +59,7 @@ export class MapSettingsModal extends Modal {
 
   private doSave(): void {
     this.saved = true;
-    const oldId = this.config.id !== this.originalId ? this.originalId : null;
-    this.state.mapId = this.config.id;
-    this.onSave(this.config, this.state, oldId, this.pendingIdAction);
+    this.onSave(this.config, this.state);
     this.close();
   }
 
@@ -114,28 +110,34 @@ export class MapSettingsModal extends Modal {
       cls: "ttrpgmap-muted",
     });
 
+    const oldId = this.config.id;
+    const executeIdChange = (action: "migrate" | "copy" | "delete" | "orphan") => {
+      const id = newId.trim();
+      if (!id || id === oldId) return;
+      this.onIdChanged(oldId, id, action);
+      // Update local state to reflect the change
+      this.config.id = id;
+      this.state.mapId = id;
+      if (action === "delete" || action === "orphan") {
+        this.state = {
+          mapId: id,
+          markers: [],
+          layers: [{ id: "default", name: "Default Layer", zoomMin: null, zoomMax: null }],
+          distanceScale: null,
+        };
+      }
+      // Update snapshots so this isn't "dirty"
+      this.originalConfig = JSON.stringify(this.config);
+      this.originalState = JSON.stringify(this.state);
+      if (this._idTextEl) this._idTextEl.value = id;
+      modal.close();
+    };
+
     new Setting(contentEl)
-      .addButton((btn) => btn.setButtonText("Migrate data").setCta().setTooltip("Move all markers, layers, and settings to the new ID").onClick(() => {
-        if (!newId.trim()) return;
-        this.config.id = newId.trim();
-        this.pendingIdAction = "migrate";
-        if (this._idTextEl) this._idTextEl.value = this.config.id;
-        modal.close();
-      }))
-      .addButton((btn) => btn.setButtonText("Delete data").setWarning().setTooltip("Permanently delete the old data and start fresh").onClick(() => {
-        if (!newId.trim()) return;
-        this.config.id = newId.trim();
-        this.pendingIdAction = "delete";
-        if (this._idTextEl) this._idTextEl.value = this.config.id;
-        modal.close();
-      }))
-      .addButton((btn) => btn.setButtonText("Orphan data").setTooltip("Leave old data behind (delete later in manage map data)").onClick(() => {
-        if (!newId.trim()) return;
-        this.config.id = newId.trim();
-        this.pendingIdAction = "orphan";
-        if (this._idTextEl) this._idTextEl.value = this.config.id;
-        modal.close();
-      }))
+      .addButton((btn) => btn.setButtonText("Migrate").setCta().setTooltip("Move data to the new ID, delete old").onClick(() => executeIdChange("migrate")))
+      .addButton((btn) => btn.setButtonText("Copy").setTooltip("Copy data to the new ID, keep old").onClick(() => executeIdChange("copy")))
+      .addButton((btn) => btn.setButtonText("Orphan").setTooltip("Start fresh, keep old data behind").onClick(() => executeIdChange("orphan")))
+      .addButton((btn) => btn.setButtonText("Delete").setWarning().setTooltip("Start fresh, delete old data").onClick(() => executeIdChange("delete")))
       .addButton((btn) => btn.setButtonText("Cancel").onClick(() => modal.close()));
 
     modal.open();
@@ -245,7 +247,7 @@ export class MapSettingsModal extends Modal {
     });
 
     // ── Navigation ──
-    const globalNewTab = this.plugin.settings.openLinksInNewTab ?? true;
+    const globalNewTab = this.plugin.settings.openLinksInNewTab ?? false;
     const globalNewTabLabel = globalNewTab ? "New tab" : "Current tab";
     new Setting(mapItems)
       .setName("Open links in")

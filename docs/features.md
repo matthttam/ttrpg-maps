@@ -51,6 +51,7 @@ Maps are rendered from `ttrpgmap` code blocks in your notes. The code block spec
 <img width="1207" height="1208" alt="image" src="https://github.com/user-attachments/assets/ad346472-f640-4d6b-b687-d267533049a4" />
 
 **Zoom controls** appear in the top-left corner:
+
 - **+** button zooms in by the configured step
 - **-** button zooms out by the configured step
 - **Center** button resets pan and zoom to the initial view
@@ -89,24 +90,24 @@ The marker edit modal lets you configure every aspect of a marker.
 
 <img width="1456" height="1660" alt="image" src="https://github.com/user-attachments/assets/9211f13d-a721-4e09-9919-8a4092428e1e" />
 
-| Field | Description |
-|---|---|
-| **Template** | Which template this marker is based on |
-| **Note link** | Link to a vault note (supports `#headings` and `#^block-ids`) |
-| **Alias** | Display name shown on the map instead of the note filename |
-| **Preview Note** | Alternate note shown in hover preview (blank uses the linked note) |
-| **Description** | Additional text shown in the marker label and list tooltip |
-| **Pin shape and direction** | Choose pin/circle/hotspot and which direction the pin points |
-| **Icon** | Search and select from 5,500+ icons |
-| **Icon rotation** | Rotate the icon (slider 0-359 degrees) |
-| **Icon color** | Color of the icon (independent of pin color) |
-| **Pin color** | Background color of the pin or circle shape |
-| **Text placement** | Where the label appears relative to the marker (above/below/left/right) |
-| **Marker size** | Override the map-level marker scale (toggle to enable, slider 25-300%) |
-| **Scale to zoom** | Inherit / Screen-constant / Fixed to map |
-| **Text size** | Override the map-level text scale (toggle to enable, slider 25-300%) |
-| **Text scale to zoom** | Inherit / Screen-constant / Fixed to map |
-| **Layer** | Assign to a visibility layer (only shown if multiple layers exist) |
+| Field                       | Description                                                             |
+| --------------------------- | ----------------------------------------------------------------------- |
+| **Template**                | Which template this marker is based on                                  |
+| **Note link**               | Link to a vault note (supports `#headings` and `#^block-ids`)           |
+| **Alias**                   | Display name shown on the map instead of the note filename              |
+| **Preview Note**            | Alternate note shown in hover preview (blank uses the linked note)      |
+| **Description**             | Additional text shown in the marker label and list tooltip              |
+| **Pin shape and direction** | Choose pin/circle/hotspot and which direction the pin points            |
+| **Icon**                    | Search and select from 5,500+ icons                                     |
+| **Icon rotation**           | Rotate the icon (slider 0-359 degrees)                                  |
+| **Icon color**              | Color of the icon (independent of pin color)                            |
+| **Pin color**               | Background color of the pin or circle shape                             |
+| **Text placement**          | Where the label appears relative to the marker (above/below/left/right) |
+| **Marker size**             | Override the map-level marker scale (toggle to enable, slider 25-300%)  |
+| **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                |
+| **Text size**               | Override the map-level text scale (toggle to enable, slider 25-300%)    |
+| **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                |
+| **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)      |
 
 Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
 
@@ -120,16 +121,16 @@ A **live preview** in the modal shows how the marker will look as you change set
 
 ![Marker Dragging](https://github.com/user-attachments/assets/86303499-ede1-4408-b424-a876a32a396c)
 
-| Action | Behavior |
-|---|---|
-| **Click** (marker with note link) | Navigate to the linked note (new tab or current, configurable) |
-| **Hover** (if hover preview enabled) | Show Obsidian's page preview popover for the linked note (or custom preview note) |
-| **Drag** | Reposition the marker. Position is saved on release |
-| **Right-click** | Open the marker context menu (Edit, Copy, Resize Marker, Resize Text, Delete) |
-| **Alt + Scroll** (over pin) | Quick-resize the marker's pin/icon scale |
-| **Alt + Scroll** (over label) | Quick-resize the marker's text scale |
-| **Shift + Alt + Scroll** (over pin) | Adjust the map-level marker scale for all markers |
-| **Shift + Alt + Scroll** (over label) | Adjust the map-level text scale for all markers |
+| Action                                | Behavior                                                                          |
+| ------------------------------------- | --------------------------------------------------------------------------------- |
+| **Click** (marker with note link)     | Navigate to the linked note (new tab or current, configurable)                    |
+| **Hover** (if hover preview enabled)  | Show Obsidian's page preview popover for the linked note (or custom preview note) |
+| **Drag**                              | Reposition the marker. Position is saved on release                               |
+| **Right-click**                       | Open the marker context menu (Edit, Copy, Resize Marker, Resize Text, Delete)     |
+| **Alt + Scroll** (over pin)           | Quick-resize the marker's pin/icon scale                                          |
+| **Alt + Scroll** (over label)         | Quick-resize the marker's text scale                                              |
+| **Shift + Alt + Scroll** (over pin)   | Adjust the map-level marker scale for all markers                                 |
+| **Shift + Alt + Scroll** (over label) | Adjust the map-level text scale for all markers                                   |
 
 ### Hover Preview
 
@@ -178,12 +179,12 @@ Markers support four base shapes:
 
 ![Marker Types](https://github.com/user-attachments/assets/40477128-4331-4af3-b5dc-56490a558126)
 
-| Shape | Description |
-|---|---|
-| **Pin** | Traditional teardrop/location marker. Points in a configurable direction. Icon renders inside the pin |
-| **Circle** | Circular background with centered anchor. Icon renders inside |
-| **Hotspot** | Invisible by default. Shows a dashed circle outline on hover. Useful for clickable regions without visual clutter |
-| **Icon Only** | Turning off the marker uses the selected icon as the pin shape. |
+| Shape         | Description                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Pin**       | Traditional teardrop/location marker. Points in a configurable direction. Icon renders inside the pin             |
+| **Circle**    | Circular background with centered anchor. Icon renders inside                                                     |
+| **Hotspot**   | Invisible by default. Shows a dashed circle outline on hover. Useful for clickable regions without visual clutter |
+| **Icon Only** | Turning off the marker uses the selected icon as the pin shape.                                                   |
 
 Set `Use Pin Shape` to off in the marker edit modal to render the icon **standalone** (no pin or circle background). The icon renders at full size directly on the map.
 
@@ -216,6 +217,7 @@ Markers can display a text label with a **title** (from the linked note name or 
 <img width="313" height="303" alt="image" src="https://github.com/user-attachments/assets/224cb6ee-7083-4176-bddb-5d8f648d774e" />
 
 Label placement options:
+
 - **Above** - Label appears above the marker
 - **Below** - Label appears below the marker
 - **Left** - Label appears to the left
@@ -227,12 +229,12 @@ Labels have a dark semi-transparent background with white text. Titles use ellip
 
 Pin-shaped markers can point in four directions:
 
-| Direction | Effect |
-|---|---|
-| **Down** (default) | Pin points downward |
-| **Up** | Pin rotates 180 degrees to point upward |
-| **Left** | Pin rotates 90 degrees to point left |
-| **Right** | Pin rotates -90 degrees to point right |
+| Direction          | Effect                                  |
+| ------------------ | --------------------------------------- |
+| **Down** (default) | Pin points downward                     |
+| **Up**             | Pin rotates 180 degrees to point upward |
+| **Left**           | Pin rotates 90 degrees to point left    |
+| **Right**          | Pin rotates -90 degrees to point right  |
 
 The icon inside the pin counter-rotates to stay upright. Standalone icons (no pin shape) are not affected by direction.
 
@@ -246,11 +248,11 @@ Marker and text size follow a three-tier hierarchy:
 
 Each level can also configure **zoom behavior**:
 
-| Mode | Behavior |
-|---|---|
-| **Screen-constant** | Marker stays the same size on screen regardless of zoom level |
-| **Fixed to map** | Marker scales proportionally with the map as you zoom in and out |
-| **Inherit** | Uses the setting from the next level up |
+| Mode                | Behavior                                                         |
+| ------------------- | ---------------------------------------------------------------- |
+| **Screen-constant** | Marker stays the same size on screen regardless of zoom level    |
+| **Fixed to map**    | Marker scales proportionally with the map as you zoom in and out |
+| **Inherit**         | Uses the setting from the next level up                          |
 
 ---
 
@@ -278,6 +280,7 @@ A built-in **Default** template is always present and cannot be deleted (but can
 <img width="1185" height="868" alt="image" src="https://github.com/user-attachments/assets/a28ef3b1-1b94-4dcb-9d3f-d29e5b7057f0" />
 
 Templates can be organized into folders:
+
 - Drag templates into or out of folders
 - Folders appear as submenus in the map right-click context menu (sorted alphabetically)
 - Click a folder header or its chevron to collapse/expand it
@@ -357,12 +360,12 @@ The live preview is useful for finding a specific distance from a point before c
 
 The measurement panel includes rounding controls:
 
-| Mode | Behavior |
-|---|---|
-| **None** | Distances shown as calculated |
-| **Closest** | Round to the nearest multiple |
-| **Up** | Round up to the next multiple |
-| **Down** | Round down to the previous multiple |
+| Mode        | Behavior                            |
+| ----------- | ----------------------------------- |
+| **None**    | Distances shown as calculated       |
+| **Closest** | Round to the nearest multiple       |
+| **Up**      | Round up to the next multiple       |
+| **Down**    | Round down to the previous multiple |
 
 When a rounding mode is selected, a **multiple** input appears (e.g. "5" to round to the nearest 5 feet). A **Raw** checkbox also appears - when checked, all distance outputs always include the raw (unrounded) value in parentheses after the rounded value. For example: `40.00 (39.21) ft`.
 
@@ -390,6 +393,7 @@ Layers control which markers are visible at different zoom levels.
 <img width="845" height="535" alt="image" src="https://github.com/user-attachments/assets/ce5ca129-0dfd-4d96-9865-98237d42c4b9" />
 
 Each layer defines a zoom range using a **dual-handle range slider**:
+
 - The slider spans the map's configured zoom range (e.g., 50% to 200%)
 - Drag the handles to set when markers on this layer are visible
 - Editable number inputs allow precise values (validated on blur or Enter)
@@ -430,6 +434,7 @@ The marker list is a collapsible panel in the bottom-left corner of the map.
 - **Pin** - Click the pin icon to keep the panel visible (otherwise it hides when the mouse leaves)
 
 Each row in the list shows:
+
 - A **mini preview** of the marker's pin/icon
 - The **marker name** (from the linked note, or "Unnamed")
 - An **edit button** (pencil icon) to open the marker edit modal
@@ -437,6 +442,7 @@ Each row in the list shows:
 - A **hidden indicator** (eye-off icon) if the marker is outside the current zoom range
 
 Interactions:
+
 - **Click a row** to pan the map and center on that marker
 - **Hover a row** to highlight the corresponding marker on the map with a bounce animation
 - **Hover the marker name** to see the full description in a tooltip
@@ -550,15 +556,15 @@ zoomstep: 15
 ```
 ````
 
-| Field | Required | Description | Default |
-|---|---|---|---|
-| `image` | Yes | Path to the map image relative to the vault root | - |
-| `id` | No | Unique map identifier. Maps with different IDs have separate marker sets | Auto-generated from image path |
-| `height` | No | Container height. Accepts `px` or `%` values | Auto-scales to aspect ratio |
-| `width` | No | Container width. Accepts `px` or `%` values | Auto-scales to aspect ratio |
-| `zoommin` | No | Minimum zoom percentage | `50` |
-| `zoommax` | No | Maximum zoom percentage | `200` |
-| `zoomstep` | No | Zoom step per scroll or button click | `10` |
+| Field      | Required | Description                                                              | Default                        |
+| ---------- | -------- | ------------------------------------------------------------------------ | ------------------------------ |
+| `image`    | Yes      | Path to the map image relative to the vault root                         | -                              |
+| `id`       | No       | Unique map identifier. Maps with different IDs have separate marker sets | Auto-generated from image path |
+| `height`   | No       | Container height. Accepts `px` or `%` values                             | Auto-scales to aspect ratio    |
+| `width`    | No       | Container width. Accepts `px` or `%` values                              | Auto-scales to aspect ratio    |
+| `zoommin`  | No       | Minimum zoom percentage                                                  | `50`                           |
+| `zoommax`  | No       | Maximum zoom percentage                                                  | `200`                          |
+| `zoomstep` | No       | Zoom step per scroll or button click                                     | `10`                           |
 
 Keys are case-insensitive. Lines starting with `#` are treated as comments. Changes made in the map settings modal are written back to the code block automatically.
 
@@ -570,12 +576,12 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 
 <img width="303" height="465" alt="image" src="https://github.com/user-attachments/assets/259f0b3c-b603-443f-b1b5-53659db68b97" />
 
-| Item | Action |
-|---|---|
-| **Place Marker** | Places a marker using the default template |
-| *Template name* | Places a marker using that template |
-| *Folder name* > *Template* | Templates in folders appear as submenus |
-| **Edit Templates** | Opens plugin settings to the template manager |
+| Item                       | Action                                        |
+| -------------------------- | --------------------------------------------- |
+| **Place Marker**           | Places a marker using the default template    |
+| _Template name_            | Places a marker using that template           |
+| _Folder name_ > _Template_ | Templates in folders appear as submenus       |
+| **Edit Templates**         | Opens plugin settings to the template manager |
 
 When the map has multiple layers, each template entry expands into a submenu to select the target layer. Templates and folders are sorted alphabetically.
 
@@ -583,13 +589,13 @@ When the map has multiple layers, each template entry expands into a submenu to 
 
 <img width="321" height="296" alt="image" src="https://github.com/user-attachments/assets/9db56641-190c-4801-a65b-ef4fb87133ee" />
 
-| Item | Action |
-|---|---|
-| **Edit** | Open the marker edit modal |
-| **Copy Marker** | Enter copy mode with a ghost preview |
+| Item              | Action                               |
+| ----------------- | ------------------------------------ |
+| **Edit**          | Open the marker edit modal           |
+| **Copy Marker**   | Enter copy mode with a ghost preview |
 | **Resize Marker** | Enter interactive marker resize mode |
-| **Resize Text** | Enter interactive text resize mode |
-| **Delete** | Remove the marker immediately |
+| **Resize Text**   | Enter interactive text resize mode   |
+| **Delete**        | Remove the marker immediately        |
 
 ---
 
@@ -597,32 +603,32 @@ When the map has multiple layers, each template entry expands into a submenu to 
 
 ### Mouse
 
-| Input | Context | Action |
-|---|---|---|
-| **Click + drag** | Map background | Pan the map |
-| **Scroll wheel** | Map | Zoom in/out |
-| **Right-click** | Map background | Open map context menu |
-| **Right-click** | Marker | Open marker context menu |
-| **Click** | Marker with note | Navigate to the linked note (new tab or current) |
-| **Hover** | Marker with note (preview enabled) | Show Obsidian page preview popover |
-| **Click + drag** | Marker | Reposition the marker |
-| **Alt + Scroll** | Over marker pin | Adjust per-marker pin/icon scale |
-| **Alt + Scroll** | Over marker label | Adjust per-marker text scale |
-| **Shift + Alt + Scroll** | Over marker pin | Adjust map-level marker scale |
-| **Shift + Alt + Scroll** | Over marker label | Adjust map-level text scale |
-| **Click** | During measurement | Place a measurement point |
-| **Click + drag** | During freehand | Draw a measurement stroke |
-| **Double-click** | During measurement/freehand | Finish measuring and show total |
-| **Right-click** | During measurement | Finish measuring |
+| Input                    | Context                            | Action                                           |
+| ------------------------ | ---------------------------------- | ------------------------------------------------ |
+| **Click + drag**         | Map background                     | Pan the map                                      |
+| **Scroll wheel**         | Map                                | Zoom in/out                                      |
+| **Right-click**          | Map background                     | Open map context menu                            |
+| **Right-click**          | Marker                             | Open marker context menu                         |
+| **Click**                | Marker with note                   | Navigate to the linked note (new tab or current) |
+| **Hover**                | Marker with note (preview enabled) | Show Obsidian page preview popover               |
+| **Click + drag**         | Marker                             | Reposition the marker                            |
+| **Alt + Scroll**         | Over marker pin                    | Adjust per-marker pin/icon scale                 |
+| **Alt + Scroll**         | Over marker label                  | Adjust per-marker text scale                     |
+| **Shift + Alt + Scroll** | Over marker pin                    | Adjust map-level marker scale                    |
+| **Shift + Alt + Scroll** | Over marker label                  | Adjust map-level text scale                      |
+| **Click**                | During measurement                 | Place a measurement point                        |
+| **Click + drag**         | During freehand                    | Draw a measurement stroke                        |
+| **Double-click**         | During measurement/freehand        | Finish measuring and show total                  |
+| **Right-click**          | During measurement                 | Finish measuring                                 |
 
 ### Keyboard
 
-| Key | Context | Action |
-|---|---|---|
-| **Escape** | Drawing/measuring | Cancel the current drawing or measurement |
-| **Escape** | Resize mode | Cancel resize and revert to original scale |
-| **Escape** | Copy mode | Cancel copy mode |
-| **Any key** | Copy mode | Cancel copy mode |
+| Key         | Context           | Action                                     |
+| ----------- | ----------------- | ------------------------------------------ |
+| **Escape**  | Drawing/measuring | Cancel the current drawing or measurement  |
+| **Escape**  | Resize mode       | Cancel resize and revert to original scale |
+| **Escape**  | Copy mode         | Cancel copy mode                           |
+| **Any key** | Copy mode         | Cancel copy mode                           |
 
 ---
 
@@ -631,6 +637,7 @@ When the map has multiple layers, each template entry expands into a submenu to 
 ### Map Export
 
 Maps can be exported as ZIP files from the **Map Settings** modal. The ZIP bundle includes:
+
 - The map image file
 - The map's sidecar state (markers, layers, scale, etc.)
 - The code block configuration
@@ -639,6 +646,7 @@ Maps can be exported as ZIP files from the **Map Settings** modal. The ZIP bundl
 ### Map Import
 
 Import a map ZIP via the **Import Map** button on unconfigured map blocks. The import:
+
 - Prompts you to select a destination folder for the image
 - Extracts the image into your vault (appending a number if the filename already exists)
 - Creates the sidecar state file with all markers, layers, and settings
@@ -661,6 +669,7 @@ Static map configuration: image path, dimensions, zoom settings. The plugin writ
 ### Sidecar files (`.ttrpgmap/{mapId}.json`)
 
 Mutable per-map state, including:
+
 - All marker positions and properties
 - Distance scale calibration
 - Rounding mode, multiple, raw toggle, and decimal places
@@ -675,6 +684,7 @@ Saves are debounced (300ms) for performance. These files can be committed to ver
 ### Plugin data (`data.json`)
 
 Global settings managed by Obsidian's built-in persistence:
+
 - Default marker and text scale
 - Default zoom behavior
 - Navigation and hover preview defaults

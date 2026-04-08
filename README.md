@@ -50,6 +50,7 @@ Add an empty `ttrpgmap` code block to any note:
 
 ````markdown
 ```ttrpgmap
+
 ```
 ````
 
@@ -105,7 +106,6 @@ Configure rounding in the measurement panel to snap distances to the nearest mul
 <img width="803" height="624" alt="image" src="https://github.com/user-attachments/assets/5cfcdd20-8d77-4bbe-a943-4fe0faca4f65" />
 <img width="800" height="793" alt="image" src="https://github.com/user-attachments/assets/cd25067e-1f9f-4c8d-8d4f-55f31f966307" />
 
-
 ### 5. Manage templates
 
 Open **Settings** > **TTRPG Maps** to create and organize marker templates. Templates define default values for color, icon, shape, direction, and more. Use **Save & Update Markers** to push template changes to all existing markers that use it.
@@ -114,11 +114,11 @@ Open **Settings** > **TTRPG Maps** to create and organize marker templates. Temp
 
 ## How data is stored
 
-| Data | Location | Managed by |
-|---|---|---|
-| Map config (image, zoom, dimensions) | Code block in your markdown file | Plugin writes back on settings change |
-| Markers, scale, layers, rounding | `.ttrpgmap/{mapId}.json` sidecar files | Plugin (debounced 300ms saves) |
-| Global settings and templates | `.obsidian/plugins/ttrpg-maps/data.json` | Obsidian `loadData`/`saveData` |
+| Data                                 | Location                                 | Managed by                            |
+| ------------------------------------ | ---------------------------------------- | ------------------------------------- |
+| Map config (image, zoom, dimensions) | Code block in your markdown file         | Plugin writes back on settings change |
+| Markers, scale, layers, rounding     | `.ttrpgmap/{mapId}.json` sidecar files   | Plugin (debounced 300ms saves)        |
+| Global settings and templates        | `.obsidian/plugins/ttrpg-maps/data.json` | Obsidian `loadData`/`saveData`        |
 
 Sidecar files keep marker data separate from note content. You can safely commit them to version control or sync them across devices.
 

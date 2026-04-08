@@ -1,52 +1,53 @@
 {
-  "name": "obsidian-ttrpg-maps",
-  "version": "1.1.1",
-  "description": "Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.",
-  "main": "main.js",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/matthttam/ttrpg-maps.git"
-  },
-  "scripts": {
-    "icons": "node scripts/build-icons.mjs",
-    "dev": "node scripts/build-icons.mjs && node esbuild.config.mjs",
-    "build": "node scripts/build-icons.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint --max-warnings=0 src/",
-    "lint:fix": "eslint --fix --quiet src/"
-  },
-  "keywords": [
-    "obsidian",
-    "ttrpg",
-    "maps",
-    "rpg"
-  ],
-  "author": "matthttam",
-  "license": "MIT",
-  "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@eslint/json": "^0.14.0",
-    "@iconify-json/fa6-solid": "^1.2.4",
-    "@iconify-json/game-icons": "^1.2.3",
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.0",
-    "@typescript-eslint/parser": "^8.58.0",
-    "@vitest/coverage-v8": "^4.1.2",
-    "builtin-modules": "^3.3.0",
-    "esbuild": "^0.20.0",
-    "eslint": "^9.39.4",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-obsidianmd": "^0.1.9",
-    "jsdom": "^29.0.1",
-    "lint-staged": "^16.4.0",
-    "obsidian": "latest",
-    "prettier": "^3.8.1",
-    "typescript": "^5.3.0",
-    "typescript-eslint": "^8.58.1",
-    "vitest": "^4.1.2"
-  },
-  "dependencies": {
-    "jszip": "^3.10.1"
-  }
+	"name": "obsidian-ttrpg-maps",
+	"version": "1.1.2",
+	"description": "Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.",
+	"main": "main.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/matthttam/ttrpg-maps.git"
+	},
+	"scripts": {
+		"icons": "node scripts/build-icons.mjs",
+		"dev": "node scripts/build-icons.mjs && node esbuild.config.mjs",
+		"build": "node scripts/build-icons.mjs && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint --max-warnings=0 src/",
+		"lint:fix": "eslint --fix --quiet src/",
+		"format": "prettier --write ."
+	},
+	"keywords": [
+		"obsidian",
+		"ttrpg",
+		"maps",
+		"rpg"
+	],
+	"author": "matthttam",
+	"license": "MIT",
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@eslint/json": "^0.14.0",
+		"@iconify-json/fa6-solid": "^1.2.4",
+		"@iconify-json/game-icons": "^1.2.3",
+		"@types/node": "^20.11.0",
+		"@typescript-eslint/eslint-plugin": "^8.58.0",
+		"@typescript-eslint/parser": "^8.58.0",
+		"@vitest/coverage-v8": "^4.1.2",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.20.0",
+		"eslint": "^9.39.4",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-obsidianmd": "^0.1.9",
+		"jsdom": "^29.0.1",
+		"lint-staged": "^16.4.0",
+		"obsidian": "latest",
+		"prettier": "^3.8.1",
+		"typescript": "^5.3.0",
+		"typescript-eslint": "^8.58.1",
+		"vitest": "^4.1.2"
+	},
+	"dependencies": {
+		"jszip": "^3.10.1"
+	}
 }

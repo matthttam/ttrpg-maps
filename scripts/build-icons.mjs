@@ -7,18 +7,18 @@
  * Run: node scripts/build-icons.mjs
  * Output: src/generated/fa-icons.ts, src/generated/gi-icons.json
  */
-import { createRequire } from "module";
-import fs from "fs";
-import path from "path";
-import zlib from "zlib";
-import { fileURLToPath } from "url";
+import { createRequire } from 'module';
+import fs from 'fs';
+import path from 'path';
+import zlib from 'zlib';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.join(__dirname, "../src/generated");
-const outFile = path.join(outDir, "fa-icons.ts");
+const outDir = path.join(__dirname, '../src/generated');
+const outFile = path.join(outDir, 'fa-icons.ts');
 // GI JSON goes to plugin root (alongside main.js) for runtime loading
-const giJsonFile = path.join(__dirname, "../gi-icons.json");
+const giJsonFile = path.join(__dirname, '../gi-icons.json');
 
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
@@ -26,8 +26,8 @@ if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
  * Extract the `d` attribute from a single-path Iconify body string.
  */
 function extractPath(body) {
-  const match = body.match(/<path[^>]*\sd="([^"]+)"/);
-  return match ? match[1] : null;
+	const match = body.match(/<path[^>]*\sd="([^"]+)"/);
+	return match ? match[1] : null;
 }
 
 /**
@@ -35,9 +35,9 @@ function extractPath(body) {
  * Per-icon width/height override the collection defaults.
  */
 function viewBox(icon, defaultW, defaultH) {
-  const w = icon.width || defaultW;
-  const h = icon.height || defaultH;
-  return `0 0 ${w} ${h}`;
+	const w = icon.width || defaultW;
+	const h = icon.height || defaultH;
+	return `0 0 ${w} ${h}`;
 }
 
 /**
@@ -45,75 +45,77 @@ function viewBox(icon, defaultW, defaultH) {
  * Each alias points to a parent icon and may override width/height/body.
  */
 function resolveAliases(data, icons, defaultW, defaultH, namePrefix, set) {
-  if (!data.aliases) return;
-  for (const [alias, def] of Object.entries(data.aliases)) {
-    const parent = icons[`${namePrefix}${def.parent}`];
-    if (!parent) continue;
-    const name = `${namePrefix}${alias}`;
-    if (icons[name]) continue; // don't overwrite a real icon
-    icons[name] = {
-      viewBox: def.width || def.height
-        ? `0 0 ${def.width || defaultW} ${def.height || defaultH}`
-        : parent.viewBox,
-      path: def.body ? extractPath(def.body) || parent.path : parent.path,
-      terms: alias.split("-").filter((t) => t.length > 1),
-      set,
-    };
-  }
+	if (!data.aliases) return;
+	for (const [alias, def] of Object.entries(data.aliases)) {
+		const parent = icons[`${namePrefix}${def.parent}`];
+		if (!parent) continue;
+		const name = `${namePrefix}${alias}`;
+		if (icons[name]) continue; // don't overwrite a real icon
+		icons[name] = {
+			viewBox: def.width || def.height ? `0 0 ${def.width || defaultW} ${def.height || defaultH}` : parent.viewBox,
+			path: def.body ? extractPath(def.body) || parent.path : parent.path,
+			terms: alias.split('-').filter((t) => t.length > 1),
+			set,
+		};
+	}
 }
 
 // ── Font Awesome (solid), bundled inline ──
-const faData = require("@iconify-json/fa6-solid/icons.json");
+const faData = require('@iconify-json/fa6-solid/icons.json');
 const faDefaultW = faData.width || 512;
 const faDefaultH = faData.height || 512;
 
 const faIcons = {};
 let faCount = 0;
 for (const [name, icon] of Object.entries(faData.icons)) {
-  const d = extractPath(icon.body);
-  if (!d) continue;
-  faIcons[name] = {
-    viewBox: viewBox(icon, faDefaultW, faDefaultH),
-    path: d,
-    terms: name.split("-").filter((t) => t.length > 1),
-    set: "fa",
-  };
-  faCount++;
+	const d = extractPath(icon.body);
+	if (!d) continue;
+	faIcons[name] = {
+		viewBox: viewBox(icon, faDefaultW, faDefaultH),
+		path: d,
+		terms: name.split('-').filter((t) => t.length > 1),
+		set: 'fa',
+	};
+	faCount++;
 }
-resolveAliases(faData, faIcons, faDefaultW, faDefaultH, "", "fa");
+resolveAliases(faData, faIcons, faDefaultW, faDefaultH, '', 'fa');
 faCount = Object.keys(faIcons).length;
 
 // ── Game Icons, separate JSON file ──
-const giData = require("@iconify-json/game-icons/icons.json");
+const giData = require('@iconify-json/game-icons/icons.json');
 const giDefaultW = giData.width || 512;
 const giDefaultH = giData.height || 512;
 
 const giIcons = {};
 let giCount = 0;
 for (const [name, icon] of Object.entries(giData.icons)) {
-  const d = extractPath(icon.body);
-  if (!d) continue;
-  const prefixedName = `gi-${name}`;
-  giIcons[prefixedName] = {
-    viewBox: viewBox(icon, giDefaultW, giDefaultH),
-    path: d,
-    terms: name.split("-").filter((t) => t.length > 1),
-    set: "gi",
-  };
-  giCount++;
+	const d = extractPath(icon.body);
+	if (!d) continue;
+	const prefixedName = `gi-${name}`;
+	giIcons[prefixedName] = {
+		viewBox: viewBox(icon, giDefaultW, giDefaultH),
+		path: d,
+		terms: name.split('-').filter((t) => t.length > 1),
+		set: 'gi',
+	};
+	giCount++;
 }
-resolveAliases(giData, giIcons, giDefaultW, giDefaultH, "gi-", "gi");
+resolveAliases(giData, giIcons, giDefaultW, giDefaultH, 'gi-', 'gi');
 giCount = Object.keys(giIcons).length;
 
 // Write Game Icons JSON (loaded at runtime by the plugin)
 const giJsonStr = JSON.stringify(giIcons);
-fs.writeFileSync(giJsonFile, giJsonStr, "utf8");
+fs.writeFileSync(giJsonFile, giJsonStr, 'utf8');
 
 // Write compressed GI data as a TS module for embedded fallback
-const giCompressed = zlib.deflateSync(Buffer.from(giJsonStr, "utf8"), { level: 9 });
-const giBase64 = giCompressed.toString("base64");
-const giEmbedFile = path.join(outDir, "gi-icons-embedded.ts");
-fs.writeFileSync(giEmbedFile, `// Auto-generated compressed Game Icons data. Do not edit.\nexport const GI_ICONS_COMPRESSED = "${giBase64}";\n`, "utf8");
+const giCompressed = zlib.deflateSync(Buffer.from(giJsonStr, 'utf8'), { level: 9 });
+const giBase64 = giCompressed.toString('base64');
+const giEmbedFile = path.join(outDir, 'gi-icons-embedded.ts');
+fs.writeFileSync(
+	giEmbedFile,
+	`// Auto-generated compressed Game Icons data. Do not edit.\nexport const GI_ICONS_COMPRESSED = "${giBase64}";\n`,
+	'utf8',
+);
 
 // Generate TypeScript file with FA icons inline + GI icon names for search
 const giNames = Object.keys(giIcons).sort();
@@ -133,13 +135,11 @@ export const GI_ICON_NAMES: string[] = ${JSON.stringify(giNames)};
 
 /** Game Icon search terms indexed by name */
 export const GI_ICON_TERMS: Record<string, string[]> = ${JSON.stringify(
-  Object.fromEntries(giNames.map((n) => [n, giIcons[n].terms]))
+	Object.fromEntries(giNames.map((n) => [n, giIcons[n].terms])),
 )};
 
-export const ALL_ICON_NAMES: string[] = ${JSON.stringify(
-  [...Object.keys(faIcons), ...giNames].sort()
-)};
+export const ALL_ICON_NAMES: string[] = ${JSON.stringify([...Object.keys(faIcons), ...giNames].sort())};
 `;
 
-fs.writeFileSync(outFile, ts, "utf8");
+fs.writeFileSync(outFile, ts, 'utf8');
 console.log(`Generated ${faCount} FA (bundled) + ${giCount} Game Icons (JSON) = ${faCount + giCount} total`);

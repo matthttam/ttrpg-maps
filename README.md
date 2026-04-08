@@ -12,15 +12,17 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 
 - **Interactive maps** - Embed any image as a pannable, zoomable map inside a note with lock zoom/pan and fit-to-screen controls
 - **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
-- **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note)
+- **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note with `#heading` and `#^block` support)
 - **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
-- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with configurable rounding and decimal places
-- **Visibility layers** - Assign markers to zoom-based layers so overview markers show when zoomed out and detail markers show when zoomed in
+- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with configurable rounding, decimal places, and raw value display
+- **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
 - **Three marker shapes** - Pin (directional teardrop), circle, or hotspot (invisible until hovered)
 - **Per-map and per-marker settings** - Override scale, zoom behavior, label placement, navigation mode, and hover preview at every level
 - **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar
 - **Import/export** - Export maps as ZIP bundles (with image) and import them on another vault. Import/export template sets
+- **Map data management** - View, identify, and delete stored map data from global settings
+- **Map ID management** - Change a map's ID with options to copy, migrate, orphan, or delete the associated data
 - **Sidecar storage** - Marker state lives in `.ttrpgmap/` files, keeping your markdown clean
 
 For a complete breakdown of every feature, see the **[detailed feature list](docs/features.md)**.

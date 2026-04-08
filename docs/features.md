@@ -35,6 +35,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
 - [Marker List Panel](#marker-list-panel)
 - [Map Settings](#map-settings)
 - [Global Settings](#global-settings)
+  - [Data Management](#data-management)
 - [Code Block Reference](#code-block-reference)
 - [Context Menus](#context-menus)
 - [Keyboard and Mouse Reference](#keyboard-and-mouse-reference)
@@ -107,11 +108,13 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Text scale to zoom** | Inherit / Screen-constant / Fixed to map |
 | **Layer** | Assign to a visibility layer (only shown if multiple layers exist) |
 
-Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template.
+Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
 
-A **Reset to Template & Save** button resets all visual properties to the template defaults and saves in one action.
+A **Reset to template** button resets all visual properties to the template defaults with a confirmation prompt. The reset is applied in the modal so you can review the changes before saving. This button is disabled when the marker's template no longer exists.
 
-A **live preview** in the modal shows how the marker will look as you change settings.
+**Size overrides** (marker size, scale to zoom, text size, text scale to zoom) are in a collapsible section that defaults to collapsed. Click the chevron to expand. The expanded/collapsed state persists within the session.
+
+A **live preview** in the modal shows how the marker will look as you change settings. Overlapping markers bump to the front on hover.
 
 ### Marker Interactions on the Map
 
@@ -134,7 +137,11 @@ When enabled, hovering over a marker with a linked note shows Obsidian's built-i
 
 - Controlled by a global toggle (Settings > TTRPG Maps > Navigation > Show Hover Preview) and a per-map override (Map Settings > Hover Preview)
 - By default, the preview shows the marker's linked note
-- The **Preview Note** field on a marker allows specifying a different note for the preview
+- The **Preview Note** field on a marker allows specifying a different note for the preview, including `#heading` and `#^block` references to show specific sections
+- If the preview note file doesn't exist, the plugin falls back to the linked note
+- The preview has a 300ms delay to avoid triggering during quick interactions
+- Holding **Alt** suppresses the preview. Pressing Alt while a preview is shown dismisses it
+- The preview is automatically dismissed when you start dragging or click-and-hold a marker
 - The preview does not interfere with click-to-navigate or drag-to-reposition
 
 ### Copy Mode
@@ -254,7 +261,7 @@ Open **Settings** > **TTRPG Maps** to manage templates.
 
 <!-- TODO: screenshot of the template manager in settings -->
 
-- **Add Template** - Creates a new template with default values
+- **Add Template** - Opens the template edit modal immediately with the name field focused and selected. On save the template is created; on cancel nothing is added
 - **Add Folder** - Creates a folder with inline rename
 - **Duplicate** - Copy icon on each template row creates a copy with "(copy)" suffix
 - Each template row shows its name and a colored preview icon (including rotation)
@@ -316,7 +323,7 @@ Calibration sets the distance scale for the map.
 4. A modal asks how many units the line represents and what the unit label is (e.g. "100", "feet")
 5. Click **Save Scale**
 
-The scale is saved per-map and persists across sessions. You must calibrate before measuring. A zero-length calibration line (clicking the same point twice) is rejected with a notice.
+The scale is saved per-map and persists across sessions. You must calibrate before measuring. A zero-length calibration line (clicking the same point twice) is rejected with a notice. Clicking **Cancel** or closing the calibration modal clears the drawn line and returns to calibration mode.
 
 <!-- TODO: screenshot of the calibration modal -->
 
@@ -356,7 +363,9 @@ The measurement panel includes rounding controls:
 | **Up** | Round up to the next multiple |
 | **Down** | Round down to the previous multiple |
 
-When a rounding mode is selected, a **multiple** input appears (e.g. "5" to round to the nearest 5 feet). A **Raw** checkbox also appears - when checked, all distance outputs include the raw (unrounded) value in parentheses after the rounded value. For example: `40 (39) ft`.
+When a rounding mode is selected, a **multiple** input appears (e.g. "5" to round to the nearest 5 feet). A **Raw** checkbox also appears - when checked, all distance outputs always include the raw (unrounded) value in parentheses after the rounded value. For example: `40.00 (39.21) ft`.
+
+Changing rounding settings, decimal places, or the raw checkbox immediately updates any displayed measurement total.
 
 Rounding settings are saved per-map.
 
@@ -368,7 +377,7 @@ Examples with 0 decimal places: `40 ft`. With 1: `40.0 ft`. With 3 and no roundi
 
 ### Measurement Behavior
 
-During measurement, markers are dimmed and non-interactive. Hovering near a marker while measuring highlights it for snapping.
+During measurement, markers and their labels are dimmed and non-interactive. Hovering near a marker or its label while measuring highlights it for snapping. The cursor stays as a crosshair over markers during measurement mode.
 
 ---
 
@@ -378,11 +387,16 @@ Layers control which markers are visible at different zoom levels.
 
 <!-- TODO: screenshot of map settings showing the layers section -->
 
-Each layer defines a zoom range:
-- **Minimum zoom %** - Markers hidden below this zoom (blank for no lower limit)
-- **Maximum zoom %** - Markers hidden above this zoom (blank for no upper limit)
+Each layer defines a zoom range using a **dual-handle range slider**:
+- The slider spans the map's configured zoom range (e.g., 50% to 200%)
+- Drag the handles to set when markers on this layer are visible
+- Editable number inputs allow precise values (validated on blur or Enter)
+- A center display shows the current range or "Always visible"
+- Labels indicate "Zoomed out" and "Zoomed in" for intuitive direction
 
 Every map has a **Default Layer** that is always visible and cannot be deleted (but its zoom range can be changed or reset).
+
+Markers **fade smoothly** over 0.5 seconds when crossing layer visibility thresholds, providing a polished transition rather than an abrupt disappearance.
 
 ### Use cases
 
@@ -433,12 +447,16 @@ The list is sorted alphabetically and scrolls independently from the map (max he
 
 Access map settings via the **gear button** in the bottom-right corner of the map.
 
-<!-- TODO: screenshot of the map settings modal -->
+Changes are only saved when you click **Save**. Clicking **Cancel** or closing the modal with unsaved changes prompts you to Save, Discard, or go back and continue editing.
 
 ### Image
 
 - **Image path** - Change the map image. Autocomplete searches vault files. The native image dimensions are displayed below the input
-- **Map ID** - Unique identifier for this map's sidecar data. Auto-generated from the image path by default. Use different IDs to have separate marker sets on the same image
+- **Map ID** - Unique identifier for this map's sidecar data. Auto-generated from the image path by default. The ID field is read-only; click the pencil icon to change it. Changing the ID opens a modal with four options:
+  - **Migrate** - Move all data to the new ID, delete the old sidecar
+  - **Copy** - Copy all data to the new ID, keep the old sidecar
+  - **Orphan** - Start fresh with the new ID, keep the old data behind (can be cleaned up in Manage Map Data)
+  - **Delete** - Start fresh with the new ID, permanently delete the old data
 
 ### Sizing
 
@@ -496,12 +514,21 @@ Access via **Settings** > **TTRPG Maps**.
 
 ### Navigation section
 
-- **Open Links in New Tab** - When clicking a marker's linked note, open in a new tab (default on)
+- **Open Links in New Tab** - When clicking a marker's linked note, open in a new tab (default off - opens in current tab)
 - **Show Hover Preview** - Show Obsidian's page preview when hovering markers with linked notes (default off)
 
 ### Marker Templates section
 
-The full template manager (see [Marker Templates](#marker-templates)).
+The full template manager (see [Marker Templates](#marker-templates)). Template folders default to collapsed.
+
+### Data Management
+
+- **Manage Map Data** - Opens a modal listing all stored map data files. Each entry shows:
+  - The map ID
+  - Marker and layer count
+  - Last known image path and source file path (registered when the map renders)
+  - A **Delete** button with confirmation prompt to permanently remove the data
+- Useful for cleaning up orphaned data from deleted maps or changed IDs
 
 ---
 
@@ -609,7 +636,11 @@ Maps can be exported as ZIP files from the **Map Settings** modal. The ZIP bundl
 
 ### Map Import
 
-Import a map ZIP via the **Import Map** button in Map Settings. The import extracts the image into your vault, creates the sidecar state file, and sets up the code block configuration.
+Import a map ZIP via the **Import Map** button on unconfigured map blocks. The import:
+- Prompts you to select a destination folder for the image
+- Extracts the image into your vault (appending a number if the filename already exists)
+- Creates the sidecar state file with all markers, layers, and settings
+- Sets up the code block configuration with the new image path and map ID
 
 ### Template Import/Export
 
@@ -635,6 +666,7 @@ Mutable per-map state, including:
 - Layer definitions and zoom ranges
 - Navigation and hover preview overrides
 - Zoom and pan lock states
+- Last known image path and source file path (for data management identification)
 
 Saves are debounced (300ms) for performance. These files can be committed to version control or synced across devices.
 

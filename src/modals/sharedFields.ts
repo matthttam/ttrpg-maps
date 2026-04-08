@@ -120,10 +120,11 @@ export function buildIconField(ctx: FieldContext): {
   setting.addText((text) => {
     const inputEl = text.inputEl;
 
-    // Auto-size input to content width
+    // Auto-size input to content width, wide enough for placeholder when empty
     function autoSize() {
       inputEl.setCssStyles({ width: "0" });
-      inputEl.setCssStyles({ width: Math.max(inputEl.scrollWidth, 80) + "px" });
+      const minWidth = inputEl.value ? 80 : 150;
+      inputEl.setCssStyles({ width: Math.max(inputEl.scrollWidth, minWidth) + "px" });
     }
 
     text

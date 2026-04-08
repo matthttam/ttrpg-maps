@@ -122,6 +122,10 @@ export interface MapState {
   showHoverPreview?: boolean;
   zoomLocked?: boolean;
   panLocked?: boolean;
+  /** Last known image path (set on render for identification) */
+  lastImagePath?: string;
+  /** Last known source file path (set on render for identification) */
+  lastSourcePath?: string;
 }
 
 /** Plugin-wide settings stored in data.json */

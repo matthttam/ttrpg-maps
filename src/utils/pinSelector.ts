@@ -51,7 +51,7 @@ export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color:
       circleWrap.appendChild(createCircleSvg(ICON_COLOR, "ttrpgmap-pin-selector-svg"));
     } else {
       const pinWrap = btn.createDiv({ cls: "ttrpgmap-pin-selector-icon" });
-      pinWrap.style.transform = `rotate(${ROTATION[sel]})`;
+      pinWrap.setCssStyles({ transform: `rotate(${ROTATION[sel]})` });
       pinWrap.appendChild(createPinSvg(ICON_COLOR, "ttrpgmap-pin-selector-svg"));
     }
 

@@ -11,8 +11,9 @@ export async function exportMap(
   config: MapConfig,
   state: MapState,
 ): Promise<void> {
-  // Flush any pending sidecar writes so state is current
+  // Flush any pending sidecar writes then reload from disk for latest data
   await plugin.dataManager.flushSaves();
+  state = await plugin.dataManager.loadMapState(config.id);
 
   // Resolve and read the image file
   const imageFile = app.vault.getFileByPath(config.image);

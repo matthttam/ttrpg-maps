@@ -6,6 +6,8 @@ import { createPinElement } from "../utils/markerPin";
 import { buildMarkerLabel } from "../utils/markerLabel";
 import { buildTextPlacementField, buildPinSelectorField, buildIconField, buildScaleSlider, MarkerFieldState } from "./sharedFields";
 
+const sizeOverridesExpanded = new WeakMap<App, boolean>();
+
 export class MarkerEditModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private layers: MarkerLayer[];
@@ -52,6 +54,7 @@ export class MarkerEditModal extends Modal {
   }
 
   private addResetButton(setting: Setting, onReset: () => void): void {
+    if (!this.getTemplate()) return;
     setting.addExtraButton((btn) =>
       btn
         .setIcon("history")
@@ -66,6 +69,7 @@ export class MarkerEditModal extends Modal {
   }
 
   private addInlineResetButton(container: HTMLElement, onReset: () => void): void {
+    if (!this.getTemplate()) return;
     const btn = container.createDiv({ cls: "clickable-icon extra-setting-button", attr: { "aria-label": "Reset to template default" } });
     setIcon(btn, "history");
     btn.addEventListener("click", () => {
@@ -135,8 +139,8 @@ export class MarkerEditModal extends Modal {
     const template = this.getTemplate();
 
     // ── Two-column layout: settings left, preview right ──
+    this.titleEl.setText("Edit marker");
     const headerGroup = contentEl.createDiv({ cls: "setting-group" });
-    new Setting(headerGroup).setName("Edit marker").setHeading();
 
     const layout = headerGroup.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
@@ -279,10 +283,28 @@ export class MarkerEditModal extends Modal {
       iconRotationInput.setValue(this.marker.iconRotation);
     });
 
-    // ── Scale settings (full-width, below the two-column layout) ──
+    // ── Scale settings (collapsible, below the two-column layout) ──
     const scaleGroup = contentEl.createDiv({ cls: "setting-group" });
-    new Setting(scaleGroup).setName("Size overrides").setHeading();
+    const isExpanded = sizeOverridesExpanded.get(this.app) ?? false;
+
+    const scaleHeading = new Setting(scaleGroup).setName("Size overrides").setHeading();
+    const chevron = scaleHeading.nameEl.createDiv({ cls: "ttrpgmap-folder-chevron" });
+    setIcon(chevron, "chevron-down");
+    scaleHeading.nameEl.insertBefore(chevron, scaleHeading.nameEl.firstChild);
+    scaleHeading.settingEl.setCssStyles({ cursor: "pointer" });
+
     const scaleItems = scaleGroup.createDiv({ cls: "setting-items" });
+    if (!isExpanded) {
+      scaleItems.addClass("ttrpgmap-hidden");
+      chevron.addClass("is-collapsed");
+    }
+
+    scaleHeading.settingEl.addEventListener("click", () => {
+      const nowExpanded = scaleItems.hasClass("ttrpgmap-hidden");
+      scaleItems.toggleClass("ttrpgmap-hidden", !nowExpanded);
+      chevron.toggleClass("is-collapsed", !nowExpanded);
+      sizeOverridesExpanded.set(this.app, nowExpanded);
+    });
 
     const hasScaleOverride = this.marker.scale != null;
 
@@ -375,31 +397,42 @@ export class MarkerEditModal extends Modal {
       });
 
     // ── Save / Cancel ──
+    const hasTemplate = !!template;
     new Setting(contentEl)
-      .addButton((btn) =>
+      .addButton((btn) => {
         btn
-          .setButtonText("Reset to template & save")
-          .setWarning()
+          .setButtonText("Reset to template")
+          .setDisabled(!hasTemplate)
           .onClick(() => {
             const tpl = this.getTemplate();
-            if (tpl) {
-              this.marker.direction = tpl.direction;
-              this.marker.textPlacement = tpl.textPlacement;
-              this.marker.color = tpl.color;
-              this.marker.icon = tpl.icon;
-              this.marker.iconColor = tpl.iconColor;
-              this.marker.iconRotation = tpl.iconRotation;
-              this.marker.useBaseMarker = tpl.useBaseMarker;
-              this.marker.shape = tpl.shape;
-              this.marker.scale = null;
-              this.marker.scaleToZoom = null;
-              this.marker.textScale = null;
-              this.marker.textScaleToZoom = null;
-            }
-            this.onSave(this.marker);
-            this.close();
-          })
-      )
+            if (!tpl) return;
+            const confirmModal = new Modal(this.app);
+            confirmModal.titleEl.setText("Reset to template");
+            confirmModal.contentEl.createEl("p", {
+              text: `This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
+            });
+            new Setting(confirmModal.contentEl)
+              .addButton((b) => b.setButtonText("Cancel").onClick(() => confirmModal.close()))
+              .addButton((b) => b.setButtonText("Reset").setWarning().onClick(() => {
+                this.marker.direction = tpl.direction;
+                this.marker.textPlacement = tpl.textPlacement;
+                this.marker.color = tpl.color;
+                this.marker.icon = tpl.icon;
+                this.marker.iconColor = tpl.iconColor;
+                this.marker.iconRotation = tpl.iconRotation;
+                this.marker.useBaseMarker = tpl.useBaseMarker;
+                this.marker.shape = tpl.shape;
+                this.marker.scale = null;
+                this.marker.scaleToZoom = null;
+                this.marker.textScale = null;
+                this.marker.textScaleToZoom = null;
+                confirmModal.close();
+                this.onOpen();
+              }));
+            confirmModal.open();
+          });
+        if (!hasTemplate) btn.setTooltip("Template not found");
+      })
       .addButton((btn) =>
         btn
           .setButtonText("Save")

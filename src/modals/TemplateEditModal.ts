@@ -37,14 +37,16 @@ export class TemplateEditModal extends Modal {
   private draft: MarkerTemplate;
   private snapshot: Partial<Record<keyof MarkerTemplate, unknown>>;
   private onSaved: () => void;
+  private isNew: boolean;
   private changedIndicators: Map<string, HTMLElement> = new Map();
 
-  constructor(app: App, plugin: TTRPGMapsPlugin, template: MarkerTemplate, onSaved: () => void) {
+  constructor(app: App, plugin: TTRPGMapsPlugin, template: MarkerTemplate, onSaved: () => void, isNew = false) {
     super(app);
     this.plugin = plugin;
     this.original = template;
     this.draft = { ...template };
     this.onSaved = onSaved;
+    this.isNew = isNew;
     // Snapshot original values for dirty tracking
     this.snapshot = {};
     for (const key of APPLY_FIELDS) {
@@ -117,7 +119,7 @@ export class TemplateEditModal extends Modal {
     this.changedIndicators.clear();
 
     const headerGroup = contentEl.createDiv({ cls: "setting-group" });
-    new Setting(headerGroup).setName("Edit template").setHeading();
+    this.titleEl.setText(this.isNew ? "New template" : "Edit template");
 
     const layout = headerGroup.createDiv({ cls: "ttrpgmap-modal-layout" });
     const mainCol = layout.createDiv({ cls: "ttrpgmap-modal-main" });
@@ -154,6 +156,12 @@ export class TemplateEditModal extends Modal {
             nameError.setText(err ?? "");
             if (err) { nameError.removeClass("ttrpgmap-hidden"); } else { nameError.addClass("ttrpgmap-hidden"); }
           });
+          if (this.isNew) {
+            activeWindow.setTimeout(() => {
+              text.inputEl.focus();
+              text.inputEl.select();
+            }, 0);
+          }
         }
       })
       .then((s) => {
@@ -180,8 +188,8 @@ export class TemplateEditModal extends Modal {
       Object.assign(this.original, this.draft);
     };
 
-    actionSetting
-      .addButton((btn) =>
+    if (!this.isNew) {
+      actionSetting.addButton((btn) =>
         btn
           .setButtonText("Save & update markers")
           .setWarning()
@@ -228,6 +236,12 @@ export class TemplateEditModal extends Modal {
               }
             ).open();
           })
+      );
+    }
+
+    actionSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => this.close())
       )
       .addButton((btn) =>
         btn
@@ -241,9 +255,6 @@ export class TemplateEditModal extends Modal {
             this.onSaved();
             this.close();
           })
-      )
-      .addButton((btn) =>
-        btn.setButtonText("Cancel").onClick(() => this.close())
       );
   }
 

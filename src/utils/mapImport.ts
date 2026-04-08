@@ -71,13 +71,14 @@ export function importMap(
           // Update state with new map ID
           const state = { ...manifest.state, mapId: newMapId };
 
-          // Write code block
-          const configLines = serializeMapConfig(config);
-          await writeConfigToCodeBlock(app, sourcePath, sectionInfo, configLines);
-
-          // Save sidecar state
+          // Save sidecar state BEFORE writing the code block
+          // (the code block triggers a MapRenderer that loads this state)
           plugin.dataManager.saveMapState(newMapId, state);
           await plugin.dataManager.flushSaves();
+
+          // Write code block (triggers MapRenderer creation)
+          const configLines = serializeMapConfig(config);
+          await writeConfigToCodeBlock(app, sourcePath, sectionInfo, configLines);
 
           new Notice("Map imported successfully.");
         } catch (e) {

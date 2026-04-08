@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Modal, PluginSettingTab, Setting } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
 import { buildScaleSlider } from "../modals/sharedFields";
@@ -112,6 +112,20 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
     const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);
     rerender();
 
+    // ── Data management ──
+    new Setting(containerEl).setName("Data management").setHeading();
+    new Setting(containerEl)
+      .setName("Manage map data")
+      .setDesc("View and delete stored map data (markers, layers, scale, settings)")
+      .addButton((btn) => {
+        btn
+          .setButtonText("Manage map data")
+          .setWarning()
+          .onClick(() => {
+            new MapDataModal(this.app, this.plugin).open();
+          });
+      });
+
     // ── Support ──
     new Setting(containerEl).setName("Support").setHeading();
     new Setting(containerEl)
@@ -125,5 +139,83 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
             window.open("https://buymeacoffee.com/matthttam");
           });
       });
+  }
+}
+
+class MapDataModal extends Modal {
+  private plugin: TTRPGMapsPlugin;
+
+  constructor(app: App, plugin: TTRPGMapsPlugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+
+  onOpen(): void {
+    this.modalEl.addClass("ttrpgmap-modal--wide");
+    void this.renderList();
+  }
+
+  private async renderList(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    const group = contentEl.createDiv({ cls: "setting-group" });
+    new Setting(group).setName("Map data").setHeading();
+    const items = group.createDiv({ cls: "setting-items" });
+
+    const states = await this.plugin.dataManager.loadAllMapStates();
+
+    if (states.length === 0) {
+      items.createEl("p", { text: "No map data found." });
+      return;
+    }
+
+    for (const state of states) {
+      const markerCount = state.markers.length;
+      const layerCount = state.layers.length;
+
+      const parts: string[] = [];
+      parts.push(`${markerCount} marker${markerCount !== 1 ? "s" : ""}, ${layerCount} layer${layerCount !== 1 ? "s" : ""}`);
+      if (state.lastImagePath) parts.push(`Last image used: ${state.lastImagePath}`);
+      if (state.lastSourcePath) parts.push(`Last known path: ${state.lastSourcePath}`);
+
+      const setting = new Setting(items)
+        .setName(state.mapId);
+
+      // Build description with line breaks
+      const descEl = setting.descEl;
+      parts.forEach((part, i) => {
+        if (i > 0) descEl.createEl("br");
+        descEl.appendText(part);
+      });
+
+      setting.addButton((btn) => {
+          btn
+            .setButtonText("Delete")
+            .setWarning()
+            .onClick(() => {
+              const confirmModal = new Modal(this.app);
+              confirmModal.titleEl.setText("Delete map data");
+              confirmModal.contentEl.createEl("p", {
+                text: `This will permanently delete all data for map "${state.mapId}" including ${markerCount} marker${markerCount !== 1 ? "s" : ""} and ${layerCount} layer${layerCount !== 1 ? "s" : ""}. This cannot be undone.`,
+              });
+              new Setting(confirmModal.contentEl)
+                .addButton((b) => b.setButtonText("Cancel").onClick(() => confirmModal.close()))
+                .addButton((b) => b.setButtonText("Delete").setWarning().onClick(() => {
+                  void (async () => {
+                    await this.plugin.dataManager.deleteMapState(state.mapId);
+                    this.plugin.triggerMapRefresh();
+                    confirmModal.close();
+                    await this.renderList();
+                  })();
+                }));
+              confirmModal.open();
+            });
+        });
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
   }
 }

@@ -282,10 +282,10 @@ function renderFolder(
 ): void {
   const folderEl = container.createDiv({ cls: "ttrpgmap-folder" });
 
-  // Track collapsed state on the container across rerenders
+  // Track collapsed state on the container across rerenders (default all collapsed)
   let collapsedSet = collapsedFoldersMap.get(container);
   if (!collapsedSet) {
-    collapsedSet = new Set();
+    collapsedSet = new Set(plugin.settings.templateFolders.map((f) => f.id));
     collapsedFoldersMap.set(container, collapsedSet);
   }
   const isCollapsed = collapsedSet.has(folder.id);
@@ -438,9 +438,12 @@ export function renderTemplateManager(
       id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: `Template ${n}`,
     };
-    plugin.settings.markerTemplates.push(newTemplate);
-    void plugin.dataManager.saveSettings(plugin.settings);
-    rerender();
+
+    new TemplateEditModal(plugin.app, plugin, newTemplate, () => {
+      plugin.settings.markerTemplates.push(newTemplate);
+      void plugin.dataManager.saveSettings(plugin.settings);
+      rerender();
+    }, true).open();
   });
 
   const sortByName = <T extends { name: string }>(items: T[]): T[] =>

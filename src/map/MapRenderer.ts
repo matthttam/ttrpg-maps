@@ -1,7 +1,7 @@
 import { MarkdownRenderChild, Menu, Notice, setIcon } from "obsidian";
 import type TTRPGMapsPlugin from "../main";
 import { MapConfig, MapState, MapMarker, MapPoint, MarkerTemplate, RoundingMode, DEFAULT_LAYER_ID, DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from "../types";
-import { MapSettingsModal } from "../modals/MapSettingsModal";
+import { MapSettingsModal, type IdAction } from "../modals/MapSettingsModal";
 import { MarkerEditModal } from "../modals/MarkerEditModal";
 import { ScaleCalibrationModal } from "../modals/ScaleCalibrationModal";
 import { serializeMapConfig, writeConfigToCodeBlock } from "../utils/configSerializer";
@@ -57,6 +57,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
   // Marker drag state
   private draggingMarker: MapMarker | null = null;
+  private activeHoverDismiss: (() => void) | null = null;
   private dragMarkerEl: HTMLElement | null = null;
   private dragStartX = 0;
   private dragStartY = 0;
@@ -118,6 +119,10 @@ export class MapRenderer extends MarkdownRenderChild {
   onload(): void {
     void (async () => {
       this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+      // Register last known paths for identification in data management
+      this.state.lastImagePath = this.config.image;
+      this.state.lastSourcePath = this.sourcePath;
+      this.plugin.dataManager.saveMapState(this.config.id, this.state);
       this.plugin.onMapRefresh(this.refreshCallback);
       this.buildDOM();
     })();
@@ -209,7 +214,7 @@ export class MapRenderer extends MarkdownRenderChild {
     const zoomOutBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", text: "−" });
     zoomOutBtn.addEventListener("click", () => this.adjustZoom(-this.config.zoomStep));
 
-    controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-center-btn", text: "◎" })
+    controls.createDiv({ cls: "ttrpgmap-zoom-btn ttrpgmap-center-btn", text: "◎", attr: { "aria-label": "Center map" } })
       .addEventListener("click", () => this.centerMap());
 
     const fitBtn = controls.createDiv({ cls: "ttrpgmap-zoom-btn", attr: { "aria-label": "Fit to Screen" } });
@@ -338,6 +343,7 @@ export class MapRenderer extends MarkdownRenderChild {
       this.state.roundingMode = modeSelect.value as RoundingMode;
       this.plugin.dataManager.saveMapState(this.config.id, this.state);
       updateMultipleVisibility();
+      this.updateTotalDisplay();
     });
 
     multipleInput.addEventListener("change", () => {
@@ -346,6 +352,7 @@ export class MapRenderer extends MarkdownRenderChild {
       if (!isNaN(val) && val > 0) {
         this.state.roundingMultiple = val;
         this.plugin.dataManager.saveMapState(this.config.id, this.state);
+        this.updateTotalDisplay();
       }
     });
 
@@ -353,6 +360,7 @@ export class MapRenderer extends MarkdownRenderChild {
       if (!this.state) return;
       this.state.showRawDistance = rawCheckbox.checked;
       this.plugin.dataManager.saveMapState(this.config.id, this.state);
+      this.updateTotalDisplay();
     });
 
     // Decimal places row
@@ -370,6 +378,7 @@ export class MapRenderer extends MarkdownRenderChild {
       if (!isNaN(val) && val >= 0 && val <= 6) {
         this.state.distanceDecimals = val;
         this.plugin.dataManager.saveMapState(this.config.id, this.state);
+        this.updateTotalDisplay();
       }
     });
 
@@ -560,6 +569,12 @@ export class MapRenderer extends MarkdownRenderChild {
       if (e.key === "Escape") {
         if (this.resizingMarker) { this.cancelResize(); return; }
         if (this.mode !== "pan") this.cancelDrawing();
+      }
+    });
+    activeWindow.addEventListener("keydown", (e) => {
+      if (e.key === "Alt" && this.activeHoverDismiss) {
+        this.activeHoverDismiss();
+        this.activeHoverDismiss = null;
       }
     });
     this.wrapper.addEventListener("dblclick", (e) => {
@@ -1009,20 +1024,30 @@ export class MapRenderer extends MarkdownRenderChild {
     const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
     const mx = e.clientX;
     const my = e.clientY;
+    const pad = 5;
     els.forEach((el) => {
+      // Check the marker element itself
       const rect = el.getBoundingClientRect();
-      // Expand hit area slightly for easier detection
-      const pad = 5;
-      const isNear = mx >= rect.left - pad && mx <= rect.right + pad &&
-                     my >= rect.top - pad && my <= rect.bottom + pad;
+      let isNear = mx >= rect.left - pad && mx <= rect.right + pad &&
+                   my >= rect.top - pad && my <= rect.bottom + pad;
+      // Also check the label if it extends outside the marker box
+      if (!isNear) {
+        const label = el.querySelector<HTMLElement>(".ttrpgmap-marker-label");
+        if (label) {
+          const lr = label.getBoundingClientRect();
+          isNear = mx >= lr.left - pad && mx <= lr.right + pad &&
+                   my >= lr.top - pad && my <= lr.bottom + pad;
+        }
+      }
       el.toggleClass("ttrpgmap-marker-measure-hover", isNear);
     });
   }
 
   private renderMarkers(): void {
     if (!this.state) return;
-    // Null out handle ref before DOM wipe (the element itself is removed with the markers)
+    // Null out refs before DOM wipe (elements are removed with the markers)
     this.resizeHandleEl = null;
+    this.activeHoverDismiss = null;
     this.isDraggingHandle = false;
     this.markerOverlay.querySelectorAll(".ttrpgmap-marker").forEach((el) => el.remove());
 
@@ -1105,23 +1130,55 @@ export class MapRenderer extends MarkdownRenderChild {
       });
     }
 
-    // Hover preview
+    // Hover preview (delayed to avoid triggering during click/drag/alt)
+    let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+    let mouseHeld = false;
+    const hoverParent: { hoverPopover: { hide: () => void } | null } = { hoverPopover: null };
+    const dismissHover = () => {
+      if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
+      if (hoverParent.hoverPopover) { hoverParent.hoverPopover.hide(); hoverParent.hoverPopover = null; }
+    };
     markerEl.addEventListener("mouseenter", (e) => {
-      if (this.draggingMarker) return;
+      markerEl.setCssStyles({ zIndex: "10" });
+      if (this.draggingMarker || mouseHeld || e.altKey) return;
       const showPreview = this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
       if (!showPreview) return;
-      const previewPath = marker.previewNote
-        ? linkPath(marker.previewNote)
-        : (marker.note ? linkPath(marker.note) : null);
+      let previewPath: string | null = null;
+      if (marker.previewNote) {
+        const p = linkPath(marker.previewNote);
+        if (p && this.plugin.app.metadataCache.getFirstLinkpathDest(p, "")) {
+          previewPath = p;
+        }
+      }
+      if (!previewPath && marker.note) {
+        previewPath = linkPath(marker.note);
+      }
       if (!previewPath) return;
-      this.plugin.app.workspace.trigger("hover-link", {
-        event: e,
-        source: "ttrpg-maps",
-        hoverParent: { hoverPopover: null },
-        targetEl: markerEl,
-        linktext: previewPath,
-        sourcePath: "",
-      });
+      this.activeHoverDismiss = dismissHover;
+      hoverTimeout = setTimeout(() => {
+        if (this.draggingMarker || mouseHeld) return;
+        this.plugin.app.workspace.trigger("hover-link", {
+          event: e,
+          source: "ttrpg-maps",
+          hoverParent,
+          targetEl: markerEl,
+          linktext: previewPath,
+          sourcePath: "",
+        });
+      }, 300);
+    });
+    markerEl.addEventListener("mouseleave", () => {
+      markerEl.setCssStyles({ zIndex: "" });
+      if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
+      mouseHeld = false;
+      this.activeHoverDismiss = null;
+    });
+    markerEl.addEventListener("mousedown", () => {
+      mouseHeld = true;
+      dismissHover();
+    });
+    markerEl.addEventListener("mouseup", () => {
+      mouseHeld = false;
     });
 
     // Drag to reposition
@@ -1334,16 +1391,9 @@ export class MapRenderer extends MarkdownRenderChild {
     this.resizeStartScale = target === "marker" ? marker.scale! : marker.textScale!;
     markerEl.addClass("ttrpgmap-marker-resizing");
 
-    // Determine which side to place the handle to avoid text overlap
+    // Both handles go on the opposite side from the text to avoid overlap
     const textPlacement = markerEl.dataset.textPlacement ?? "above";
-    let handleSide: "left" | "right";
-    if (target === "marker") {
-      // Marker handle goes opposite text when text is left/right
-      handleSide = textPlacement === "right" ? "left" : "right";
-    } else {
-      // Text handle goes opposite marker handle: same side as text, or left by default
-      handleSide = textPlacement === "right" ? "right" : "left";
-    }
+    const handleSide: "left" | "right" = textPlacement === "left" ? "right" : "left";
 
     // Build the drag handle
     const handle = markerEl.createDiv({ cls: "ttrpgmap-resize-handle" });
@@ -1580,13 +1630,19 @@ export class MapRenderer extends MarkdownRenderChild {
     }
     this.drawSvgLine(a, b, "ttrpgmap-draw-line ttrpgmap-calibrate-line");
 
-    new ScaleCalibrationModal(this.plugin.app, (units, unitLabel) => {
-      if (!this.state) return;
-      this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel };
-      this.plugin.dataManager.saveMapState(this.config.id, this.state);
-      new Notice(`Scale set: ${units} ${unitLabel}`);
-      this.cancelDrawing();
-    }).open();
+    new ScaleCalibrationModal(
+      this.plugin.app,
+      (units, unitLabel) => {
+        if (!this.state) return;
+        this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel };
+        this.plugin.dataManager.saveMapState(this.config.id, this.state);
+        new Notice(`Scale set: ${units} ${unitLabel}`);
+        this.cancelDrawing();
+      },
+      () => {
+        this.cancelDrawing();
+      },
+    ).open();
   }
 
   private handleMeasureClick(): void {
@@ -1793,9 +1849,7 @@ export class MapRenderer extends MarkdownRenderChild {
     const isRounding = (this.state?.roundingMode ?? "none") !== "none" && (this.state?.roundingMultiple ?? 0) > 0;
     if (isRounding && this.state?.showRawDistance) {
       const rawDisplay = this.formatNumber(value);
-      if (rawDisplay !== display) {
-        return `${display} (${rawDisplay}) ${label}`;
-      }
+      return `${display} (${rawDisplay}) ${label}`;
     }
     return `${display} ${label}`;
   }
@@ -1868,18 +1922,34 @@ export class MapRenderer extends MarkdownRenderChild {
       this.plugin,
       this.config,
       this.state,
-      (updated) => {
-        this.config = updated;
+      (updatedConfig, updatedState, oldId, idAction) => {
+        this.config = updatedConfig;
+        this.state = updatedState;
         this.applyWrapperSize();
         if (this.sectionInfo) {
           void writeConfigToCodeBlock(this.plugin.app, this.sourcePath, this.sectionInfo, serializeMapConfig(this.config));
         }
-      },
-      (updatedState) => {
-        this.state = updatedState;
-        this.plugin.dataManager.saveMapState(this.config.id, this.state);
-        this.renderMarkers();
-        this.refreshMarkerList();
+        // Handle ID change actions
+        if (oldId && idAction) {
+          void (async () => {
+            if (idAction === "migrate") {
+              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+              await this.plugin.dataManager.deleteMapState(oldId);
+            } else if (idAction === "delete") {
+              await this.plugin.dataManager.deleteMapState(oldId);
+              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+            } else if (idAction === "orphan") {
+              this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+            }
+            await this.plugin.dataManager.flushSaves();
+            this.renderMarkers();
+            this.refreshMarkerList();
+          })();
+        } else {
+          this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+          this.renderMarkers();
+          this.refreshMarkerList();
+        }
       },
     ).open();
   }

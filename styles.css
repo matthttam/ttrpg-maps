@@ -309,7 +309,7 @@
 }
 
 /* ===== Marker Measurement Mode ===== */
-.ttrpgmap-marker-measuring {
+.ttrpgmap-marker.ttrpgmap-marker-measuring {
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
@@ -608,14 +608,14 @@
   white-space: nowrap;
 }
 
-/* Position based on side */
+/* Position based on side -- gap accounts for pin overhang on rotated markers */
 .ttrpgmap-resize-handle[data-side="right"] {
-  left: calc(100% + 8px);
+  left: calc(100% + var(--pin-overhang-x, 0px) + 8px);
   flex-direction: row;
 }
 
 .ttrpgmap-resize-handle[data-side="left"] {
-  right: calc(100% + 8px);
+  right: calc(100% + var(--pin-overhang-x, 0px) + 8px);
   flex-direction: row-reverse;
 }
 
@@ -987,8 +987,6 @@
 .ttrpgmap-modal-main {
   flex: 1;
   min-width: 0;
-  z-index: 1;
-  padding-top: 16px;
 }
 
 /* Layer rows indented under the heading */
@@ -1375,7 +1373,6 @@
   align-items: center;
   min-width: 305px;
   flex-shrink: 0;
-  margin: 12px 0;
   position: sticky;
   top: 0;
   align-self: stretch;

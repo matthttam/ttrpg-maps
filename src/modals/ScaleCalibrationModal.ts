@@ -4,18 +4,21 @@ export class ScaleCalibrationModal extends Modal {
   private units = 0;
   private unitLabel = "units";
   private onSave: (units: number, unitLabel: string) => void;
+  private onCancel: () => void;
+  private saved = false;
 
-  constructor(app: App, onSave: (units: number, unitLabel: string) => void) {
+  constructor(app: App, onSave: (units: number, unitLabel: string) => void, onCancel: () => void) {
     super(app);
     this.onSave = onSave;
+    this.onCancel = onCancel;
   }
 
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
+    this.titleEl.setText("Set distance scale");
 
     const group = contentEl.createDiv({ cls: "setting-group" });
-    new Setting(group).setName("Set distance scale").setHeading();
     const items = group.createDiv({ cls: "setting-items" });
 
     items.createEl("p", { text: "You drew a reference line on the map. How many units does it represent?" });
@@ -39,22 +42,33 @@ export class ScaleCalibrationModal extends Modal {
           .onChange((value) => (this.unitLabel = value || "units"))
       );
 
-    new Setting(contentEl).addButton((btn) =>
-      btn
-        .setButtonText("Save scale")
-        .setCta()
-        .onClick(() => {
-          if (this.units <= 0) {
-            new Notice("Please enter a positive distance.");
-            return;
-          }
-          this.onSave(this.units, this.unitLabel);
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.saved = false;
           this.close();
         })
-    );
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save scale")
+          .setCta()
+          .onClick(() => {
+            if (this.units <= 0) {
+              new Notice("Please enter a positive distance.");
+              return;
+            }
+            this.saved = true;
+            this.onSave(this.units, this.unitLabel);
+            this.close();
+          })
+      );
   }
 
   onClose(): void {
+    if (!this.saved) {
+      this.onCancel();
+    }
     this.contentEl.empty();
   }
 }

@@ -82,11 +82,11 @@ export async function writeConfigToCodeBlock(
   if (!file) return;
 
   const newBlock = "```ttrpgmap\n" + configLines.join("\n") + "\n```";
-
-  const content = await app.vault.read(file);
-  const fileLines = content.split("\n");
   const { lineStart, lineEnd } = sectionInfo;
 
-  fileLines.splice(lineStart, lineEnd - lineStart + 1, ...newBlock.split("\n"));
-  await app.vault.modify(file, fileLines.join("\n"));
+  await app.vault.process(file, (content) => {
+    const fileLines = content.split("\n");
+    fileLines.splice(lineStart, lineEnd - lineStart + 1, ...newBlock.split("\n"));
+    return fileLines.join("\n");
+  });
 }

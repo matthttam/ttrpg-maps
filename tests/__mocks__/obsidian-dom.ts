@@ -58,8 +58,18 @@ if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.createDiv) {
   };
 
   HTMLElement.prototype.empty = function (): void {
-     
+
     this.innerHTML = "";
+  };
+
+  HTMLElement.prototype.setCssStyles = function (styles: Record<string, string>): void {
+    for (const [key, value] of Object.entries(styles)) {
+      if (key.startsWith("--")) {
+        this.style.setProperty(key, value);
+      } else {
+        (this.style as any)[key] = value;
+      }
+    }
   };
 
   HTMLElement.prototype.addClass = function (...classes: string[]): void {

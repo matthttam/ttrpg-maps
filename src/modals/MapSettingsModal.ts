@@ -6,27 +6,40 @@ import { LayerEditModal } from "./LayerEditModal";
 import { buildScaleSlider } from "./sharedFields";
 import { exportMap } from "../utils/mapExport";
 
+export type IdAction = "migrate" | "delete" | "orphan" | null;
+
 export class MapSettingsModal extends Modal {
   private plugin: TTRPGMapsPlugin;
   private config: MapConfig;
   private state: MapState;
-  private onSave: (config: MapConfig) => void;
-  private onLayerChange: (state: MapState) => void;
+  private originalConfig: string;
+  private originalState: string;
+  private originalId: string;
+  private pendingIdAction: IdAction = null;
+  private _idTextEl: HTMLInputElement | null = null;
+  private onSave: (config: MapConfig, state: MapState, oldId: string | null, idAction: IdAction) => void;
+  private saved = false;
 
   constructor(
     app: App,
     plugin: TTRPGMapsPlugin,
     config: MapConfig,
     state: MapState,
-    onSave: (config: MapConfig) => void,
-    onLayerChange: (state: MapState) => void,
+    onSave: (config: MapConfig, state: MapState, oldId: string | null, idAction: IdAction) => void,
   ) {
     super(app);
     this.plugin = plugin;
-    this.config = { ...config };
-    this.state = state;
+    this.config = JSON.parse(JSON.stringify(config));
+    this.state = JSON.parse(JSON.stringify(state));
+    this.originalConfig = JSON.stringify(config);
+    this.originalState = JSON.stringify(state);
+    this.originalId = config.id;
     this.onSave = onSave;
-    this.onLayerChange = onLayerChange;
+  }
+
+  private isDirty(): boolean {
+    return JSON.stringify(this.config) !== this.originalConfig
+      || JSON.stringify(this.state) !== this.originalState;
   }
 
   private loadImageDimensions(descEl: HTMLElement): void {
@@ -46,13 +59,95 @@ export class MapSettingsModal extends Modal {
     img.src = resourcePath;
   }
 
+  private doSave(): void {
+    this.saved = true;
+    const oldId = this.config.id !== this.originalId ? this.originalId : null;
+    this.state.mapId = this.config.id;
+    this.onSave(this.config, this.state, oldId, this.pendingIdAction);
+    this.close();
+  }
+
+  private doCancel(): void {
+    if (!this.isDirty()) {
+      this.saved = true;
+      this.close();
+      return;
+    }
+    this.promptUnsaved();
+  }
+
+  private promptUnsaved(): void {
+    const confirmModal = new Modal(this.app);
+    confirmModal.titleEl.setText("Unsaved changes");
+    confirmModal.contentEl.createEl("p", { text: "You have unsaved changes. What would you like to do?" });
+    new Setting(confirmModal.contentEl)
+      .addButton((btn) => btn.setButtonText("Cancel").onClick(() => {
+        confirmModal.close();
+      }))
+      .addButton((btn) => btn.setButtonText("Discard").setWarning().onClick(() => {
+        confirmModal.close();
+        this.saved = true;
+        this.close();
+      }))
+      .addButton((btn) => btn.setButtonText("Save").setCta().onClick(() => {
+        confirmModal.close();
+        this.doSave();
+      }));
+    confirmModal.open();
+  }
+
+  private openChangeIdModal(): void {
+    const modal = new Modal(this.app);
+    modal.titleEl.setText("Change map ID");
+    const { contentEl } = modal;
+
+    let newId = this.config.id;
+    new Setting(contentEl)
+      .setName("New ID")
+      .addText((text) => {
+        text.setValue(this.config.id).onChange((value) => { newId = value; });
+        activeWindow.setTimeout(() => { text.inputEl.focus(); text.inputEl.select(); }, 0);
+      });
+
+    contentEl.createEl("p", {
+      text: "Choose how to handle the existing data:",
+      cls: "ttrpgmap-muted",
+    });
+
+    new Setting(contentEl)
+      .addButton((btn) => btn.setButtonText("Migrate data").setCta().setTooltip("Move all markers, layers, and settings to the new ID").onClick(() => {
+        if (!newId.trim()) return;
+        this.config.id = newId.trim();
+        this.pendingIdAction = "migrate";
+        if (this._idTextEl) this._idTextEl.value = this.config.id;
+        modal.close();
+      }))
+      .addButton((btn) => btn.setButtonText("Delete data").setWarning().setTooltip("Permanently delete the old data and start fresh").onClick(() => {
+        if (!newId.trim()) return;
+        this.config.id = newId.trim();
+        this.pendingIdAction = "delete";
+        if (this._idTextEl) this._idTextEl.value = this.config.id;
+        modal.close();
+      }))
+      .addButton((btn) => btn.setButtonText("Orphan data").setTooltip("Leave old data behind (delete later in manage map data)").onClick(() => {
+        if (!newId.trim()) return;
+        this.config.id = newId.trim();
+        this.pendingIdAction = "orphan";
+        if (this._idTextEl) this._idTextEl.value = this.config.id;
+        modal.close();
+      }))
+      .addButton((btn) => btn.setButtonText("Cancel").onClick(() => modal.close()));
+
+    modal.open();
+  }
+
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
     this.modalEl.addClass("ttrpgmap-modal--wide");
+    this.titleEl.setText("Edit map");
 
     const mapGroup = contentEl.createDiv({ cls: "setting-group" });
-    new Setting(mapGroup).setName("Map settings").setHeading();
     const mapItems = mapGroup.createDiv({ cls: "setting-items" });
 
     // ── Image ──
@@ -74,14 +169,18 @@ export class MapSettingsModal extends Modal {
       });
     this.loadImageDimensions(imageSetting.descEl);
 
-    new Setting(mapItems)
+    const idSetting = new Setting(mapItems)
       .setName("Map ID")
-      .setDesc("Unique identifier. Use different IDs to have separate markers on the same image.")
-      .addText((text) =>
-        text
-          .setValue(this.config.id)
-          .onChange((value) => (this.config.id = value))
-      );
+      .setDesc("Used to store map data. Set to a unique value to use the same image on multiple maps.");
+    idSetting.addText((text) => {
+      text.setValue(this.config.id).setDisabled(true);
+      this._idTextEl = text.inputEl;
+    });
+    idSetting.addExtraButton((btn) => {
+      btn.setIcon("pencil").setTooltip("Change map ID").onClick(() => {
+        this.openChangeIdModal();
+      });
+    });
 
     // ── Map Size ──
     const sizeSetting = new Setting(mapItems)
@@ -160,7 +259,6 @@ export class MapSettingsModal extends Modal {
           .onChange((value) => {
             if (value === "inherit") this.state.openLinksInNewTab = undefined;
             else this.state.openLinksInNewTab = value === "new";
-            this.onLayerChange(this.state);
           });
       });
 
@@ -178,7 +276,6 @@ export class MapSettingsModal extends Modal {
           .onChange((value) => {
             if (value === "inherit") this.state.showHoverPreview = undefined;
             else this.state.showHoverPreview = value === "on";
-            this.onLayerChange(this.state);
           });
       });
 
@@ -199,9 +296,7 @@ export class MapSettingsModal extends Modal {
       value: effectiveScale,
       onChange: (value) => {
         this.state.markerScale = value;
-        const desc = `Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalScale * 100)}%)`;
-        scaleSetting.setDesc(desc);
-        this.onLayerChange(this.state);
+        scaleSetting.setDesc(`Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalScale * 100)}%)`);
       },
       disabled: !hasOverride,
     });
@@ -221,7 +316,6 @@ export class MapSettingsModal extends Modal {
             this.state.markerScale = undefined;
             scaleSetting.setDesc(`Using global default: ${Math.round(globalScale * 100)}%`);
           }
-          this.onLayerChange(this.state);
         });
     });
 
@@ -245,7 +339,6 @@ export class MapSettingsModal extends Modal {
           .onChange((value) => {
             if (value === "inherit") this.state.scaleMarkersToZoom = undefined;
             else this.state.scaleMarkersToZoom = value === "screen";
-            this.onLayerChange(this.state);
           });
       });
 
@@ -267,7 +360,6 @@ export class MapSettingsModal extends Modal {
       onChange: (value) => {
         this.state.markerTextScale = value;
         textScaleSetting.setDesc(`Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`);
-        this.onLayerChange(this.state);
       },
       disabled: !hasTextOverride,
     });
@@ -287,7 +379,6 @@ export class MapSettingsModal extends Modal {
             this.state.markerTextScale = undefined;
             textScaleSetting.setDesc(`Using global default: ${Math.round(globalTextScale * 100)}%`);
           }
-          this.onLayerChange(this.state);
         });
     });
 
@@ -311,7 +402,6 @@ export class MapSettingsModal extends Modal {
           .onChange((value) => {
             if (value === "inherit") this.state.scaleMarkerTextToZoom = undefined;
             else this.state.scaleMarkerTextToZoom = value === "screen";
-            this.onLayerChange(this.state);
           });
       });
 
@@ -321,20 +411,20 @@ export class MapSettingsModal extends Modal {
     const layersContainer = layerGroup.createDiv({ cls: "setting-items" });
     this.renderLayers(layersContainer);
 
-    // ── Footer: Export + Save ──
+    // ── Footer: Export + Save + Cancel ──
     new Setting(contentEl)
       .addButton((btn) => {
         btn.setButtonText("Export map");
         btn.onClick(() => { void exportMap(this.app, this.plugin, this.config, this.state); });
       })
       .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => this.doCancel())
+      )
+      .addButton((btn) =>
         btn
           .setButtonText("Save")
           .setCta()
-          .onClick(() => {
-            this.onSave(this.config);
-            this.close();
-          })
+          .onClick(() => this.doSave())
       );
 
     // Prevent auto-focus on the first input
@@ -373,7 +463,6 @@ export class MapSettingsModal extends Modal {
             zoomMax: this.config.zoomMax,
           };
           this.state.layers.push(newLayer);
-          this.onLayerChange(this.state);
           this.renderLayers(container);
           new LayerEditModal(this.app, {
             layer: newLayer,
@@ -381,7 +470,6 @@ export class MapSettingsModal extends Modal {
             mapZoomMax: this.config.zoomMax,
             onSave: (saved) => {
               Object.assign(newLayer, saved);
-              this.onLayerChange(this.state);
               this.renderLayers(container);
             },
           }).open();
@@ -408,7 +496,6 @@ export class MapSettingsModal extends Modal {
             mapZoomMax: this.config.zoomMax,
             onSave: (saved) => {
               Object.assign(layer, saved);
-              this.onLayerChange(this.state);
               this.renderLayers(container);
             },
           }).open();
@@ -423,7 +510,6 @@ export class MapSettingsModal extends Modal {
             layer.name = DEFAULT_LAYER.name;
             layer.zoomMin = DEFAULT_LAYER.zoomMin;
             layer.zoomMax = DEFAULT_LAYER.zoomMax;
-            this.onLayerChange(this.state);
             this.renderLayers(container);
           });
         });
@@ -451,7 +537,6 @@ export class MapSettingsModal extends Modal {
                 if (m.layerId === layer.id) m.layerId = null;
               }
               this.state.layers = this.state.layers.filter((l) => l.id !== layer.id);
-              this.onLayerChange(this.state);
               this.renderLayers(container);
             })();
           });
@@ -461,6 +546,14 @@ export class MapSettingsModal extends Modal {
   }
 
   onClose(): void {
+    if (!this.saved && this.isDirty()) {
+      // Reopen immediately then show prompt on top
+      activeWindow.setTimeout(() => {
+        this.open();
+        this.promptUnsaved();
+      }, 0);
+      return;
+    }
     this.contentEl.empty();
   }
 }

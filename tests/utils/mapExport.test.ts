@@ -26,6 +26,12 @@ function createMockPlugin() {
     manifest: { version: "0.3.0" },
     dataManager: {
       flushSaves: vi.fn().mockResolvedValue(undefined),
+      loadMapState: vi.fn().mockResolvedValue({
+        mapId: "map_abc123",
+        markers: [],
+        layers: [{ id: "default", name: "Default Layer", zoomMin: null, zoomMax: null }],
+        distanceScale: null,
+      }),
     },
   } as any;
 }

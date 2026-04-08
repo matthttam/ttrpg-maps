@@ -983,7 +983,7 @@ export class MapRenderer extends MarkdownRenderChild {
     const mapScaleToZoom = this.getMarkerScaleToZoom();
     const mapTextScaleToZoom = this.getTextScaleToZoom();
     const els = this.markerOverlay.querySelectorAll<HTMLElement>(".ttrpgmap-marker");
-    let needsFullRender = false;
+    const needsFullRender = false;
 
     els.forEach((el) => {
       const id = el.dataset.markerId;

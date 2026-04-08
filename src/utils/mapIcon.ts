@@ -34,7 +34,6 @@ export async function loadGameIcons(path: string, readFile: (path: string) => Pr
 export async function extractAndLoadGameIcons(
   destPath: string,
   writeFile: (path: string, data: string) => Promise<void>,
-  readFile: (path: string) => Promise<string>,
 ): Promise<void> {
   if (giIconsLoaded) return;
   try {

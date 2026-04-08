@@ -36,7 +36,7 @@ export default class TTRPGMapsPlugin extends Plugin {
       await loadGameIcons(fallbackPath, read);
     }
     if (!isGameIconsLoaded()) {
-      await extractAndLoadGameIcons(manifestPath, write, read);
+      await extractAndLoadGameIcons(manifestPath, write);
     }
 
     this.registerHoverLinkSource("ttrpg-maps", {

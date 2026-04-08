@@ -100,7 +100,8 @@ export function buildIconField(ctx: FieldContext): {
   // Wrapper that looks like a dropdown with icon + text + source badge
   const inputWrap = setting.controlEl.createDiv({ cls: "ttrpgmap-icon-input-wrap" });
   const iconPreview = inputWrap.createDiv({ cls: "ttrpgmap-icon-input-preview" });
-  let sourceEl: HTMLElement;
+  // Create source badge early so updateInputPreview can reference it (DOM order fixed later)
+  const sourceEl = inputWrap.createSpan({ cls: "ttrpgmap-icon-input-source" });
 
   function updateInputPreview() {
     iconPreview.empty();
@@ -162,7 +163,6 @@ export function buildIconField(ctx: FieldContext): {
     });
   });
 
-  sourceEl = inputWrap.createSpan({ cls: "ttrpgmap-icon-input-source" });
   updateInputPreview();
 
   // Inline color picker (same row as icon search)

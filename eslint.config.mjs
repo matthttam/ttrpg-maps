@@ -1,18 +1,23 @@
-import tsParser from "@typescript-eslint/parser";
-import tsPlugin from "@typescript-eslint/eslint-plugin";
+import eslint from "@eslint/js";
+import tseslint from "typescript-eslint";
 import obsidianmd from "eslint-plugin-obsidianmd";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default [
   {
+    ignores: ["dist/", "coverage/", "*.config.js", "*.config.mjs", "tests/", "src/generated/"],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
     files: ["src/**/*.ts"],
     languageOptions: {
-      parser: tsParser,
       parserOptions: {
-        project: "./tsconfig.json",
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
-      "@typescript-eslint": tsPlugin,
       obsidianmd,
     },
     rules: {
@@ -23,4 +28,5 @@ export default [
       "no-restricted-globals": ["error", "confirm"],
     },
   },
+  eslintConfigPrettier,
 ];

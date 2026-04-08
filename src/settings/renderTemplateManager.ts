@@ -393,7 +393,7 @@ export function renderTemplateManager(
   container.addClass("ttrpgmap-template-list-container");
 
   // Track which folder should start in edit mode after rerender
-  let editingFolderId: string | null = editingFolderIdMap.get(container) ?? null;
+  const editingFolderId: string | null = editingFolderIdMap.get(container) ?? null;
   editingFolderIdMap.set(container, null);
 
   // Header row with "Add Template" and "Add Folder" buttons

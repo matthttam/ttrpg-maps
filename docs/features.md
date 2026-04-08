@@ -48,7 +48,8 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
 
 Maps are rendered from `ttrpgmap` code blocks in your notes. The code block specifies an image path and optional settings. The plugin renders the image inside an interactive container with pan and zoom.
 
-<img width="1207" height="1208" alt="image" src="https://github.com/user-attachments/assets/ad346472-f640-4d6b-b687-d267533049a4" />
+![Marker Creation](https://github.com/user-attachments/assets/d919bc5f-b857-4d03-9383-3a66a5a1f295)
+
 
 **Zoom controls** appear in the top-left corner:
 
@@ -75,7 +76,6 @@ The current zoom level is displayed as a percentage between the buttons.
 
 Right-click anywhere on the map to open the context menu. Select a template to place a marker at that location.
 
-![Place Marker](https://github.com/user-attachments/assets/540af662-c53f-4e3e-8f65-51fd62d97225)
 
 - The **Default** template is always available
 - Custom templates appear as additional menu items

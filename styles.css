@@ -1157,6 +1157,12 @@
   outline: none;
 }
 
+.ttrpgmap-collapsible-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .ttrpgmap-folder-chevron {
   display: flex;
   align-items: center;

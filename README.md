@@ -110,8 +110,7 @@ Configure rounding in the measurement panel to snap distances to the nearest mul
 
 Open **Settings** > **TTRPG Maps** to create and organize marker templates. Templates define default values for color, icon, shape, direction, and more. Use **Save & Update Markers** to push template changes to all existing markers that use it.
 
-<img width="775" height="668" alt="image" src="https://github.com/user-attachments/assets/d29bc99d-f9e6-49d5-a4ba-531644bc2cfe" />
-<img width="946" height="492" alt="image" src="https://github.com/user-attachments/assets/cacd2c91-8bad-4003-a683-7e775018a7f8" />
+![Template Creation](https://github.com/user-attachments/assets/18befb97-1b96-4945-8941-2e257d0c221e)
 
 ## How data is stored
 

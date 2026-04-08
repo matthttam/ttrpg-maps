@@ -960,6 +960,17 @@
 	width: 120ch;
 }
 
+@media (max-width: 880px) {
+	.ttrpgmap-modal-layout {
+		flex-direction: column;
+	}
+
+	.ttrpgmap-edit-preview {
+		min-width: unset;
+		min-height: 200px;
+	}
+}
+
 .ttrpgmap-layer-list {
 	padding-left: 24px;
 }
@@ -988,6 +999,7 @@
 .ttrpgmap-modal-layout {
 	display: flex;
 	gap: 24px;
+	align-items: stretch;
 }
 
 .ttrpgmap-modal-main {
@@ -1396,7 +1408,6 @@
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	position: relative;
 	--pin-overhang-x: 0px;
 }
 
@@ -1442,7 +1453,6 @@
 
 /* Preview label: positioned based on text-placement */
 .ttrpgmap-edit-preview-label {
-	position: absolute;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -1455,16 +1465,11 @@
 
 /* Default: above */
 .ttrpgmap-edit-preview-wrapper[data-text-placement='above'] .ttrpgmap-edit-preview-label {
-	bottom: 100%;
-	left: 50%;
-	transform: translateX(-50%);
+	order: -1;
 	margin-bottom: 4px;
 }
 
 .ttrpgmap-edit-preview-wrapper[data-text-placement='below'] .ttrpgmap-edit-preview-label {
-	top: 100%;
-	left: 50%;
-	transform: translateX(-50%);
 	margin-top: 4px;
 }
 
@@ -1477,8 +1482,6 @@
 
 .ttrpgmap-edit-preview-wrapper[data-text-placement='left'] .ttrpgmap-edit-preview-label,
 .ttrpgmap-edit-preview-wrapper[data-text-placement='right'] .ttrpgmap-edit-preview-label {
-	position: static;
-	transform: none;
 	margin: 0 calc(var(--pin-overhang-x) + 6px);
 }
 
@@ -1510,6 +1513,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	flex-wrap: wrap;
 }
 
 .ttrpgmap-pin-selector-group {

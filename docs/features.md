@@ -117,6 +117,10 @@ A **Reset to template** button resets all visual properties to the template defa
 
 A **live preview** in the modal shows how the marker will look as you change settings. Overlapping markers bump to the front on hover.
 
+A marker must have either a pin shape or an icon. Saving is blocked if both are removed, and the preview shows a "No icon set" placeholder.
+
+The modal layout is responsive - on narrow screens (below 880px), the preview moves below the settings instead of beside them.
+
 ### Marker Interactions on the Map
 
 ![Marker Dragging](https://github.com/user-attachments/assets/86303499-ede1-4408-b424-a876a32a396c)

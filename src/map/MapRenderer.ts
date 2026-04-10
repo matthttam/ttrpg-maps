@@ -66,7 +66,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	// Marker drag state
 	private draggingMarker: MapMarker | null = null;
-	private activeHoverDismiss: (() => void) | null = null;
+	private dismissActiveHover: (() => void) | null = null;
 	private dragMarkerEl: HTMLElement | null = null;
 	private dragStartX = 0;
 	private dragStartY = 0;
@@ -616,11 +616,20 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.wrapper.addEventListener('mousedown', this.onMouseDown.bind(this));
 		this.wrapper.addEventListener('mousemove', this.onMouseMove.bind(this));
 		this.wrapper.addEventListener('mouseup', this.onMouseUp.bind(this));
-		this.wrapper.addEventListener('mouseleave', this.onMouseUp.bind(this));
+		this.wrapper.addEventListener('mouseleave', this.onWrapperLeave.bind(this));
+		// Catch mouseup outside the wrapper (e.g., on a popover) to prevent stuck drags
+		activeWindow.addEventListener('mouseup', () => {
+			if (this.draggingMarker) this.onMouseUp();
+		});
 		this.wrapper.addEventListener('click', this.onMapClick.bind(this));
 		this.wrapper.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
 		this.wrapper.addEventListener('contextmenu', this.onContextMenu.bind(this));
 		this.wrapper.setAttribute('tabindex', '0');
+		activeWindow.addEventListener('keydown', (e) => {
+			if (e.key === 'Alt' && this.dismissActiveHover) {
+				this.dismissActiveHover();
+			}
+		});
 		this.wrapper.addEventListener('keydown', (e) => {
 			if (e.key === 'Escape') {
 				if (this.resizingMarker) {
@@ -628,12 +637,6 @@ export class MapRenderer extends MarkdownRenderChild {
 					return;
 				}
 				if (this.mode !== 'pan') this.cancelDrawing();
-			}
-		});
-		activeWindow.addEventListener('keydown', (e) => {
-			if (e.key === 'Alt' && this.activeHoverDismiss) {
-				this.activeHoverDismiss();
-				this.activeHoverDismiss = null;
 			}
 		});
 		this.wrapper.addEventListener('dblclick', (e) => {
@@ -842,9 +845,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 
 		if (this.draggingMarker && this.dragMarkerEl) {
-			// Keep trying to dismiss hover preview on every move during drag
-			// (popover may not be attached yet when first attempted on mousedown)
-			if (this.activeHoverDismiss) this.activeHoverDismiss();
+			// Dismiss any hover popover that appeared in the race between timeout and mousedown
+			if (this.dismissActiveHover) { this.dismissActiveHover(); this.dismissActiveHover = null; }
 			const dx = e.clientX - this.dragStartX;
 			const dy = e.clientY - this.dragStartY;
 			if (dx !== 0 || dy !== 0) this.hasDragged = true;
@@ -867,6 +869,15 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.applyTransform();
 	}
 
+	private onWrapperLeave(): void {
+		// Only end panning on wrapper leave, not marker dragging or other operations.
+		// Marker dragging should survive the cursor leaving the wrapper (e.g., popover overlay).
+		if (this.isPanning) {
+			this.isPanning = false;
+			this.wrapper.removeClass('ttrpgmap-panning');
+		}
+	}
+
 	private onMouseUp(): void {
 		// Resize: end handle drag (but stay in resize mode)
 		if (this.isDraggingHandle) {
@@ -885,10 +896,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (this.draggingMarker) {
 			this.dragMarkerEl?.removeClass('ttrpgmap-marker-dragging');
 			if (this.hasDragged && this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
-			if (this.activeHoverDismiss) {
-				this.activeHoverDismiss();
-				this.activeHoverDismiss = null;
-			}
 			this.draggingMarker = null;
 			this.dragMarkerEl = null;
 			return;
@@ -1118,7 +1125,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (!this.state) return;
 		// Null out refs before DOM wipe (elements are removed with the markers)
 		this.resizeHandleEl = null;
-		this.activeHoverDismiss = null;
 		this.isDraggingHandle = false;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
 
@@ -1215,23 +1221,27 @@ export class MapRenderer extends MarkdownRenderChild {
 			});
 		}
 
-		// Hover preview (delayed to avoid triggering during click/drag/alt)
+		// Hover preview
+		// Spec: 300ms delay, interactable popover, any mousedown dismisses,
+		// Alt dismisses, must mouse-out and back in to re-trigger after dismiss.
 		let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
-		let mouseHeld = false;
+		let hoverSuppressed = false;
 		const hoverParent: { hoverPopover: { hide: () => void } | null } = { hoverPopover: null };
-		const dismissHover = () => {
-			if (hoverTimeout) {
-				clearTimeout(hoverTimeout);
-				hoverTimeout = null;
-			}
-			if (hoverParent.hoverPopover) {
-				hoverParent.hoverPopover.hide();
-				hoverParent.hoverPopover = null;
-			}
+
+		const clearHoverTimeout = () => {
+			if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
 		};
+		const dismissPopover = () => {
+			clearHoverTimeout();
+			if (hoverParent.hoverPopover) { hoverParent.hoverPopover.hide(); hoverParent.hoverPopover = null; }
+			hoverSuppressed = true; // require fresh mouseenter to re-trigger
+		};
+
 		markerEl.addEventListener('mouseenter', (e) => {
 			markerEl.setCssStyles({ zIndex: '10' });
-			if (this.draggingMarker || mouseHeld || e.altKey) return;
+			hoverSuppressed = false; // fresh enter resets suppression
+			this.dismissActiveHover = dismissPopover;
+			if (this.draggingMarker || e.altKey) return;
 			const showPreview = this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
 			if (!showPreview) return;
 			let previewPath: string | null = null;
@@ -1246,9 +1256,10 @@ export class MapRenderer extends MarkdownRenderChild {
 				previewPath = linkPath(marker.note);
 			}
 			if (!previewPath) return;
-			this.activeHoverDismiss = dismissHover;
 			hoverTimeout = setTimeout(() => {
-				if (this.draggingMarker || mouseHeld) return;
+				hoverTimeout = null;
+				if (this.draggingMarker || hoverSuppressed) return;
+				hoverParent.hoverPopover = null;
 				this.plugin.app.workspace.trigger('hover-link', {
 					event: e,
 					source: 'ttrpg-maps',
@@ -1259,22 +1270,17 @@ export class MapRenderer extends MarkdownRenderChild {
 				});
 			}, 300);
 		});
+
+		// mouseleave: only cancel timeout, do NOT dismiss popover
+		// (user may be moving cursor to the popover itself - requirement #2)
 		markerEl.addEventListener('mouseleave', () => {
 			markerEl.setCssStyles({ zIndex: '' });
-			if (hoverTimeout) {
-				clearTimeout(hoverTimeout);
-				hoverTimeout = null;
-			}
-			mouseHeld = false;
-			if (!this.draggingMarker) this.activeHoverDismiss = null;
+			clearHoverTimeout();
 		});
-		markerEl.addEventListener('mousedown', () => {
-			mouseHeld = true;
-			dismissHover();
-		});
-		markerEl.addEventListener('mouseup', () => {
-			mouseHeld = false;
-		});
+
+		// Any mousedown on marker: dismiss everything (requirement #3)
+		markerEl.addEventListener('mousedown', dismissPopover);
+
 
 		// Drag to reposition
 		markerEl.addEventListener('mousedown', (e) => {

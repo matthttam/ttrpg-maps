@@ -1,4 +1,5 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
+import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from '../types';
 import { buildScaleSlider } from '../modals/sharedFields';
@@ -195,27 +196,15 @@ class MapDataModal extends Modal {
 					.setButtonText('Delete')
 					.setWarning()
 					.onClick(() => {
-						const confirmModal = new Modal(this.app);
-						confirmModal.titleEl.setText('Delete map data');
-						confirmModal.contentEl.createEl('p', {
-							text: `This will permanently delete all data for map "${state.mapId}" including ${markerCount} marker${markerCount !== 1 ? 's' : ''} and ${layerCount} layer${layerCount !== 1 ? 's' : ''}. This cannot be undone.`,
+						const msg = `This will permanently delete all data for map "${state.mapId}" including ${markerCount} marker${markerCount !== 1 ? 's' : ''} and ${layerCount} layer${layerCount !== 1 ? 's' : ''}. This cannot be undone.`;
+						void confirmAction(this.app, 'Delete map data', msg, 'Delete').then((confirmed) => {
+							if (!confirmed) return;
+							void (async () => {
+								await this.plugin.dataManager.deleteMapState(state.mapId);
+								this.plugin.triggerMapRefresh();
+								await this.renderList();
+							})();
 						});
-						new Setting(confirmModal.contentEl)
-							.addButton((b) => b.setButtonText('Cancel').onClick(() => confirmModal.close()))
-							.addButton((b) =>
-								b
-									.setButtonText('Delete')
-									.setWarning()
-									.onClick(() => {
-										void (async () => {
-											await this.plugin.dataManager.deleteMapState(state.mapId);
-											this.plugin.triggerMapRefresh();
-											confirmModal.close();
-											await this.renderList();
-										})();
-									}),
-							);
-						confirmModal.open();
 					});
 			});
 		}

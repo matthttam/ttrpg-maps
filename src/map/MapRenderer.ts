@@ -1,4 +1,5 @@
 import { MarkdownRenderChild, Menu, Notice, setIcon, parseLinktext } from 'obsidian';
+import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import {
 	MapConfig,
@@ -7,12 +8,15 @@ import {
 	MapPoint,
 	MarkerTemplate,
 	RoundingMode,
+	MarkerLayer,
 	DEFAULT_LAYER_ID,
+	DEFAULT_LAYER,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
 } from '../types';
 import { MapSettingsModal } from '../modals/MapSettingsModal';
 import { MarkerEditModal } from '../modals/MarkerEditModal';
+import { LayerEditModal } from '../modals/LayerEditModal';
 import { ScaleCalibrationModal } from '../modals/ScaleCalibrationModal';
 import { serializeMapConfig, writeConfigToCodeBlock } from '../utils/configSerializer';
 import { createPinElement } from '../utils/markerPin';
@@ -109,6 +113,11 @@ export class MapRenderer extends MarkdownRenderChild {
 	private resizeObserver: ResizeObserver | null = null;
 	private _resizeDebounce: ReturnType<typeof setTimeout> | null = null;
 
+	// Layer panel state (non-persisted, session only)
+	private layerVisibilityOverrides: Map<string, 'show' | 'hide' | 'always'> = new Map();
+	private activeListTab: 'markers' | 'layers' = 'markers';
+	private layerListContainer: HTMLElement | null = null;
+
 	constructor(
 		containerEl: HTMLElement,
 		plugin: TTRPGMapsPlugin,
@@ -194,6 +203,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.buildMarkerListPanel();
 		this.buildTotalDisplay();
 		this.bindEvents();
+
+		// Render markers immediately (positions corrected on image load)
 		this.renderMarkers();
 
 		// Throttle layout during resize: hide overlays and pause image rendering
@@ -462,7 +473,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		const panel = this.wrapper.createDiv({ cls: 'ttrpgmap-marker-list-panel' });
 		let pinned = false;
 
-		// Wrapper for pin tab + list (sits above toggle)
+		// Wrapper for pin tab + list (sits above tabs)
 		const listWrapper = panel.createDiv({ cls: 'ttrpgmap-marker-list-wrapper' });
 		listWrapper.addClass('ttrpgmap-hidden');
 
@@ -481,43 +492,250 @@ export class MapRenderer extends MarkdownRenderChild {
 		// List container
 		const listContainer = listWrapper.createDiv({ cls: 'ttrpgmap-marker-list-container' });
 
-		// Scrollable list area
-		const listScroll = listContainer.createDiv({ cls: 'ttrpgmap-marker-list-scroll' });
-		this.markerListScroll = listScroll;
+		// Scrollable marker list area
+		const markerScroll = listContainer.createDiv({ cls: 'ttrpgmap-marker-list-scroll' });
+		this.markerListScroll = markerScroll;
+
+		// Scrollable layer list area (hidden by default)
+		const layerScroll = listContainer.createDiv({ cls: 'ttrpgmap-marker-list-scroll ttrpgmap-hidden' });
+		this.layerListContainer = layerScroll;
 
 		// Prevent scroll from zooming the map when the list is scrollable
-		listScroll.addEventListener('wheel', (e) => {
-			const atTop = listScroll.scrollTop === 0;
-			const atBottom = listScroll.scrollTop + listScroll.clientHeight >= listScroll.scrollHeight;
-			const scrollingUp = e.deltaY < 0;
-			// Only let it through if fully scrolled in that direction
-			if ((scrollingUp && atTop) || (!scrollingUp && atBottom)) return;
+		const preventScrollZoom = (el: HTMLElement) => {
+			el.addEventListener('wheel', (e) => {
+				const atTop = el.scrollTop === 0;
+				const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight;
+				const scrollingUp = e.deltaY < 0;
+				if ((scrollingUp && atTop) || (!scrollingUp && atBottom)) return;
+				e.stopPropagation();
+			});
+		};
+		preventScrollZoom(markerScroll);
+		preventScrollZoom(layerScroll);
+
+		// Tab buttons at the bottom
+		const tabRow = panel.createDiv({ cls: 'ttrpgmap-panel-tabs' });
+
+		const markersTab = tabRow.createDiv({ cls: 'ttrpgmap-marker-list-toggle', attr: { 'aria-label': 'Markers' } });
+		setIcon(markersTab, 'list');
+
+		const layersTab = tabRow.createDiv({ cls: 'ttrpgmap-marker-list-toggle', attr: { 'aria-label': 'Layers' } });
+		setIcon(layersTab, 'layers');
+
+		const switchTab = (tab: 'markers' | 'layers') => {
+			this.activeListTab = tab;
+			markerScroll.toggleClass('ttrpgmap-hidden', tab !== 'markers');
+			layerScroll.toggleClass('ttrpgmap-hidden', tab !== 'layers');
+			markersTab.toggleClass('ttrpgmap-panel-tab-active', tab === 'markers');
+			layersTab.toggleClass('ttrpgmap-panel-tab-active', tab === 'layers');
+			if (tab === 'markers') this.renderMarkerList(markerScroll);
+			if (tab === 'layers') this.renderLayerList(layerScroll);
+		};
+
+		const handleTabClick = (tab: 'markers' | 'layers') => {
+			const isOpen = !listWrapper.hasClass('ttrpgmap-hidden');
+			if (isOpen && this.activeListTab === tab && !pinned) {
+				// Clicking the active tab when not pinned closes the panel
+				listWrapper.addClass('ttrpgmap-hidden');
+				markersTab.removeClass('ttrpgmap-panel-tab-active');
+				layersTab.removeClass('ttrpgmap-panel-tab-active');
+				return;
+			}
+			listWrapper.removeClass('ttrpgmap-hidden');
+			switchTab(tab);
+		};
+
+		markersTab.addEventListener('click', (e) => {
 			e.stopPropagation();
+			handleTabClick('markers');
 		});
 
-		// Toggle button at the bottom
-		const toggleBtn = panel.createDiv({ cls: 'ttrpgmap-marker-list-toggle' });
-		setIcon(toggleBtn, 'list');
-		toggleBtn.setAttribute('aria-label', 'Marker list');
-
-		toggleBtn.addEventListener('click', (e) => {
+		layersTab.addEventListener('click', (e) => {
 			e.stopPropagation();
-			const isOpen = !listWrapper.hasClass('ttrpgmap-hidden');
-			if (isOpen && !pinned) {
-				listWrapper.addClass('ttrpgmap-hidden');
-			} else {
-				listWrapper.removeClass('ttrpgmap-hidden');
-				this.renderMarkerList(listScroll);
-			}
+			handleTabClick('layers');
 		});
 	}
 
-	/** Refresh the marker list if it's currently visible */
+	private renderLayerList(container: HTMLElement): void {
+		container.empty();
+		if (!this.state) return;
+
+		for (const layer of this.state.layers) {
+			const isDefault = layer.id === DEFAULT_LAYER_ID;
+			const layerId = layer.id;
+			const visOverride = this.layerVisibilityOverrides.get(layerId) ?? 'show';
+
+			const row = container.createDiv({ cls: 'ttrpgmap-marker-list-row' });
+
+			// Layer name + zoom range
+			const nameEl = row.createDiv({ cls: 'ttrpgmap-marker-list-name' });
+			nameEl.setText(layer.name);
+			const rangeText = this.formatZoomRangeShort(layer);
+			if (rangeText) {
+				nameEl.createEl('span', { cls: 'ttrpgmap-layer-range-badge', text: ` ${rangeText}` });
+			}
+
+			// Action button group
+			const actionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
+
+			// Visibility eye toggle (3-state: show -> hide -> always -> show)
+			const eyeBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': this.getVisibilityLabel(visOverride) } });
+			const updateEyeIcon = (vis: 'show' | 'hide' | 'always') => {
+				eyeBtn.empty();
+				eyeBtn.removeClass('ttrpgmap-layer-eye-always');
+				if (vis === 'hide') { setIcon(eyeBtn, 'eye-off'); }
+				else if (vis === 'always') { setIcon(eyeBtn, 'eye'); eyeBtn.addClass('ttrpgmap-layer-eye-always'); }
+				else { setIcon(eyeBtn, 'minus'); }
+				eyeBtn.setAttribute('aria-label', this.getVisibilityLabel(vis));
+			};
+			updateEyeIcon(visOverride);
+			eyeBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const current = this.layerVisibilityOverrides.get(layerId) ?? 'show';
+				const next = current === 'show' ? 'hide' : current === 'hide' ? 'always' : 'show';
+				this.layerVisibilityOverrides.set(layerId, next);
+				updateEyeIcon(next);
+				this.updateMarkerScalesAndVisibility();
+				this.refreshMarkerList();
+			});
+
+			// Edit button
+			const editBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit layer' } });
+			setIcon(editBtn, 'pencil');
+			editBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				new LayerEditModal(this.plugin.app, {
+					layer,
+					mapZoomMin: this.config.zoomMin,
+					mapZoomMax: this.config.zoomMax,
+					onSave: (saved) => {
+						Object.assign(layer, saved);
+						if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+						this.renderLayerList(container);
+						this.updateMarkerScalesAndVisibility();
+					},
+				}).open();
+			});
+
+			// Delete/Reset button
+			if (isDefault) {
+				const resetBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Reset to defaults' } });
+				setIcon(resetBtn, 'rotate-ccw');
+				resetBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					layer.name = DEFAULT_LAYER.name;
+					layer.zoomMin = DEFAULT_LAYER.zoomMin;
+					layer.zoomMax = DEFAULT_LAYER.zoomMax;
+					if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+					this.renderLayerList(container);
+					this.updateMarkerScalesAndVisibility();
+				});
+			} else {
+				const deleteBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete', attr: { 'aria-label': 'Delete layer' } });
+				setIcon(deleteBtn, 'trash-2');
+				deleteBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					if (!this.state) return;
+					const count = this.state.markers.filter((m) => m.layerId === layerId).length;
+					const msg = count > 0
+						? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
+						: `Delete "${layer.name}"?`;
+					void confirmAction(this.plugin.app, 'Delete layer', msg, 'Delete').then((confirmed) => {
+						if (!confirmed || !this.state) return;
+						for (const m of this.state.markers) {
+							if (m.layerId === layerId) m.layerId = null;
+						}
+						this.state.layers = this.state.layers.filter((l) => l.id !== layerId);
+						this.layerVisibilityOverrides.delete(layerId);
+						this.plugin.dataManager.saveMapState(this.config.id, this.state);
+						this.renderLayerList(container);
+						this.renderMarkers();
+						this.refreshMarkerList();
+					});
+				});
+			}
+
+			// Hover: highlight markers on this layer
+			row.addEventListener('mouseenter', () => {
+				const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
+				els.forEach((el) => {
+					const mid = el.dataset.markerId;
+					if (!mid || !this.state) return;
+					const marker = this.state.markers.find((m) => m.id === mid);
+					if (!marker) return;
+					const markerLayerId = marker.layerId ?? DEFAULT_LAYER_ID;
+					if (markerLayerId === layerId) {
+						el.addClass('ttrpgmap-marker-bounce');
+						el.setCssStyles({ opacity: '1' });
+					} else {
+						el.setCssStyles({ opacity: '0.3' });
+					}
+				});
+			});
+			row.addEventListener('mouseleave', () => {
+				const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
+				els.forEach((el) => {
+					el.removeClass('ttrpgmap-marker-bounce');
+					el.setCssStyles({ opacity: '' });
+				});
+			});
+		}
+
+		// Add layer button
+		const addRow = container.createDiv({ cls: 'ttrpgmap-marker-list-row ttrpgmap-layer-add-row' });
+		const addBtn = addRow.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Add layer' } });
+		setIcon(addBtn, 'layers');
+		addRow.createDiv({ cls: 'ttrpgmap-marker-list-name', text: 'Add layer' });
+		addRow.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (!this.state) return;
+			const existingNames = new Set(this.state.layers.map((l) => l.name.toLowerCase()));
+			let n = 1;
+			while (existingNames.has(`layer ${n}`.toLowerCase())) n++;
+			const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+			const newLayer: MarkerLayer = { id, name: `Layer ${n}`, zoomMin: this.config.zoomMin, zoomMax: this.config.zoomMax };
+			this.state.layers.push(newLayer);
+			this.plugin.dataManager.saveMapState(this.config.id, this.state);
+			this.renderLayerList(container);
+			new LayerEditModal(this.plugin.app, {
+				layer: newLayer,
+				mapZoomMin: this.config.zoomMin,
+				mapZoomMax: this.config.zoomMax,
+				isNew: true,
+				onSave: (saved) => {
+					Object.assign(newLayer, saved);
+					if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+					this.renderLayerList(container);
+				},
+			}).open();
+		});
+	}
+
+	private getVisibilityLabel(vis: 'show' | 'hide' | 'always'): string {
+		if (vis === 'hide') return 'Hidden';
+		if (vis === 'always') return 'Always visible';
+		return 'Default';
+	}
+
+	private formatZoomRangeShort(layer: MarkerLayer): string {
+		const min = layer.zoomMin;
+		const max = layer.zoomMax;
+		if (min == null && max == null) return '';
+		if (min != null && max != null) return `${min}%-${max}%`;
+		if (min != null) return `${min}%+`;
+		return `\u2264${max}%`;
+	}
+
+	/** Refresh the active list panel if it's currently visible */
 	private refreshMarkerList(): void {
 		if (this.markerListScroll) {
 			const wrapper = this.markerListScroll.closest('.ttrpgmap-marker-list-wrapper');
 			if (wrapper && !wrapper.hasClass('ttrpgmap-hidden')) {
-				this.renderMarkerList(this.markerListScroll);
+				if (this.activeListTab === 'markers') {
+					this.renderMarkerList(this.markerListScroll);
+				} else if (this.activeListTab === 'layers' && this.layerListContainer) {
+					this.renderLayerList(this.layerListContainer);
+				}
 			}
 		}
 	}
@@ -581,8 +799,11 @@ export class MapRenderer extends MarkdownRenderChild {
 				row.addClass('ttrpgmap-marker-list-has-desc');
 			}
 
+			// Action button group
+			const markerActionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
+
 			// Edit button
-			const editBtn = row.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit' } });
+			const editBtn = markerActionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit' } });
 			setIcon(editBtn, 'pencil');
 			editBtn.addEventListener('click', (e) => {
 				e.stopPropagation();
@@ -590,7 +811,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			});
 
 			// Delete button
-			const deleteBtn = row.createDiv({
+			const deleteBtn = markerActionGroup.createDiv({
 				cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete',
 				attr: { 'aria-label': 'Delete' },
 			});
@@ -1000,6 +1221,11 @@ export class MapRenderer extends MarkdownRenderChild {
 	private isMarkerVisible(marker: MapMarker): boolean {
 		if (!this.state) return false;
 		const layerId = marker.layerId ?? DEFAULT_LAYER_ID;
+		// Check layer visibility override (session-only)
+		const override = this.layerVisibilityOverrides.get(layerId);
+		if (override === 'hide') return false;
+		if (override === 'always') return true;
+		// Normal zoom-based visibility
 		const layer = this.state.layers.find((l) => l.id === layerId);
 		if (!layer) return true; // orphaned layer ref = show marker
 		const min = layer.zoomMin ?? 0;

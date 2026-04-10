@@ -350,6 +350,73 @@
 	opacity: 1;
 }
 
+/* Panel tab bar */
+.ttrpgmap-panel-tabs {
+	display: flex;
+}
+
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle {
+	border-radius: 0;
+	margin-left: -1px;
+}
+
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:first-child {
+	border-radius: 0 0 0 4px;
+	margin-left: 0;
+}
+
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:last-child {
+	border-radius: 0 0 4px 0;
+}
+
+.ttrpgmap-panel-tab-active {
+	opacity: 1;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+/* Layer list styles */
+.ttrpgmap-layer-range-badge {
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+.ttrpgmap-layer-action-group {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.ttrpgmap-layer-action-group .ttrpgmap-marker-list-action {
+	border-radius: 0;
+	border: 1px solid var(--background-modifier-border);
+	margin-left: -1px;
+}
+
+.ttrpgmap-layer-action-group .ttrpgmap-marker-list-action:first-child {
+	border-radius: 3px 0 0 3px;
+	margin-left: 0;
+}
+
+.ttrpgmap-layer-action-group .ttrpgmap-marker-list-action:last-child {
+	border-radius: 0 3px 3px 0;
+}
+
+.ttrpgmap-layer-eye-always {
+	color: var(--interactive-accent);
+}
+
+.ttrpgmap-layer-add-row {
+	cursor: pointer;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.ttrpgmap-layer-add-row:hover {
+	color: var(--text-normal);
+}
+
 /* Wrapper for pin tab + list */
 .ttrpgmap-marker-list-wrapper {
 	display: flex;
@@ -950,6 +1017,7 @@
 	background: var(--background-secondary);
 	border-radius: 6px;
 }
+
 
 /* ===== Modal styles ===== */
 .ttrpgmap-modal--wide {

@@ -1,4 +1,5 @@
 import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
+import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
@@ -428,35 +429,27 @@ export class MarkerEditModal extends Modal {
 					.onClick(() => {
 						const tpl = this.getTemplate();
 						if (!tpl) return;
-						const confirmModal = new Modal(this.app);
-						confirmModal.titleEl.setText('Reset to template');
-						confirmModal.contentEl.createEl('p', {
-							text: `This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
-						});
-						new Setting(confirmModal.contentEl)
-							.addButton((b) => b.setButtonText('Cancel').onClick(() => confirmModal.close()))
-							.addButton((b) =>
-								b
-									.setButtonText('Reset')
-									.setWarning()
-									.onClick(() => {
-										this.marker.direction = tpl.direction;
-										this.marker.textPlacement = tpl.textPlacement;
-										this.marker.color = tpl.color;
-										this.marker.icon = tpl.icon;
-										this.marker.iconColor = tpl.iconColor;
-										this.marker.iconRotation = tpl.iconRotation;
-										this.marker.useBaseMarker = tpl.useBaseMarker;
-										this.marker.shape = tpl.shape;
-										this.marker.scale = null;
-										this.marker.scaleToZoom = null;
-										this.marker.textScale = null;
-										this.marker.textScaleToZoom = null;
-										confirmModal.close();
-										this.onOpen();
-									}),
-							);
-						confirmModal.open();
+						void confirmAction(
+						this.app,
+						'Reset to template',
+						`This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
+						'Reset',
+					).then((confirmed) => {
+						if (!confirmed) return;
+						this.marker.direction = tpl.direction;
+						this.marker.textPlacement = tpl.textPlacement;
+						this.marker.color = tpl.color;
+						this.marker.icon = tpl.icon;
+						this.marker.iconColor = tpl.iconColor;
+						this.marker.iconRotation = tpl.iconRotation;
+						this.marker.useBaseMarker = tpl.useBaseMarker;
+						this.marker.shape = tpl.shape;
+						this.marker.scale = null;
+						this.marker.scaleToZoom = null;
+						this.marker.textScale = null;
+						this.marker.textScaleToZoom = null;
+						this.onOpen();
+					});
 					});
 				if (!hasTemplate) btn.setTooltip('Template not found');
 			})

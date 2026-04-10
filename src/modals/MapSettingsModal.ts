@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from 'obsidian';
+import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import {
 	MapConfig,
@@ -578,32 +579,11 @@ export class MapSettingsModal extends Modal {
 					btn.onClick(() => {
 						void (async () => {
 							const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
-							if (count > 0) {
-								const msg = `${count} marker${count === 1 ? '' : 's'} will be moved to the Default Layer.`;
-								const confirmed = await new Promise<boolean>((resolve) => {
-									const confirmModal = new Modal(this.app);
-									confirmModal.titleEl.setText('Confirm');
-									confirmModal.contentEl.createEl('p', { text: msg });
-									new Setting(confirmModal.contentEl)
-										.addButton((b) =>
-											b.setButtonText('Cancel').onClick(() => {
-												resolve(false);
-												confirmModal.close();
-											}),
-										)
-										.addButton((b) =>
-											b
-												.setButtonText('Confirm')
-												.setWarning()
-												.onClick(() => {
-													resolve(true);
-													confirmModal.close();
-												}),
-										);
-									confirmModal.open();
-								});
-								if (!confirmed) return;
-							}
+							const msg = count > 0
+								? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
+								: `Delete "${layer.name}"?`;
+							const confirmed = await confirmAction(this.app, 'Delete layer', msg, 'Delete');
+							if (!confirmed) return;
 							for (const m of this.state.markers) {
 								if (m.layerId === layer.id) m.layerId = null;
 							}

@@ -383,13 +383,17 @@
 	margin-left: -1px;
 }
 
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:first-child {
-	border-radius: 0 0 0 4px;
+/* First visible tab: round bottom-left */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):first-child,
+.ttrpgmap-panel-tabs .ttrpgmap-hidden + .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
+	border-bottom-left-radius: 4px;
 	margin-left: 0;
 }
 
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:last-child {
-	border-radius: 0 0 4px 0;
+/* Last visible tab: round bottom-right */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):last-child,
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-hidden) {
+	border-bottom-right-radius: 4px;
 }
 
 .ttrpgmap-panel-tab-active {
@@ -670,7 +674,7 @@
 }
 
 .ttrpgmap-marker-bounce {
-	animation: ttrpgmap-bounce 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+	animation: ttrpgmap-bounce 1.53s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 	z-index: 15;
 }
 
@@ -816,12 +820,14 @@
 /* Show dashed outline while dragging, resizing, or copy ghost, with translucent fill */
 .ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
 .ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
+.ttrpgmap-marker-bounce .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg,
 .ttrpgmap-copy-ghost .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg {
 	opacity: 1;
 }
 
 .ttrpgmap-marker-dragging .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
 .ttrpgmap-marker-resizing .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
+.ttrpgmap-marker-bounce .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle,
 .ttrpgmap-copy-ghost .ttrpgmap-pin--hotspot .ttrpgmap-pin-svg circle {
 	fill: var(--text-muted);
 	fill-opacity: 0.9;

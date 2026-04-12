@@ -119,6 +119,15 @@ export class MapRenderer extends MarkdownRenderChild {
 	private activeListTab: 'markers' | 'layers' = 'markers';
 	private layerListContainer: HTMLElement | null = null;
 
+	// Control containers (for visibility toggling without DOM rebuild)
+	private zoomControlsEl: HTMLElement | null = null;
+	private measurePanelEl: HTMLElement | null = null;
+	private settingsBtnEl: HTMLElement | null = null;
+	private markerListPanelEl: HTMLElement | null = null;
+	private markersTabEl: HTMLElement | null = null;
+	private layersTabEl: HTMLElement | null = null;
+	private tabRowEl: HTMLElement | null = null;
+
 	constructor(
 		containerEl: HTMLElement,
 		plugin: TTRPGMapsPlugin,
@@ -136,6 +145,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private refreshCallback = () => {
 		void (async () => {
 			this.state = await this.plugin.dataManager.loadMapState(this.config.id);
+			this.applyControlVisibility();
 			this.renderMarkers();
 			this.refreshMarkerList();
 		})();
@@ -203,6 +213,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.buildSettingsButton();
 		this.buildMarkerListPanel();
 		this.buildTotalDisplay();
+		this.applyControlVisibility();
 		this.bindEvents();
 
 		// Render markers immediately (positions corrected on image load)
@@ -241,6 +252,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private buildZoomControls(): void {
 		const controls = this.wrapper.createDiv({ cls: 'ttrpgmap-zoom-controls' });
+		this.zoomControlsEl = controls;
 
 		const zoomInBtn = controls.createDiv({ cls: 'ttrpgmap-zoom-btn', text: '+' });
 		zoomInBtn.addEventListener('click', () => this.adjustZoom(this.config.zoomStep));
@@ -352,6 +364,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private buildMeasureDrawer(): void {
 		const panel = this.wrapper.createDiv({ cls: 'ttrpgmap-measure-panel' });
+		this.measurePanelEl = panel;
 
 		// Toggle button (always visible)
 		const toggleBtn = panel.createDiv({ cls: 'ttrpgmap-measure-toggle' });
@@ -505,6 +518,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private buildSettingsButton(): void {
 		const btn = this.wrapper.createDiv({ cls: 'ttrpgmap-settings-btn' });
+		this.settingsBtnEl = btn;
 		btn.setText('⚙');
 		btn.setAttribute('aria-label', 'Map settings');
 		btn.addEventListener('click', () => this.openSettings());
@@ -512,6 +526,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private buildMarkerListPanel(): void {
 		const panel = this.wrapper.createDiv({ cls: 'ttrpgmap-marker-list-panel' });
+		this.markerListPanelEl = panel;
 		let pinned = false;
 
 		// Wrapper for pin tab + list (sits above tabs)
@@ -556,12 +571,15 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		// Tab buttons at the bottom
 		const tabRow = panel.createDiv({ cls: 'ttrpgmap-panel-tabs' });
+		this.tabRowEl = tabRow;
 
 		const markersTab = tabRow.createDiv({ cls: 'ttrpgmap-marker-list-toggle', attr: { 'aria-label': 'Markers' } });
 		setIcon(markersTab, 'list');
+		this.markersTabEl = markersTab;
 
 		const layersTab = tabRow.createDiv({ cls: 'ttrpgmap-marker-list-toggle', attr: { 'aria-label': 'Layers' } });
 		setIcon(layersTab, 'layers');
+		this.layersTabEl = layersTab;
 
 		const switchTab = (tab: 'markers' | 'layers') => {
 			this.activeListTab = tab;
@@ -706,7 +724,7 @@ export class MapRenderer extends MarkdownRenderChild {
 					if (!marker) return;
 					const markerLayerId = marker.layerId ?? DEFAULT_LAYER_ID;
 					if (markerLayerId === layerId) {
-						el.addClass('ttrpgmap-marker-bounce');
+						this.startBounce(el);
 						el.setCssStyles({ opacity: '1' });
 					} else {
 						el.setCssStyles({ opacity: '0.3' });
@@ -716,8 +734,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			row.addEventListener('mouseleave', () => {
 				const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
 				els.forEach((el) => {
-					el.removeClass('ttrpgmap-marker-bounce');
 					el.setCssStyles({ opacity: '' });
+					this.stopBounce(el);
 				});
 			});
 		}
@@ -827,11 +845,11 @@ export class MapRenderer extends MarkdownRenderChild {
 			// Highlight map marker on hover
 			row.addEventListener('mouseenter', () => {
 				const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
-				if (el) el.addClass('ttrpgmap-marker-bounce');
+				if (el) this.startBounce(el);
 			});
 			row.addEventListener('mouseleave', () => {
 				const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
-				if (el) el.removeClass('ttrpgmap-marker-bounce');
+				if (el) this.stopBounce(el);
 			});
 
 			// Description tooltip on hover
@@ -1261,6 +1279,46 @@ export class MapRenderer extends MarkdownRenderChild {
 	// ──────────────────── Markers ────────────────────
 
 	/** Check if a marker is visible at the current zoom level based on its layer */
+	/** Start the bounce animation on a marker element, cancelling any pending stop */
+	private startBounce(el: HTMLElement): void {
+		el.removeClass('ttrpgmap-marker-bounce-stopping');
+		el.addClass('ttrpgmap-marker-bounce');
+	}
+
+	/** Stop the bounce animation after the current cycle completes */
+	private stopBounce(el: HTMLElement): void {
+		el.addClass('ttrpgmap-marker-bounce-stopping');
+		el.addEventListener('animationiteration', () => {
+			if (el.hasClass('ttrpgmap-marker-bounce-stopping')) {
+				el.removeClass('ttrpgmap-marker-bounce');
+				el.removeClass('ttrpgmap-marker-bounce-stopping');
+			}
+		}, { once: true });
+	}
+
+	private isControlVisible(field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings'): boolean {
+		return this.state?.[field] ?? this.plugin.settings[field] ?? true;
+	}
+
+	/** Toggle visibility of UI controls based on global + per-map settings */
+	private applyControlVisibility(): void {
+		const showZoom = this.isControlVisible('showZoomControls');
+		const showMeasure = this.isControlVisible('showMeasurementTools');
+		const showSettings = this.isControlVisible('showMapSettings');
+		const showMarkers = this.isControlVisible('showMarkerList');
+		const showLayers = this.isControlVisible('showLayerList');
+
+		this.zoomControlsEl?.toggleClass('ttrpgmap-hidden', !showZoom);
+		this.measurePanelEl?.toggleClass('ttrpgmap-hidden', !showMeasure);
+		this.settingsBtnEl?.toggleClass('ttrpgmap-hidden', !showSettings);
+
+		// Entire panel hidden when both tabs are off
+		this.markerListPanelEl?.toggleClass('ttrpgmap-hidden', !showMarkers && !showLayers);
+		// Individual tab buttons
+		this.markersTabEl?.toggleClass('ttrpgmap-hidden', !showMarkers);
+		this.layersTabEl?.toggleClass('ttrpgmap-hidden', !showLayers);
+	}
+
 	private isMarkerVisible(marker: MapMarker): boolean {
 		if (!this.state) return false;
 		const layerId = marker.layerId ?? DEFAULT_LAYER_ID;
@@ -1970,6 +2028,13 @@ export class MapRenderer extends MarkdownRenderChild {
 				setting.openTabById(this.plugin.manifest.id);
 			});
 		});
+		if (!this.isControlVisible('showMapSettings')) {
+			menu.addItem((item) => {
+				item.setTitle('Edit map');
+				item.setIcon('settings');
+				item.onClick(() => this.openSettings());
+			});
+		}
 
 		menu.showAtMouseEvent(e);
 	}
@@ -2379,6 +2444,7 @@ export class MapRenderer extends MarkdownRenderChild {
 					);
 				}
 				this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+				this.applyControlVisibility();
 				this.renderMarkers();
 				this.refreshMarkerList();
 			},

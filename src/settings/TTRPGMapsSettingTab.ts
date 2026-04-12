@@ -108,6 +108,64 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 				});
 			});
 
+		// ── Controls ──
+		new Setting(containerEl).setName('Controls').setHeading();
+
+		new Setting(containerEl)
+			.setName('Show measurement tools')
+			.setDesc('Show the distance measurement panel on maps')
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.showMeasurementTools ?? true).onChange((value) => {
+					this.plugin.settings.showMeasurementTools = value;
+					void this.plugin.dataManager.saveSettings(this.plugin.settings);
+					this.plugin.triggerMapRefresh();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('Show zoom controls')
+			.setDesc('Show zoom buttons, center, fit, and lock toggles on maps')
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.showZoomControls ?? true).onChange((value) => {
+					this.plugin.settings.showZoomControls = value;
+					void this.plugin.dataManager.saveSettings(this.plugin.settings);
+					this.plugin.triggerMapRefresh();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('Show marker list')
+			.setDesc('Show the marker list tab in the bottom-left panel')
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.showMarkerList ?? true).onChange((value) => {
+					this.plugin.settings.showMarkerList = value;
+					void this.plugin.dataManager.saveSettings(this.plugin.settings);
+					this.plugin.triggerMapRefresh();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('Show layer list')
+			.setDesc('Show the layer list tab in the bottom-left panel')
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.showLayerList ?? true).onChange((value) => {
+					this.plugin.settings.showLayerList = value;
+					void this.plugin.dataManager.saveSettings(this.plugin.settings);
+					this.plugin.triggerMapRefresh();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('Show map settings button')
+			.setDesc('Show the gear button on maps. When hidden, map settings are accessible from the right-click menu.')
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.showMapSettings ?? true).onChange((value) => {
+					this.plugin.settings.showMapSettings = value;
+					void this.plugin.dataManager.saveSettings(this.plugin.settings);
+					this.plugin.triggerMapRefresh();
+				});
+			});
+
 		// ── Marker Templates ──
 		const templatesContainer = containerEl.createDiv();
 		const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);

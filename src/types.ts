@@ -123,6 +123,11 @@ export interface MapState {
 	zoomLocked?: boolean;
 	panLocked?: boolean;
 	markersLocked?: boolean;
+	showMeasurementTools?: boolean;
+	showZoomControls?: boolean;
+	showMarkerList?: boolean;
+	showLayerList?: boolean;
+	showMapSettings?: boolean;
 	/** Last known image path (set on render for identification) */
 	lastImagePath?: string;
 	/** Last known source file path (set on render for identification) */
@@ -139,6 +144,11 @@ export interface TTRPGMapsSettings {
 	defaultScaleMarkerTextToZoom?: boolean;
 	openLinksInNewTab?: boolean;
 	showHoverPreview?: boolean;
+	showMeasurementTools?: boolean;
+	showZoomControls?: boolean;
+	showMarkerList?: boolean;
+	showLayerList?: boolean;
+	showMapSettings?: boolean;
 }
 
 /** IDs of predefined templates that cannot be renamed or deleted */

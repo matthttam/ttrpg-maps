@@ -465,6 +465,38 @@ export class MapSettingsModal extends Modal {
 					});
 			});
 
+		// ── Controls visibility ──
+		const controlsGroup = contentEl.createDiv({ cls: 'setting-group' });
+		new Setting(controlsGroup).setName('Controls').setHeading();
+		const controlsItems = controlsGroup.createDiv({ cls: 'setting-items' });
+
+		const controlSettings: { name: string; desc: string; field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings' }[] = [
+			{ name: 'Measurement tools', desc: 'Distance measurement panel', field: 'showMeasurementTools' },
+			{ name: 'Zoom controls', desc: 'Zoom buttons, center, fit, and locks', field: 'showZoomControls' },
+			{ name: 'Marker list', desc: 'Marker list tab', field: 'showMarkerList' },
+			{ name: 'Layer list', desc: 'Layer list tab', field: 'showLayerList' },
+			{ name: 'Map settings button', desc: 'Gear button (accessible via right-click when hidden)', field: 'showMapSettings' },
+		];
+
+		for (const ctrl of controlSettings) {
+			const globalVal = this.plugin.settings[ctrl.field] ?? true;
+			const globalLabel = globalVal ? 'Shown' : 'Hidden';
+			new Setting(controlsItems)
+				.setName(ctrl.name)
+				.setDesc(`${ctrl.desc}. Inherit uses the global default (currently ${globalLabel})`)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption('inherit', 'Inherit')
+						.addOption('show', 'Show')
+						.addOption('hide', 'Hide')
+						.setValue(this.state[ctrl.field] == null ? 'inherit' : this.state[ctrl.field] ? 'show' : 'hide')
+						.onChange((value) => {
+							if (value === 'inherit') (this.state as unknown as Record<string, unknown>)[ctrl.field] = undefined;
+							else (this.state as unknown as Record<string, unknown>)[ctrl.field] = value === 'show';
+						});
+				});
+		}
+
 		// ── Marker Layers ──
 		const layerGroup = contentEl.createDiv({ cls: 'setting-group' });
 		new Setting(layerGroup).setName('Layers').setHeading();

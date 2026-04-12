@@ -20,6 +20,10 @@
 	cursor: grabbing;
 }
 
+.ttrpgmap-wrapper.ttrpgmap-pan-locked {
+	cursor: default;
+}
+
 /* ===== Map Container (transformed for pan/zoom) ===== */
 .ttrpgmap-container {
 	position: relative;
@@ -108,6 +112,25 @@
 .ttrpgmap-lock-btn.is-active {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
+}
+
+.ttrpgmap-lock-warning {
+	position: absolute;
+	z-index: 15;
+	padding: 4px 10px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	pointer-events: none;
+	animation: ttrpgmap-warning-fade 2s ease forwards;
+}
+
+@keyframes ttrpgmap-warning-fade {
+	0%, 70% { opacity: 1; }
+	100% { opacity: 0; }
 }
 
 /* ===== Measurement Panel (top-right drawer) ===== */

@@ -105,7 +105,7 @@ describe('MapRenderer DOM', () => {
 		expect(zoomControls).not.toBeNull();
 
 		const buttons = zoomControls!.querySelectorAll('.ttrpgmap-zoom-btn');
-		expect(buttons.length).toBe(6); // +, -, center, fit, lock zoom, lock pan
+		expect(buttons.length).toBe(7); // +, -, center, fit, lock zoom, lock pan, lock markers
 
 		const label = zoomControls!.querySelector('.ttrpgmap-zoom-label');
 		expect(label).not.toBeNull();

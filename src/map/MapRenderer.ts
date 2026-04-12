@@ -67,6 +67,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private panStartY = 0;
 	private zoomLocked = false;
 	private panLocked = false;
+	private markersLocked = false;
 
 	// Marker drag state
 	private draggingMarker: MapMarker | null = null;
@@ -298,15 +299,55 @@ export class MapRenderer extends MarkdownRenderChild {
 		const panLockDoc = new DOMParser().parseFromString(NO_PAN_SVG, 'image/svg+xml');
 		panLockBtn.empty();
 		panLockBtn.appendChild(panLockDoc.documentElement);
-		if (this.panLocked) panLockBtn.addClass('is-active');
+		if (this.panLocked) {
+			panLockBtn.addClass('is-active');
+			this.wrapper.addClass('ttrpgmap-pan-locked');
+		}
 		panLockBtn.addEventListener('click', () => {
 			this.panLocked = !this.panLocked;
 			panLockBtn.toggleClass('is-active', this.panLocked);
+			this.wrapper.toggleClass('ttrpgmap-pan-locked', this.panLocked);
 			if (this.state) {
 				this.state.panLocked = this.panLocked;
 				this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			}
 		});
+
+		// Marker lock toggle
+		this.markersLocked = this.state?.markersLocked ?? false;
+		const markerLockBtn = controls.createDiv({
+			cls: 'ttrpgmap-zoom-btn ttrpgmap-lock-btn',
+			attr: { 'aria-label': 'Lock markers', 'data-tooltip-position': 'right' },
+		});
+		setIcon(markerLockBtn, this.markersLocked ? 'map-pin-off' : 'map-pin');
+		if (this.markersLocked) markerLockBtn.addClass('is-active');
+		markerLockBtn.addEventListener('click', () => {
+			this.markersLocked = !this.markersLocked;
+			markerLockBtn.toggleClass('is-active', this.markersLocked);
+			markerLockBtn.empty();
+			setIcon(markerLockBtn, this.markersLocked ? 'map-pin-off' : 'map-pin');
+			if (this.state) {
+				this.state.markersLocked = this.markersLocked;
+				this.plugin.dataManager.saveMapState(this.config.id, this.state);
+			}
+		});
+	}
+
+	/** Show a brief warning message next to the zoom controls */
+	private showLockWarning(text: string): void {
+		// Remove any existing warning
+		this.wrapper.querySelector('.ttrpgmap-lock-warning')?.remove();
+		const controls = this.wrapper.querySelector('.ttrpgmap-zoom-controls');
+		if (!controls) return;
+		const warning = this.wrapper.createDiv({ cls: 'ttrpgmap-lock-warning', text });
+		// Position to the right of controls
+		const rect = controls.getBoundingClientRect();
+		const wrapperRect = this.wrapper.getBoundingClientRect();
+		warning.setCssStyles({
+			top: `${rect.top - wrapperRect.top}px`,
+			left: `${rect.right - wrapperRect.left + 8}px`,
+		});
+		setTimeout(() => warning.remove(), 2000);
 	}
 
 	private buildMeasureDrawer(): void {
@@ -941,7 +982,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private adjustZoom(delta: number): void {
-		if (this.zoomLocked) return;
+		if (this.zoomLocked) { this.showLockWarning('Zoom is locked'); return; }
 		const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
 		if (newZoom === this.zoom) return;
 		this.zoom = newZoom;
@@ -978,6 +1019,8 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private onMouseDown(e: MouseEvent): void {
 		if (e.button !== 0) return;
+		// Only handle interactions on the map surface, not UI overlays
+		if (!(e.target as HTMLElement).closest('.ttrpgmap-container, .ttrpgmap-marker-overlay')) return;
 
 		// Resize mode: only start drag if clicking the handle
 		if (this.resizingMarker && this.resizeHandleEl) {
@@ -1017,7 +1060,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			return;
 		}
 
-		if (this.panLocked) return;
+		if (this.panLocked) { this.showLockWarning('Pan is locked'); return; }
 		this.isPanning = true;
 		this.panStartX = e.clientX - this.panX;
 		this.panStartY = e.clientY - this.panY;
@@ -1190,7 +1233,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 		}
 
-		if (this.zoomLocked) return;
+		if (this.zoomLocked) { this.showLockWarning('Zoom is locked'); return; }
 		e.preventDefault();
 
 		const delta = e.deltaY < 0 ? this.config.zoomStep : -this.config.zoomStep;
@@ -1513,6 +1556,10 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (e.button !== 0) return;
 			if (this.resizingMarker) return;
 			e.stopPropagation();
+			if (this.markersLocked) {
+				this.showLockWarning('Marker positions are locked');
+				return;
+			}
 			this.draggingMarker = marker;
 			this.dragMarkerEl = markerEl;
 			this.dragStartX = e.clientX;

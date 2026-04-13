@@ -503,130 +503,139 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (!this.state) return;
 
 		for (const layer of this.state.layers) {
-			const isDefault = layer.id === DEFAULT_LAYER_ID;
-			const layerId = layer.id;
-			const visOverride = this.layerVisibilityOverrides.get(layerId) ?? 'show';
+			this.buildLayerRow(container, layer);
+		}
+		this.buildAddLayerRow(container);
+	}
 
-			const row = container.createDiv({ cls: 'ttrpgmap-marker-list-row' });
+	private buildLayerRow(container: HTMLElement, layer: MarkerLayer): void {
+		const layerId = layer.id;
+		const row = container.createDiv({ cls: 'ttrpgmap-marker-list-row' });
 
-			// Layer name + zoom range
-			const nameEl = row.createDiv({ cls: 'ttrpgmap-marker-list-name' });
-			nameEl.setText(layer.name);
-			const rangeText = this.formatZoomRangeShort(layer);
-			if (rangeText) {
-				nameEl.createEl('span', { cls: 'ttrpgmap-layer-range-badge', text: ` ${rangeText}` });
-			}
+		// Name + zoom range badge
+		const nameEl = row.createDiv({ cls: 'ttrpgmap-marker-list-name' });
+		nameEl.setText(layer.name);
+		const rangeText = this.formatZoomRangeShort(layer);
+		if (rangeText) nameEl.createEl('span', { cls: 'ttrpgmap-layer-range-badge', text: ` ${rangeText}` });
 
-			// Action button group
-			const actionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
+		// Actions
+		const actionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
+		this.buildLayerVisibilityToggle(actionGroup, layerId);
+		this.buildLayerEditButton(actionGroup, layer, container);
+		if (layer.id === DEFAULT_LAYER_ID) {
+			this.buildLayerResetButton(actionGroup, layer, container);
+		} else {
+			this.buildLayerDeleteButton(actionGroup, layer, container);
+		}
 
-			// Visibility eye toggle (3-state: show -> hide -> always -> show)
-			const eyeBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': this.getVisibilityLabel(visOverride) } });
-			const updateEyeIcon = (vis: 'show' | 'hide' | 'always') => {
-				eyeBtn.empty();
-				eyeBtn.removeClass('ttrpgmap-layer-eye-always');
-				if (vis === 'hide') { setIcon(eyeBtn, 'eye-off'); }
-				else if (vis === 'always') { setIcon(eyeBtn, 'eye'); eyeBtn.addClass('ttrpgmap-layer-eye-always'); }
-				else { setIcon(eyeBtn, 'minus'); }
-				eyeBtn.setAttribute('aria-label', this.getVisibilityLabel(vis));
-			};
-			updateEyeIcon(visOverride);
-			eyeBtn.addEventListener('click', (e) => {
-				e.stopPropagation();
-				const current = this.layerVisibilityOverrides.get(layerId) ?? 'show';
-				const next = current === 'show' ? 'hide' : current === 'hide' ? 'always' : 'show';
-				this.layerVisibilityOverrides.set(layerId, next);
-				updateEyeIcon(next);
-				this.updateMarkerScalesAndVisibility();
-				this.refreshMarkerList();
+		// Hover: bounce markers on this layer, dim others
+		row.addEventListener('mouseenter', () => {
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+				const mid = el.dataset.markerId;
+				if (!mid || !this.state) return;
+				const marker = this.state.markers.find((m) => m.id === mid);
+				if (!marker) return;
+				if ((marker.layerId ?? DEFAULT_LAYER_ID) === layerId) {
+					this.startBounce(el);
+					el.setCssStyles({ opacity: '1' });
+				} else {
+					el.setCssStyles({ opacity: '0.3' });
+				}
 			});
-
-			// Edit button
-			const editBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit layer' } });
-			setIcon(editBtn, 'pencil');
-			editBtn.addEventListener('click', (e) => {
-				e.stopPropagation();
-				new LayerEditModal(this.plugin.app, {
-					layer,
-					mapZoomMin: this.config.zoomMin,
-					mapZoomMax: this.config.zoomMax,
-					onSave: (saved) => {
-						Object.assign(layer, saved);
-						if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
-						this.renderLayerList(container);
-						this.updateMarkerScalesAndVisibility();
-					},
-				}).open();
+		});
+		row.addEventListener('mouseleave', () => {
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+				el.setCssStyles({ opacity: '' });
+				this.stopBounce(el);
 			});
+		});
+	}
 
-			// Delete/Reset button
-			if (isDefault) {
-				const resetBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Reset to defaults' } });
-				setIcon(resetBtn, 'rotate-ccw');
-				resetBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					layer.name = DEFAULT_LAYER.name;
-					layer.zoomMin = DEFAULT_LAYER.zoomMin;
-					layer.zoomMax = DEFAULT_LAYER.zoomMax;
+	private buildLayerVisibilityToggle(actionGroup: HTMLElement, layerId: string): void {
+		const visOverride = this.layerVisibilityOverrides.get(layerId) ?? 'show';
+		const eyeBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': this.getVisibilityLabel(visOverride) } });
+		const updateIcon = (vis: 'show' | 'hide' | 'always') => {
+			eyeBtn.empty();
+			eyeBtn.removeClass('ttrpgmap-layer-eye-always');
+			if (vis === 'hide') setIcon(eyeBtn, 'eye-off');
+			else if (vis === 'always') { setIcon(eyeBtn, 'eye'); eyeBtn.addClass('ttrpgmap-layer-eye-always'); }
+			else setIcon(eyeBtn, 'minus');
+			eyeBtn.setAttribute('aria-label', this.getVisibilityLabel(vis));
+		};
+		updateIcon(visOverride);
+		eyeBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const current = this.layerVisibilityOverrides.get(layerId) ?? 'show';
+			const next = current === 'show' ? 'hide' : current === 'hide' ? 'always' : 'show';
+			this.layerVisibilityOverrides.set(layerId, next);
+			updateIcon(next);
+			this.updateMarkerScalesAndVisibility();
+			this.refreshMarkerList();
+		});
+	}
+
+	private buildLayerEditButton(actionGroup: HTMLElement, layer: MarkerLayer, container: HTMLElement): void {
+		const btn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit layer' } });
+		setIcon(btn, 'pencil');
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			new LayerEditModal(this.plugin.app, {
+				layer,
+				mapZoomMin: this.config.zoomMin,
+				mapZoomMax: this.config.zoomMax,
+				onSave: (saved) => {
+					Object.assign(layer, saved);
 					if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
 					this.renderLayerList(container);
 					this.updateMarkerScalesAndVisibility();
-				});
-			} else {
-				const deleteBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete', attr: { 'aria-label': 'Delete layer' } });
-				setIcon(deleteBtn, 'trash-2');
-				deleteBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					if (!this.state) return;
-					const count = this.state.markers.filter((m) => m.layerId === layerId).length;
-					const msg = count > 0
-						? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
-						: `Delete "${layer.name}"?`;
-					void confirmAction(this.plugin.app, 'Delete layer', msg, 'Delete').then((confirmed) => {
-						if (!confirmed || !this.state) return;
-						for (const m of this.state.markers) {
-							if (m.layerId === layerId) m.layerId = null;
-						}
-						this.state.layers = this.state.layers.filter((l) => l.id !== layerId);
-						this.layerVisibilityOverrides.delete(layerId);
-						this.plugin.dataManager.saveMapState(this.config.id, this.state);
-						this.renderLayerList(container);
-						this.renderMarkers();
-						this.refreshMarkerList();
-					});
-				});
-			}
+				},
+			}).open();
+		});
+	}
 
-			// Hover: highlight markers on this layer
-			row.addEventListener('mouseenter', () => {
-				const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
-				els.forEach((el) => {
-					const mid = el.dataset.markerId;
-					if (!mid || !this.state) return;
-					const marker = this.state.markers.find((m) => m.id === mid);
-					if (!marker) return;
-					const markerLayerId = marker.layerId ?? DEFAULT_LAYER_ID;
-					if (markerLayerId === layerId) {
-						this.startBounce(el);
-						el.setCssStyles({ opacity: '1' });
-					} else {
-						el.setCssStyles({ opacity: '0.3' });
-					}
-				});
-			});
-			row.addEventListener('mouseleave', () => {
-				const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
-				els.forEach((el) => {
-					el.setCssStyles({ opacity: '' });
-					this.stopBounce(el);
-				});
-			});
-		}
+	private buildLayerResetButton(actionGroup: HTMLElement, layer: MarkerLayer, container: HTMLElement): void {
+		const btn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Reset to defaults' } });
+		setIcon(btn, 'rotate-ccw');
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			layer.name = DEFAULT_LAYER.name;
+			layer.zoomMin = DEFAULT_LAYER.zoomMin;
+			layer.zoomMax = DEFAULT_LAYER.zoomMax;
+			if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+			this.renderLayerList(container);
+			this.updateMarkerScalesAndVisibility();
+		});
+	}
 
-		// Add layer button
+	private buildLayerDeleteButton(actionGroup: HTMLElement, layer: MarkerLayer, container: HTMLElement): void {
+		const btn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete', attr: { 'aria-label': 'Delete layer' } });
+		setIcon(btn, 'trash-2');
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (!this.state) return;
+			const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
+			const msg = count > 0
+				? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
+				: `Delete "${layer.name}"?`;
+			void confirmAction(this.plugin.app, 'Delete layer', msg, 'Delete').then((confirmed) => {
+				if (!confirmed || !this.state) return;
+				for (const m of this.state.markers) {
+					if (m.layerId === layer.id) m.layerId = null;
+				}
+				this.state.layers = this.state.layers.filter((l) => l.id !== layer.id);
+				this.layerVisibilityOverrides.delete(layer.id);
+				this.plugin.dataManager.saveMapState(this.config.id, this.state);
+				this.renderLayerList(container);
+				this.renderMarkers();
+				this.refreshMarkerList();
+			});
+		});
+	}
+
+	private buildAddLayerRow(container: HTMLElement): void {
 		const addRow = container.createDiv({ cls: 'ttrpgmap-marker-list-row ttrpgmap-layer-add-row' });
-		const addBtn = addRow.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Add layer' } });
-		setIcon(addBtn, 'layers');
+		addRow.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Add layer' } });
+		setIcon(addRow.querySelector('.ttrpgmap-marker-list-action')!, 'layers');
 		addRow.createDiv({ cls: 'ttrpgmap-marker-list-name', text: 'Add layer' });
 		addRow.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -1069,70 +1078,51 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.wrapper.removeClass('ttrpgmap-panning');
 	}
 
-	private onWheel(e: WheelEvent): void {
-		// Alt+scroll on a marker: resize it (always allowed even when zoom locked)
-		// Alt = per-marker, Shift+Alt = map-level; over label = text scale, over pin = marker scale
-		if (e.altKey && this.state) {
-			const markerEl = (e.target as HTMLElement).closest<HTMLElement>('.ttrpgmap-marker');
-			if (markerEl) {
-				const markerId = markerEl.dataset.markerId;
-				const marker = this.state.markers.find((m) => m.id === markerId);
-				if (marker) {
-					e.preventDefault();
-					const isLabel = !!(e.target as HTMLElement).closest('.ttrpgmap-marker-label');
-					const isMapLevel = e.shiftKey;
-					const scaleDelta = e.deltaY < 0 ? SCROLL_SCALE_STEP : -SCROLL_SCALE_STEP;
-					const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+	/** Alt+scroll over a marker: resize per-marker or map-level scale. Returns true if handled. */
+	private handleAltScrollResize(e: WheelEvent): boolean {
+		if (!this.state) return false;
+		const markerEl = (e.target as HTMLElement).closest<HTMLElement>('.ttrpgmap-marker');
+		if (!markerEl) return false;
+		const marker = this.state.markers.find((m) => m.id === markerEl.dataset.markerId);
+		if (!marker) return false;
 
-					if (isLabel) {
-						if (isMapLevel) {
-							// Shift+Alt over label: map-level text scale
-							if (this.state.markerTextScale == null) this.state.markerTextScale = this.getTextBaseScale(marker);
-							this.state.markerTextScale = clamp(
-								this.state.markerTextScale + scaleDelta,
-								MIN_MARKER_TEXT_SCALE,
-								MAX_MARKER_TEXT_SCALE,
-							);
-							this.updateMarkerScalesAndVisibility();
-						} else {
-							// Alt over label: per-marker text scale
-							if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
-							marker.textScale = clamp(marker.textScale + scaleDelta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
-							const stz = marker.textScaleToZoom ?? this.getTextScaleToZoom();
+		e.preventDefault();
+		const isLabel = !!(e.target as HTMLElement).closest('.ttrpgmap-marker-label');
+		const isMapLevel = e.shiftKey;
+		const delta = e.deltaY < 0 ? SCROLL_SCALE_STEP : -SCROLL_SCALE_STEP;
+		const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-							markerEl.style.setProperty(
-								'--marker-text-scale',
-								String(this.computeEffectiveScale(marker.textScale, stz)),
-							);
-						}
-					} else {
-						if (isMapLevel) {
-							// Shift+Alt over pin: map-level marker scale
-							if (this.state.markerScale == null) this.state.markerScale = this.getMarkerBaseScale(marker);
-							this.state.markerScale = clamp(this.state.markerScale + scaleDelta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
-							this.updateMarkerScalesAndVisibility();
-						} else {
-							// Alt over pin: per-marker scale (existing behavior)
-							if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
-							marker.scale = clamp(marker.scale + scaleDelta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
-							const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
-
-							markerEl.style.setProperty('--marker-scale', String(this.computeEffectiveScale(marker.scale, stz)));
-						}
-					}
-
-					// Show hotspot markers visibly while resizing
-					markerEl.addClass('ttrpgmap-marker-resizing');
-					// Debounced save + remove resizing class
-					if (this._resizeSaveTimeout) clearTimeout(this._resizeSaveTimeout);
-					this._resizeSaveTimeout = setTimeout(() => {
-						markerEl.removeClass('ttrpgmap-marker-resizing');
-						if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
-					}, RESIZE_SAVE_DEBOUNCE_MS);
-					return;
-				}
-			}
+		if (isLabel && isMapLevel) {
+			if (this.state.markerTextScale == null) this.state.markerTextScale = this.getTextBaseScale(marker);
+			this.state.markerTextScale = clamp(this.state.markerTextScale + delta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
+			this.updateMarkerScalesAndVisibility();
+		} else if (isLabel) {
+			if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
+			marker.textScale = clamp(marker.textScale + delta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
+			const stz = marker.textScaleToZoom ?? this.getTextScaleToZoom();
+			markerEl.style.setProperty('--marker-text-scale', String(this.computeEffectiveScale(marker.textScale, stz)));
+		} else if (isMapLevel) {
+			if (this.state.markerScale == null) this.state.markerScale = this.getMarkerBaseScale(marker);
+			this.state.markerScale = clamp(this.state.markerScale + delta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
+			this.updateMarkerScalesAndVisibility();
+		} else {
+			if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
+			marker.scale = clamp(marker.scale + delta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
+			const stz = marker.scaleToZoom ?? this.getMarkerScaleToZoom();
+			markerEl.style.setProperty('--marker-scale', String(this.computeEffectiveScale(marker.scale, stz)));
 		}
+
+		markerEl.addClass('ttrpgmap-marker-resizing');
+		if (this._resizeSaveTimeout) clearTimeout(this._resizeSaveTimeout);
+		this._resizeSaveTimeout = setTimeout(() => {
+			markerEl.removeClass('ttrpgmap-marker-resizing');
+			if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+		}, RESIZE_SAVE_DEBOUNCE_MS);
+		return true;
+	}
+
+	private onWheel(e: WheelEvent): void {
+		if (e.altKey && this.handleAltScrollResize(e)) return;
 
 		if (this.zoomLocked) { this.showLockWarning('Zoom is locked', 'Lock zoom'); return; }
 		e.preventDefault();
@@ -1484,23 +1474,26 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private attachMarkerEvents(marker: MapMarker, markerEl: HTMLElement): void {
-		// Click to navigate
-		if (marker.note) {
-			const navPath = linkPath(marker.note);
-			markerEl.addEventListener('click', (e) => {
-				if (this.hasDragged) {
-					this.hasDragged = false;
-					return;
-				}
-				e.stopPropagation();
-				const newTab = this.openLinksInNewTab;
-				void this.plugin.app.workspace.openLinkText(navPath, '', newTab);
-			});
-		}
+		this.attachMarkerNavigation(marker, markerEl);
+		this.attachMarkerHoverPreview(marker, markerEl);
+		this.attachMarkerDrag(marker, markerEl);
+		this.attachMarkerContextMenu(marker, markerEl);
+	}
 
-		// Hover preview
-		// Spec: 300ms delay, interactable popover, any mousedown dismisses,
-		// Alt dismisses, must mouse-out and back in to re-trigger after dismiss.
+	private attachMarkerNavigation(marker: MapMarker, markerEl: HTMLElement): void {
+		if (!marker.note) return;
+		const navPath = linkPath(marker.note);
+		markerEl.addEventListener('click', (e) => {
+			if (this.hasDragged) {
+				this.hasDragged = false;
+				return;
+			}
+			e.stopPropagation();
+			void this.plugin.app.workspace.openLinkText(navPath, '', this.openLinksInNewTab);
+		});
+	}
+
+	private attachMarkerHoverPreview(marker: MapMarker, markerEl: HTMLElement): void {
 		let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 		let hoverSuppressed = false;
 		const hoverParent: { hoverPopover: { hide: () => void } | null } = { hoverPopover: null };
@@ -1511,16 +1504,15 @@ export class MapRenderer extends MarkdownRenderChild {
 		const dismissPopover = () => {
 			clearHoverTimeout();
 			if (hoverParent.hoverPopover) { hoverParent.hoverPopover.hide(); hoverParent.hoverPopover = null; }
-			hoverSuppressed = true; // require fresh mouseenter to re-trigger
+			hoverSuppressed = true;
 		};
 
 		markerEl.addEventListener('mouseenter', (e) => {
 			markerEl.setCssStyles({ zIndex: '10' });
-			hoverSuppressed = false; // fresh enter resets suppression
+			hoverSuppressed = false;
 			this.dismissActiveHover = dismissPopover;
-			if (this.draggingMarker || e.altKey) return;
-			const showPreview = this.showHoverPreview;
-			if (!showPreview) return;
+			if (this.draggingMarker || e.altKey || !this.showHoverPreview) return;
+
 			let previewPath: string | null = null;
 			if (marker.previewNote) {
 				const p = linkPath(marker.previewNote);
@@ -1529,40 +1521,31 @@ export class MapRenderer extends MarkdownRenderChild {
 					previewPath = p;
 				}
 			}
-			if (!previewPath && marker.note) {
-				previewPath = linkPath(marker.note);
-			}
+			if (!previewPath && marker.note) previewPath = linkPath(marker.note);
 			if (!previewPath) return;
+
 			hoverTimeout = setTimeout(() => {
 				hoverTimeout = null;
 				if (this.draggingMarker || hoverSuppressed) return;
 				hoverParent.hoverPopover = null;
 				this.plugin.app.workspace.trigger('hover-link', {
-					event: e,
-					source: 'ttrpg-maps',
-					hoverParent,
-					targetEl: markerEl,
-					linktext: previewPath,
-					sourcePath: '',
+					event: e, source: 'ttrpg-maps', hoverParent, targetEl: markerEl,
+					linktext: previewPath, sourcePath: '',
 				});
 			}, 300);
 		});
 
-		// mouseleave: only cancel timeout, do NOT dismiss popover
-		// (user may be moving cursor to the popover itself - requirement #2)
 		markerEl.addEventListener('mouseleave', () => {
 			markerEl.setCssStyles({ zIndex: '' });
 			clearHoverTimeout();
 		});
 
-		// Any mousedown on marker: dismiss everything (requirement #3)
 		markerEl.addEventListener('mousedown', dismissPopover);
+	}
 
-
-		// Drag to reposition
+	private attachMarkerDrag(marker: MapMarker, markerEl: HTMLElement): void {
 		markerEl.addEventListener('mousedown', (e) => {
-			if (e.button !== 0) return;
-			if (this.resizingMarker) return;
+			if (e.button !== 0 || this.resizingMarker) return;
 			e.stopPropagation();
 			if (this.markersLocked) {
 				this.showLockWarning('Marker positions are locked', 'Lock markers');
@@ -1577,38 +1560,19 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.hasDragged = false;
 			markerEl.addClass('ttrpgmap-marker-dragging');
 		});
+	}
 
-		// Right-click menu
+	private attachMarkerContextMenu(marker: MapMarker, markerEl: HTMLElement): void {
 		markerEl.addEventListener('contextmenu', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
 			if (this.resizingMarker) this.commitResize();
 			const menu = new Menu();
-			menu.addItem((item) => {
-				item.setTitle('Edit');
-				item.setIcon('pencil');
-				item.onClick(() => this.editMarker(marker));
-			});
-			menu.addItem((item) => {
-				item.setTitle('Copy marker');
-				item.setIcon('copy');
-				item.onClick(() => this.startCopyMarker(marker));
-			});
-			menu.addItem((item) => {
-				item.setTitle('Resize marker');
-				item.setIcon('maximize-2');
-				item.onClick(() => this.enterResizeMode(marker, markerEl, 'marker'));
-			});
-			menu.addItem((item) => {
-				item.setTitle('Resize text');
-				item.setIcon('a-large-small');
-				item.onClick(() => this.enterResizeMode(marker, markerEl, 'text'));
-			});
-			menu.addItem((item) => {
-				item.setTitle('Delete');
-				item.setIcon('trash-2');
-				item.onClick(() => this.deleteMarker(marker));
-			});
+			menu.addItem((item) => { item.setTitle('Edit'); item.setIcon('pencil'); item.onClick(() => this.editMarker(marker)); });
+			menu.addItem((item) => { item.setTitle('Copy marker'); item.setIcon('copy'); item.onClick(() => this.startCopyMarker(marker)); });
+			menu.addItem((item) => { item.setTitle('Resize marker'); item.setIcon('maximize-2'); item.onClick(() => this.enterResizeMode(marker, markerEl, 'marker')); });
+			menu.addItem((item) => { item.setTitle('Resize text'); item.setIcon('a-large-small'); item.onClick(() => this.enterResizeMode(marker, markerEl, 'text')); });
+			menu.addItem((item) => { item.setTitle('Delete'); item.setIcon('trash-2'); item.onClick(() => this.deleteMarker(marker)); });
 			menu.showAtMouseEvent(e);
 		});
 	}

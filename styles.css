@@ -20,7 +20,8 @@
 	cursor: grabbing;
 }
 
-.ttrpgmap-wrapper.ttrpgmap-pan-locked {
+/* Pan-locked cursor: only apply when no measurement/copy cursor is active */
+.ttrpgmap-wrapper.ttrpgmap-pan-locked:not(.ttrpgmap-cursor-crosshair):not(.ttrpgmap-cursor-copy) {
 	cursor: default;
 }
 
@@ -351,13 +352,18 @@
 }
 
 /* ===== Marker Measurement Mode ===== */
+.ttrpgmap-measuring .ttrpgmap-marker-overlay {
+	cursor: crosshair;
+}
+
 .ttrpgmap-marker.ttrpgmap-marker-measuring {
 	pointer-events: none;
+	opacity: 0.3;
 	transition: opacity 0.15s ease;
 }
 
-.ttrpgmap-marker-measure-hover {
-	opacity: 0.1;
+.ttrpgmap-marker.ttrpgmap-marker-measuring.ttrpgmap-marker-measure-hover {
+	opacity: 1;
 }
 
 /* ===== Settings Button (bottom-right) ===== */

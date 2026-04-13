@@ -1,7 +1,7 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MarkerFont } from '../types';
+import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MarkerFont, TTRPGMapsSettings } from '../types';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from '../modals/sharedFields';
 import { renderTemplateManager } from './renderTemplateManager';
 
@@ -17,20 +17,53 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// ── Marker Settings ──
+		this.buildMarkersSection(containerEl);
+		this.buildTextSection(containerEl);
+		this.buildNavigationSection(containerEl);
+		this.buildControlsSection(containerEl);
+		this.buildTemplatesSection(containerEl);
+		this.buildDataManagementSection(containerEl);
+		this.buildSupportSection(containerEl);
+	}
+
+	/** Save settings and optionally refresh all maps */
+	private save(refresh = false): void {
+		void this.plugin.dataManager.saveSettings(this.plugin.settings);
+		if (refresh) this.plugin.triggerMapRefresh();
+	}
+
+	/** Add a toggle setting that writes to a boolean field on plugin settings */
+	private addToggle(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		field: keyof TTRPGMapsSettings,
+		defaultValue: boolean,
+		refresh = false,
+	): void {
+		new Setting(container)
+			.setName(name)
+			.setDesc(desc)
+			.addToggle((toggle) => {
+				toggle.setValue((this.plugin.settings[field] as boolean | undefined) ?? defaultValue).onChange((value) => {
+					(this.plugin.settings as unknown as Record<string, unknown>)[field] = value;
+					this.save(refresh);
+				});
+			});
+	}
+
+	private buildMarkersSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Markers').setHeading();
 
-		const markerScaleSetting = new Setting(containerEl)
+		const scaleSetting = new Setting(containerEl)
 			.setName('Default marker scale')
 			.setDesc('Visual size of markers on all maps (%)');
-
 		buildScaleSlider({
-			setting: markerScaleSetting,
+			setting: scaleSetting,
 			value: this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
 			onChange: (value) => {
 				this.plugin.settings.defaultMarkerScale = value;
-				void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				this.plugin.triggerMapRefresh();
+				this.save(true);
 			},
 		});
 
@@ -46,25 +79,23 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 					.setValue((this.plugin.settings.defaultScaleMarkersToZoom ?? true) ? 'screen' : 'map')
 					.onChange((value) => {
 						this.plugin.settings.defaultScaleMarkersToZoom = value === 'screen';
-						void this.plugin.dataManager.saveSettings(this.plugin.settings);
-						this.plugin.triggerMapRefresh();
+						this.save(true);
 					});
 			});
+	}
 
-		// ── Text Settings ──
+	private buildTextSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Text').setHeading();
 
-		const textScaleSetting = new Setting(containerEl)
+		const scaleSetting = new Setting(containerEl)
 			.setName('Default text scale')
 			.setDesc('Visual size of marker text labels on all maps (%)');
-
 		buildScaleSlider({
-			setting: textScaleSetting,
+			setting: scaleSetting,
 			value: this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
 			onChange: (value) => {
 				this.plugin.settings.defaultMarkerTextScale = value;
-				void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				this.plugin.triggerMapRefresh();
+				this.save(true);
 			},
 		});
 
@@ -80,8 +111,7 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 					.setValue((this.plugin.settings.defaultScaleMarkerTextToZoom ?? true) ? 'screen' : 'map')
 					.onChange((value) => {
 						this.plugin.settings.defaultScaleMarkerTextToZoom = value === 'screen';
-						void this.plugin.dataManager.saveSettings(this.plugin.settings);
-						this.plugin.triggerMapRefresh();
+						this.save(true);
 					});
 			});
 
@@ -93,112 +123,60 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 			value: this.plugin.settings.defaultMarkerFont ?? 'default',
 			onChange: (value) => {
 				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
-				void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				this.plugin.triggerMapRefresh();
+				this.save(true);
 			},
 		});
+	}
 
-		// ── Navigation ──
+	private buildNavigationSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Navigation').setHeading();
 
-		new Setting(containerEl)
-			.setName('Open links in new tab')
-			.setDesc('When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.openLinksInNewTab ?? false).onChange((value) => {
-					this.plugin.settings.openLinksInNewTab = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				});
-			});
+		this.addToggle(
+			containerEl, 'Open links in new tab',
+			'When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.',
+			'openLinksInNewTab', false,
+		);
 
-		new Setting(containerEl)
-			.setName('Show hover preview')
-			.setDesc('Show a page preview when hovering over markers with linked notes.')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showHoverPreview ?? false).onChange((value) => {
-					this.plugin.settings.showHoverPreview = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				});
-			});
+		this.addToggle(
+			containerEl, 'Show hover preview',
+			'Show a page preview when hovering over markers with linked notes.',
+			'showHoverPreview', false,
+		);
+	}
 
-		// ── Controls ──
+	private buildControlsSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Controls').setHeading();
 
-		new Setting(containerEl)
-			.setName('Show measurement tools')
-			.setDesc('Show the distance measurement panel on maps')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showMeasurementTools ?? true).onChange((value) => {
-					this.plugin.settings.showMeasurementTools = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-					this.plugin.triggerMapRefresh();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName('Show zoom controls')
-			.setDesc('Show zoom buttons, center, fit, and lock toggles on maps')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showZoomControls ?? true).onChange((value) => {
-					this.plugin.settings.showZoomControls = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-					this.plugin.triggerMapRefresh();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName('Show marker list')
-			.setDesc('Show the marker list tab in the bottom-left panel')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showMarkerList ?? true).onChange((value) => {
-					this.plugin.settings.showMarkerList = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-					this.plugin.triggerMapRefresh();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName('Show layer list')
-			.setDesc('Show the layer list tab in the bottom-left panel')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showLayerList ?? true).onChange((value) => {
-					this.plugin.settings.showLayerList = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-					this.plugin.triggerMapRefresh();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName('Show map settings button')
-			.setDesc('Show the gear button on maps. When hidden, map settings are accessible from the right-click menu.')
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.showMapSettings ?? true).onChange((value) => {
-					this.plugin.settings.showMapSettings = value;
-					void this.plugin.dataManager.saveSettings(this.plugin.settings);
-					this.plugin.triggerMapRefresh();
-				});
-			});
+		this.addToggle(containerEl, 'Show measurement tools', 'Show the distance measurement panel on maps', 'showMeasurementTools', true, true);
+		this.addToggle(containerEl, 'Show zoom controls', 'Show zoom buttons, center, fit, and lock toggles on maps', 'showZoomControls', true, true);
+		this.addToggle(containerEl, 'Show marker list', 'Show the marker list tab in the bottom-left panel', 'showMarkerList', true, true);
+		this.addToggle(containerEl, 'Show layer list', 'Show the layer list tab in the bottom-left panel', 'showLayerList', true, true);
+		this.addToggle(
+			containerEl, 'Show map settings button',
+			'Show the gear button on maps. When hidden, map settings are accessible from the right-click menu.',
+			'showMapSettings', true, true,
+		);
 
 		const opacitySetting = new Setting(containerEl)
 			.setName('Control opacity')
 			.setDesc('Resting opacity of map controls (%)');
-
 		buildPercentSlider({
 			setting: opacitySetting,
 			value: this.plugin.settings.defaultControlOpacity ?? 50,
 			onChange: (value) => {
 				this.plugin.settings.defaultControlOpacity = value;
-				void this.plugin.dataManager.saveSettings(this.plugin.settings);
-				this.plugin.triggerMapRefresh();
+				this.save(true);
 			},
 		});
+	}
 
-		// ── Marker Templates ──
+	private buildTemplatesSection(containerEl: HTMLElement): void {
 		const templatesContainer = containerEl.createDiv();
 		const rerender = () => renderTemplateManager(templatesContainer, this.plugin, rerender);
 		rerender();
+	}
 
-		// ── Data management ──
+	private buildDataManagementSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Data management').setHeading();
 		new Setting(containerEl)
 			.setName('Manage map data')
@@ -211,8 +189,9 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 						new MapDataModal(this.app, this.plugin).open();
 					});
 			});
+	}
 
-		// ── Support ──
+	private buildSupportSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Support').setHeading();
 		new Setting(containerEl)
 			.setName('Enjoying this plugin?')

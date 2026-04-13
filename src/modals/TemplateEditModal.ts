@@ -204,62 +204,12 @@ export class TemplateEditModal extends Modal {
 		const actionSetting = new Setting(mainCol);
 		actionSetting.controlEl.addClass('ttrpgmap-action-row');
 
-		/** Apply draft to the original template in settings */
-		const commitDraft = () => {
-			Object.assign(this.original, this.draft);
-		};
-
-		if (!this.isNew) {
+			if (!this.isNew) {
 			actionSetting.addButton((btn) =>
 				btn
 					.setButtonText('Save & update markers')
 					.setWarning()
-					.onClick(() => {
-						const nameErr = this.validateName(this.draft.name);
-						if (nameErr) {
-							new Notice(nameErr);
-							return;
-						}
-						const changed = getChangedFields(this.snapshot, this.draft);
-						if (changed.length === 0) {
-							new Notice('No changes to apply.');
-							return;
-						}
-						new ConfirmApplyModal(
-							this.app,
-							this.draft.name,
-							changed.map((f) => FIELD_LABELS[f] || f),
-							() => {
-								commitDraft();
-								void this.plugin.dataManager.saveSettings(this.plugin.settings);
-
-								void (async () => {
-									const allStates = await this.plugin.dataManager.loadAllMapStates();
-									let count = 0;
-									for (const state of allStates) {
-										let stateChanged = false;
-										for (const marker of state.markers) {
-											if (marker.templateId !== this.draft.id) continue;
-											for (const field of changed) {
-												(marker as unknown as Record<string, unknown>)[field] = this.draft[field];
-											}
-											stateChanged = true;
-											count++;
-										}
-										if (stateChanged) {
-											this.plugin.dataManager.saveMapState(state.mapId, state);
-										}
-									}
-
-									await this.plugin.dataManager.flushSaves();
-									new Notice(`Updated ${count} marker${count !== 1 ? 's' : ''} using "${this.draft.name}".`);
-									this.plugin.triggerMapRefresh();
-									this.onSaved();
-									this.close();
-								})();
-							},
-						).open();
-					}),
+					.onClick(() => this.saveAndUpdateMarkers()),
 			);
 		}
 
@@ -269,18 +219,72 @@ export class TemplateEditModal extends Modal {
 				btn
 					.setButtonText('Save')
 					.setCta()
-					.onClick(() => {
-						const nameErr = this.validateName(this.draft.name);
-						if (nameErr) {
-							new Notice(nameErr);
-							return;
-						}
-						commitDraft();
-						void this.plugin.dataManager.saveSettings(this.plugin.settings);
-						this.onSaved();
-						this.close();
-					}),
+					.onClick(() => this.saveTemplate()),
 			);
+	}
+
+	/** Save the template without updating existing markers */
+	private saveTemplate(): void {
+		const nameErr = this.validateName(this.draft.name);
+		if (nameErr) {
+			new Notice(nameErr);
+			return;
+		}
+		Object.assign(this.original, this.draft);
+		void this.plugin.dataManager.saveSettings(this.plugin.settings);
+		this.onSaved();
+		this.close();
+	}
+
+	/** Validate, confirm, then push changed fields to all markers using this template */
+	private saveAndUpdateMarkers(): void {
+		const nameErr = this.validateName(this.draft.name);
+		if (nameErr) {
+			new Notice(nameErr);
+			return;
+		}
+		const changed = getChangedFields(this.snapshot, this.draft);
+		if (changed.length === 0) {
+			new Notice('No changes to apply.');
+			return;
+		}
+		new ConfirmApplyModal(
+			this.app,
+			this.draft.name,
+			changed.map((f) => FIELD_LABELS[f] || f),
+			() => this.applyToMarkers(changed),
+		).open();
+	}
+
+	/** Push the given fields from the draft to all markers across all maps */
+	private applyToMarkers(changed: (keyof MarkerTemplate)[]): void {
+		Object.assign(this.original, this.draft);
+		void this.plugin.dataManager.saveSettings(this.plugin.settings);
+
+		void (async () => {
+			const allStates = await this.plugin.dataManager.loadAllMapStates();
+			let count = 0;
+			for (const state of allStates) {
+				let stateChanged = false;
+				for (const marker of state.markers) {
+					if (marker.templateId !== this.draft.id) continue;
+					for (const field of changed) {
+						(marker as unknown as Record<string, unknown>)[field] = this.draft[field];
+					}
+					stateChanged = true;
+					count++;
+				}
+				if (stateChanged) {
+					this.plugin.dataManager.saveMapState(state.mapId, state);
+				}
+			}
+
+			await this.plugin.dataManager.flushSaves();
+			new Notice(`Updated ${count} marker${count !== 1 ? 's' : ''} using "${this.draft.name}".`);
+			this.plugin.triggerMapRefresh();
+			this.onSaved();
+			this.close();
+		})();
 	}
 
 	onClose(): void {

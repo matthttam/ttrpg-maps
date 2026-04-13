@@ -50,7 +50,7 @@ if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.createDiv) {
 		tag: K,
 		opts?: CreateElOpts,
 	): HTMLElementTagNameMap[K] {
-		return createEl.call(this, tag, opts);
+		return createEl.call(this, tag, opts) as HTMLElementTagNameMap[K];
 	};
 
 	HTMLElement.prototype.createSpan = function (opts?: any): HTMLSpanElement {

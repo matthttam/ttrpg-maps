@@ -6,7 +6,6 @@ import {
 	MapConfig,
 	MapState,
 	MapMarker,
-	RoundingMode,
 	MarkerLayer,
 	DEFAULT_LAYER_ID,
 	DEFAULT_LAYER,
@@ -31,7 +30,6 @@ const MIN_MARKER_TEXT_SCALE = 0.1;
 const MAX_MARKER_TEXT_SCALE = 5.0;
 const SCROLL_SCALE_STEP = 0.05;
 const RESIZE_SAVE_DEBOUNCE_MS = 300;
-const DEFAULT_ROUNDING_MULTIPLE = 5;
 
 export class MapRenderer extends MarkdownRenderChild {
 	private plugin: TTRPGMapsPlugin;
@@ -46,13 +44,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private markerOverlay!: HTMLDivElement;
 	private imageEl!: HTMLImageElement;
 	private svgOverlay!: SVGSVGElement;
-	private toolbar!: HTMLDivElement;
 	private markerListScroll: HTMLElement | null = null;
-
-	// Measurement drawer elements
-	private drawerWrapper!: HTMLDivElement;
-	private drawerContent!: HTMLDivElement;
-	private totalDisplay: HTMLDivElement | null = null;
 
 	// Pan/zoom state
 	private zoom = 100;
@@ -204,11 +196,11 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 
 		this.buildZoomControls();
-		this.buildMeasureDrawer();
+		this.measurement = new MeasurementController(this.getMeasurementContext());
+		this.measurement.buildUI();
+		this.measurePanelEl = this.measurement.panelEl;
 		this.buildSettingsButton();
 		this.buildMarkerListPanel();
-		this.buildTotalDisplay();
-		this.measurement = new MeasurementController(this.getMeasurementContext());
 		this.applyControlVisibility();
 		this.applyControlOpacity();
 		this.bindEvents();
@@ -385,168 +377,12 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	private buildMeasureDrawer(): void {
-		const panel = this.wrapper.createDiv({ cls: 'ttrpgmap-measure-panel' });
-		this.measurePanelEl = panel;
-
-		// Toggle button (always visible)
-		const toggleBtn = panel.createDiv({ cls: 'ttrpgmap-measure-toggle' });
-		setIcon(toggleBtn, 'ruler');
-		toggleBtn.setAttribute('aria-label', 'Measurement tools');
-
-		// Drawer content (hidden by default)
-		this.drawerWrapper = panel.createDiv({ cls: 'ttrpgmap-measure-drawer' });
-		this.drawerWrapper.addClass('ttrpgmap-hidden');
-
-		// Tool buttons row
-		const toolRow = this.drawerWrapper.createDiv({ cls: 'ttrpgmap-measure-tools' });
-
-		const calibrateBtn = toolRow.createDiv({
-			cls: 'ttrpgmap-toolbar-btn',
-			attr: { 'aria-label': 'Set Distance Scale' },
-		});
-		setIcon(calibrateBtn, 'scaling');
-		calibrateBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			this.measurement.setMode('calibrate');
-		});
-
-		const measureBtn = toolRow.createDiv({
-			cls: 'ttrpgmap-toolbar-btn',
-			attr: { 'aria-label': 'Measure Distance' },
-		});
-		setIcon(measureBtn, 'route');
-		measureBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			this.measurement.setMode('measure');
-		});
-
-		const freehandBtn = toolRow.createDiv({
-			cls: 'ttrpgmap-toolbar-btn',
-			attr: { 'aria-label': 'Freehand Measure' },
-		});
-		setIcon(freehandBtn, 'pencil');
-		freehandBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			this.measurement.setMode('freehand');
-		});
-
-		// Store toolbar reference for updateToolbarState
-		this.toolbar = toolRow;
-
-		// Rounding settings section
-		const roundingSection = this.drawerWrapper.createDiv({ cls: 'ttrpgmap-measure-rounding' });
-		roundingSection.createDiv({ cls: 'ttrpgmap-measure-rounding-label', text: 'Rounding' });
-
-		const roundingRow = roundingSection.createDiv({ cls: 'ttrpgmap-measure-rounding-row' });
-
-		// Mode dropdown
-		const modeSelect = roundingRow.createEl('select', { cls: 'ttrpgmap-measure-rounding-select' });
-		const modeNone = modeSelect.createEl('option', { text: 'None', value: 'none' });
-		const modeClosest = modeSelect.createEl('option', { text: 'Closest', value: 'closest' });
-		const modeUp = modeSelect.createEl('option', { text: 'Up to', value: 'up' });
-		const modeDown = modeSelect.createEl('option', { text: 'Down to', value: 'down' });
-
-		const currentMode = this.state?.roundingMode ?? 'none';
-		modeNone.selected = currentMode === 'none';
-		modeClosest.selected = currentMode === 'closest';
-		modeUp.selected = currentMode === 'up';
-		modeDown.selected = currentMode === 'down';
-
-		// "multiple of" label
-		const multipleLabel = roundingRow.createEl('span', { cls: 'ttrpgmap-measure-rounding-of', text: 'Multiple of' });
-
-		// Multiple input
-		const multipleInput = roundingRow.createEl('input', {
-			cls: 'ttrpgmap-measure-rounding-input',
-			type: 'number',
-			attr: { min: '0', step: 'any' },
-			value: String(this.state?.roundingMultiple ?? DEFAULT_ROUNDING_MULTIPLE),
-		});
-
-		// "Include raw value" checkbox
-		const rawLabel = roundingRow.createEl('label', { cls: 'ttrpgmap-measure-rounding-raw' });
-		const rawCheckbox = rawLabel.createEl('input', { type: 'checkbox' });
-		rawCheckbox.checked = this.state?.showRawDistance ?? false;
-		rawLabel.append('Raw');
-
-		// Show/hide rounding controls based on mode
-		const updateMultipleVisibility = () => {
-			const isNone = modeSelect.value === 'none';
-			multipleLabel.toggleClass('ttrpgmap-hidden', isNone);
-			multipleInput.toggleClass('ttrpgmap-hidden', isNone);
-			rawLabel.toggleClass('ttrpgmap-hidden', isNone);
-		};
-		updateMultipleVisibility();
-
-		modeSelect.addEventListener('change', () => {
-			if (!this.state) return;
-			this.state.roundingMode = modeSelect.value as RoundingMode;
-			this.plugin.dataManager.saveMapState(this.config.id, this.state);
-			updateMultipleVisibility();
-			this.measurement.updateTotalDisplay();
-		});
-
-		multipleInput.addEventListener('change', () => {
-			if (!this.state) return;
-			const val = parseFloat(multipleInput.value);
-			if (!isNaN(val) && val > 0) {
-				this.state.roundingMultiple = val;
-				this.plugin.dataManager.saveMapState(this.config.id, this.state);
-				this.measurement.updateTotalDisplay();
-			}
-		});
-
-		rawCheckbox.addEventListener('change', () => {
-			if (!this.state) return;
-			this.state.showRawDistance = rawCheckbox.checked;
-			this.plugin.dataManager.saveMapState(this.config.id, this.state);
-			this.measurement.updateTotalDisplay();
-		});
-
-		// Decimal places row
-		const decimalsRow = roundingSection.createDiv({ cls: 'ttrpgmap-measure-rounding-row' });
-		decimalsRow.createEl('span', { cls: 'ttrpgmap-measure-rounding-of', text: 'Decimal places' });
-		const decimalsInput = decimalsRow.createEl('input', {
-			cls: 'ttrpgmap-measure-rounding-input',
-			type: 'number',
-			attr: { min: '0', max: '6', step: '1' },
-			value: String(this.state?.distanceDecimals ?? 0),
-		});
-		decimalsInput.addEventListener('change', () => {
-			if (!this.state) return;
-			const val = parseInt(decimalsInput.value, 10);
-			if (!isNaN(val) && val >= 0 && val <= 6) {
-				this.state.distanceDecimals = val;
-				this.plugin.dataManager.saveMapState(this.config.id, this.state);
-				this.measurement.updateTotalDisplay();
-			}
-		});
-
-		// Drawer content ref for updateToolbarState
-		this.drawerContent = this.drawerWrapper;
-
-		// Toggle drawer
-		toggleBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			const isOpen = !this.drawerWrapper.hasClass('ttrpgmap-hidden');
-			this.drawerWrapper.toggleClass('ttrpgmap-hidden', isOpen);
-		});
-	}
-
-	private buildTotalDisplay(): void {
-		this.totalDisplay = this.wrapper.createDiv({ cls: 'ttrpgmap-measure-total' });
-		this.totalDisplay.addClass('ttrpgmap-hidden');
-	}
-
 	private getMeasurementContext(): MeasurementContext {
 		return {
 			app: this.plugin.app,
 			wrapper: this.wrapper,
 			mapContainer: this.mapContainer,
 			svgOverlay: this.svgOverlay,
-			toolbar: this.toolbar,
-			totalDisplay: this.totalDisplay,
 			getZoom: () => this.zoom,
 			getState: () => this.state,
 			config: this.config,

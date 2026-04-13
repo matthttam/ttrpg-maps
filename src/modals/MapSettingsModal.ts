@@ -329,10 +329,38 @@ export class MapSettingsModal extends Modal {
 					});
 			});
 
+		// ── Locks ──
+		new Setting(mapItems)
+			.setName('Lock zoom')
+			.setDesc('Prevent zooming. Scroll wheel passes through to page scroll')
+			.addToggle((toggle) => {
+				toggle.setValue(this.state.zoomLocked ?? false).onChange((value) => {
+					this.state.zoomLocked = value || undefined;
+				});
+			});
+
+		new Setting(mapItems)
+			.setName('Lock pan')
+			.setDesc('Prevent panning by click-and-drag')
+			.addToggle((toggle) => {
+				toggle.setValue(this.state.panLocked ?? false).onChange((value) => {
+					this.state.panLocked = value || undefined;
+				});
+			});
+
 		// ── Marker Scale ──
 		const markerGroup = contentEl.createDiv({ cls: 'setting-group' });
 		new Setting(markerGroup).setName('Markers').setHeading();
 		const markerItems = markerGroup.createDiv({ cls: 'setting-items' });
+
+		new Setting(markerItems)
+			.setName('Lock markers')
+			.setDesc('Prevent moving markers by click-and-drag')
+			.addToggle((toggle) => {
+				toggle.setValue(this.state.markersLocked ?? false).onChange((value) => {
+					this.state.markersLocked = value || undefined;
+				});
+			});
 
 		const globalScale = this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE;
 		const hasOverride = this.state.markerScale != null;

@@ -128,6 +128,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	private layersTabEl: HTMLElement | null = null;
 	private tabRowEl: HTMLElement | null = null;
 
+	// Lock button elements (for syncing visual state after settings save)
+	private zoomLockBtnEl: HTMLElement | null = null;
+	private panLockBtnEl: HTMLElement | null = null;
+	private markerLockBtnEl: HTMLElement | null = null;
+	private zoomInBtnEl: HTMLElement | null = null;
+	private zoomOutBtnEl: HTMLElement | null = null;
+
 	constructor(
 		containerEl: HTMLElement,
 		plugin: TTRPGMapsPlugin,
@@ -146,6 +153,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		void (async () => {
 			this.state = await this.plugin.dataManager.loadMapState(this.config.id);
 			this.applyControlVisibility();
+			this.applyLockState();
 			this.renderMarkers();
 			this.refreshMarkerList();
 		})();
@@ -255,11 +263,13 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.zoomControlsEl = controls;
 
 		const zoomInBtn = controls.createDiv({ cls: 'ttrpgmap-zoom-btn', text: '+' });
+		this.zoomInBtnEl = zoomInBtn;
 		zoomInBtn.addEventListener('click', () => this.adjustZoom(this.config.zoomStep));
 
 		controls.createDiv({ cls: 'ttrpgmap-zoom-label' }).setText(`${this.zoom}%`);
 
 		const zoomOutBtn = controls.createDiv({ cls: 'ttrpgmap-zoom-btn', text: '−' });
+		this.zoomOutBtnEl = zoomOutBtn;
 		zoomOutBtn.addEventListener('click', () => this.adjustZoom(-this.config.zoomStep));
 
 		controls
@@ -285,6 +295,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			cls: 'ttrpgmap-zoom-btn ttrpgmap-lock-btn',
 			attr: { 'aria-label': 'Lock zoom', 'data-tooltip-position': 'right' },
 		});
+		this.zoomLockBtnEl = zoomLockBtn;
 		const zoomLockDoc = new DOMParser().parseFromString(NO_ZOOM_SVG, 'image/svg+xml');
 		zoomLockBtn.empty();
 		zoomLockBtn.appendChild(zoomLockDoc.documentElement);
@@ -308,6 +319,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			cls: 'ttrpgmap-zoom-btn ttrpgmap-lock-btn',
 			attr: { 'aria-label': 'Lock pan', 'data-tooltip-position': 'right' },
 		});
+		this.panLockBtnEl = panLockBtn;
 		const panLockDoc = new DOMParser().parseFromString(NO_PAN_SVG, 'image/svg+xml');
 		panLockBtn.empty();
 		panLockBtn.appendChild(panLockDoc.documentElement);
@@ -331,6 +343,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			cls: 'ttrpgmap-zoom-btn ttrpgmap-lock-btn',
 			attr: { 'aria-label': 'Lock markers', 'data-tooltip-position': 'right' },
 		});
+		this.markerLockBtnEl = markerLockBtn;
 		setIcon(markerLockBtn, this.markersLocked ? 'map-pin-off' : 'map-pin');
 		if (this.markersLocked) markerLockBtn.addClass('is-active');
 		markerLockBtn.addEventListener('click', () => {
@@ -1298,6 +1311,24 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private isControlVisible(field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings'): boolean {
 		return this.state?.[field] ?? this.plugin.settings[field] ?? true;
+	}
+
+	/** Sync lock state from this.state and update button visuals */
+	private applyLockState(): void {
+		this.zoomLocked = this.state?.zoomLocked ?? false;
+		this.panLocked = this.state?.panLocked ?? false;
+		this.markersLocked = this.state?.markersLocked ?? false;
+
+		this.zoomLockBtnEl?.toggleClass('is-active', this.zoomLocked);
+		this.zoomInBtnEl?.toggleClass('ttrpgmap-btn-disabled', this.zoomLocked);
+		this.zoomOutBtnEl?.toggleClass('ttrpgmap-btn-disabled', this.zoomLocked);
+		this.panLockBtnEl?.toggleClass('is-active', this.panLocked);
+		this.wrapper?.toggleClass('ttrpgmap-pan-locked', this.panLocked);
+		if (this.markerLockBtnEl) {
+			this.markerLockBtnEl.toggleClass('is-active', this.markersLocked);
+			this.markerLockBtnEl.empty();
+			setIcon(this.markerLockBtnEl, this.markersLocked ? 'map-pin-off' : 'map-pin');
+		}
 	}
 
 	/** Toggle visibility of UI controls based on global + per-map settings */
@@ -2445,6 +2476,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				}
 				this.plugin.dataManager.saveMapState(this.config.id, updatedState);
 				this.applyControlVisibility();
+				this.applyLockState();
 				this.renderMarkers();
 				this.refreshMarkerList();
 			},

@@ -110,6 +110,9 @@ export class MapRenderer extends MarkdownRenderChild {
 	private markersTabEl: HTMLElement | null = null;
 	private layersTabEl: HTMLElement | null = null;
 	private tabRowEl: HTMLElement | null = null;
+	private listWrapperEl: HTMLElement | null = null;
+	private listPinBtnEl: HTMLElement | null = null;
+	private listPinned = false;
 
 	// Lock button elements (for syncing visual state after settings save)
 	private zoomLockBtnEl: HTMLElement | null = null;
@@ -569,22 +572,24 @@ export class MapRenderer extends MarkdownRenderChild {
 	private buildMarkerListPanel(): void {
 		const panel = this.wrapper.createDiv({ cls: 'ttrpgmap-marker-list-panel' });
 		this.markerListPanelEl = panel;
-		let pinned = false;
+		this.listPinned = false;
 
 		// Wrapper for pin tab + list (sits above tabs)
 		const listWrapper = panel.createDiv({ cls: 'ttrpgmap-marker-list-wrapper' });
 		listWrapper.addClass('ttrpgmap-hidden');
+		this.listWrapperEl = listWrapper;
 
 		// Pin tab attached to top-left of list
 		const pinBtn = listWrapper.createDiv({ cls: 'ttrpgmap-marker-list-pin-tab' });
 		setIcon(pinBtn, 'pin-off');
+		this.listPinBtnEl = pinBtn;
 		pinBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
-			pinned = !pinned;
+			this.listPinned = !this.listPinned;
 			pinBtn.empty();
-			setIcon(pinBtn, pinned ? 'pin' : 'pin-off');
-			panel.toggleClass('ttrpgmap-marker-list-pinned', pinned);
-			listWrapper.toggleClass('ttrpgmap-marker-list-wrapper-pinned', pinned);
+			setIcon(pinBtn, this.listPinned ? 'pin' : 'pin-off');
+			panel.toggleClass('ttrpgmap-marker-list-pinned', this.listPinned);
+			listWrapper.toggleClass('ttrpgmap-marker-list-wrapper-pinned', this.listPinned);
 		});
 
 		// List container
@@ -635,7 +640,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		const handleTabClick = (tab: 'markers' | 'layers') => {
 			const isOpen = !listWrapper.hasClass('ttrpgmap-hidden');
-			if (isOpen && this.activeListTab === tab && !pinned) {
+			if (isOpen && this.activeListTab === tab && !this.listPinned) {
 				// Clicking the active tab when not pinned closes the panel
 				listWrapper.addClass('ttrpgmap-hidden');
 				markersTab.removeClass('ttrpgmap-panel-tab-active');
@@ -849,8 +854,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 
 		const sorted = [...this.state.markers].sort((a, b) => {
-			const nameA = a.note ? displayTitle(a.note, a.alias) : '';
-			const nameB = b.note ? displayTitle(b.note, b.alias) : '';
+			const nameA = displayTitle(a.note, a.alias);
+			const nameB = displayTitle(b.note, b.alias);
 			return nameA.localeCompare(nameB);
 		});
 
@@ -875,7 +880,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			});
 
 			// Name
-			const name = marker.note ? displayTitle(marker.note, marker.alias) : 'Unnamed';
+			const name = displayTitle(marker.note, marker.alias) || 'Unnamed';
 			row.createDiv({ cls: 'ttrpgmap-marker-list-name', text: name });
 
 			// Hidden indicator
@@ -1342,6 +1347,20 @@ export class MapRenderer extends MarkdownRenderChild {
 		return this.state?.[field] ?? this.plugin.settings[field] ?? true;
 	}
 
+	// ── Resolved settings (2-tier: map override ?? global default) ──
+
+	private get controlOpacity(): number {
+		return this.state?.controlOpacity ?? this.plugin.settings.defaultControlOpacity ?? 50;
+	}
+
+	private get openLinksInNewTab(): boolean {
+		return this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? false;
+	}
+
+	private get showHoverPreview(): boolean {
+		return this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
+	}
+
 	/** Sync lock state from this.state and update button visuals */
 	private applyLockState(): void {
 		this.zoomLocked = this.state?.zoomLocked ?? false;
@@ -1362,7 +1381,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	/** Apply control opacity from global + per-map settings */
 	private applyControlOpacity(): void {
-		const opacity = this.state?.controlOpacity ?? this.plugin.settings.defaultControlOpacity ?? 50;
+		const opacity = this.controlOpacity;
 		this.wrapper?.style.setProperty('--control-opacity', String(opacity / 100));
 	}
 
@@ -1383,6 +1402,25 @@ export class MapRenderer extends MarkdownRenderChild {
 		// Individual tab buttons
 		this.markersTabEl?.toggleClass('ttrpgmap-hidden', !showMarkers);
 		this.layersTabEl?.toggleClass('ttrpgmap-hidden', !showLayers);
+
+		// Close panel if the active tab was just hidden
+		if ((this.activeListTab === 'markers' && !showMarkers) || (this.activeListTab === 'layers' && !showLayers)) {
+			this.closeListPanel();
+		}
+	}
+
+	/** Reset the marker/layer list panel to its default closed state */
+	private closeListPanel(): void {
+		this.listPinned = false;
+		this.listWrapperEl?.addClass('ttrpgmap-hidden');
+		this.listWrapperEl?.removeClass('ttrpgmap-marker-list-wrapper-pinned');
+		this.markerListPanelEl?.removeClass('ttrpgmap-marker-list-pinned');
+		this.markersTabEl?.removeClass('ttrpgmap-panel-tab-active');
+		this.layersTabEl?.removeClass('ttrpgmap-panel-tab-active');
+		if (this.listPinBtnEl) {
+			this.listPinBtnEl.empty();
+			setIcon(this.listPinBtnEl, 'pin-off');
+		}
 	}
 
 	private isMarkerVisible(marker: MapMarker): boolean {
@@ -1619,7 +1657,7 @@ export class MapRenderer extends MarkdownRenderChild {
 					return;
 				}
 				e.stopPropagation();
-				const newTab = this.state?.openLinksInNewTab ?? this.plugin.settings.openLinksInNewTab ?? false;
+				const newTab = this.openLinksInNewTab;
 				void this.plugin.app.workspace.openLinkText(navPath, '', newTab);
 			});
 		}
@@ -1645,7 +1683,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			hoverSuppressed = false; // fresh enter resets suppression
 			this.dismissActiveHover = dismissPopover;
 			if (this.draggingMarker || e.altKey) return;
-			const showPreview = this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
+			const showPreview = this.showHoverPreview;
 			if (!showPreview) return;
 			let previewPath: string | null = null;
 			if (marker.previewNote) {
@@ -2107,7 +2145,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				setting.openTabById(this.plugin.manifest.id);
 			});
 		});
-		if (!this.isControlVisible('showMapSettings')) {
+		if (!this.isControlVisible('showMapSettings') || this.controlOpacity === 0) {
 			menu.addItem((item) => {
 				item.setTitle('Edit map');
 				item.setIcon('settings');

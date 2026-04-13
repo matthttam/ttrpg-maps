@@ -1,6 +1,7 @@
-/** Extract display title from a note link. Uses alias if provided, otherwise extracts filename. */
-export function displayTitle(noteLink: string, alias?: string | null): string {
+/** Extract display title. Uses alias if provided, otherwise extracts filename from note link. */
+export function displayTitle(noteLink: string | null, alias?: string | null): string {
 	if (alias) return alias;
+	if (!noteLink) return '';
 	// Safety net for un-migrated data with |alias syntax
 	const pipeIdx = noteLink.indexOf('|');
 	if (pipeIdx >= 0) return noteLink.slice(pipeIdx + 1);
@@ -21,11 +22,12 @@ export function buildMarkerLabel(
 	description: string | null,
 	labelClass: string,
 ): void {
-	if (!note && !description) return;
+	if (!note && !alias && !description) return;
 
 	const label = container.createDiv({ cls: labelClass });
-	if (note) {
-		label.createSpan({ cls: 'ttrpgmap-marker-title', text: displayTitle(note, alias) });
+	const title = displayTitle(note, alias);
+	if (title) {
+		label.createSpan({ cls: 'ttrpgmap-marker-title', text: title });
 	}
 	if (description) {
 		label.createDiv({ cls: 'ttrpgmap-marker-desc', text: description });

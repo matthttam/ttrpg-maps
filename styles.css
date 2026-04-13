@@ -393,7 +393,7 @@
 	transition: opacity 0.15s ease;
 }
 
-.ttrpgmap-marker-list-toggle:hover {
+.ttrpgmap-panel-tabs:hover .ttrpgmap-marker-list-toggle {
 	opacity: 1;
 }
 
@@ -403,21 +403,31 @@
 }
 
 .ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle {
-	border-radius: 0;
+	border-radius: 4px;
 	margin-left: -1px;
 }
 
-/* First visible tab: round bottom-left */
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):first-child,
-.ttrpgmap-panel-tabs .ttrpgmap-hidden + .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
-	border-bottom-left-radius: 4px;
-	margin-left: 0;
+/* Active tab: flat top (connects to list above) */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle.ttrpgmap-panel-tab-active {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
 }
 
-/* Last visible tab: round bottom-right */
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):last-child,
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-hidden) {
-	border-bottom-right-radius: 4px;
+/* Adjacent tabs: flatten the shared edge between them */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) + .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)) {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+/* First visible tab: reset left margin */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):first-child,
+.ttrpgmap-panel-tabs .ttrpgmap-hidden + .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
+	margin-left: 0;
 }
 
 .ttrpgmap-panel-tab-active {

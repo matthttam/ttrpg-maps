@@ -1,11 +1,11 @@
 import { MarkdownRenderChild, Menu, setIcon, parseLinktext } from 'obsidian';
+import { buildPlaceMarkerMenu } from './contextMenu';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import {
 	MapConfig,
 	MapState,
 	MapMarker,
-	MarkerTemplate,
 	RoundingMode,
 	MarkerLayer,
 	DEFAULT_LAYER_ID,
@@ -2065,75 +2065,12 @@ export class MapRenderer extends MarkdownRenderChild {
 		const mapY = (e.clientY - rect.top) / scale / sy;
 
 		const menu = new Menu();
-		const templates = this.plugin.settings.markerTemplates;
-		const layers = this.state.layers;
-		const hasMultipleLayers = layers.length > 1;
-		const defaultTemplate = templates.find((t) => t.id === 'default') ?? templates[0];
-
-		if (defaultTemplate) {
-			menu.addItem((item) => {
-				item.setTitle('Place marker');
-				item.setIcon('map-pin');
-				if (hasMultipleLayers) {
-					const sub = item.setSubmenu();
-					for (const layer of layers) {
-						sub.addItem((subItem) => {
-							subItem.setTitle(layer.name);
-							subItem.onClick(() =>
-								this.placeMarker(mapX, mapY, defaultTemplate.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id),
-							);
-						});
-					}
-				} else {
-					item.onClick(() => this.placeMarker(mapX, mapY, defaultTemplate.id));
-				}
-			});
-		}
-		if (templates.length > 1) {
-			menu.addSeparator();
-
-			const sortByName = <T extends { name: string }>(items: T[]): T[] =>
-				[...items].sort((a, b) => a.name.localeCompare(b.name));
-
-			const folders = this.plugin.settings.templateFolders;
-			const topLevel = sortByName(templates.filter((t) => !t.folderId));
-			const addTemplateToMenu = (m: Menu, template: MarkerTemplate) => {
-				m.addItem((item) => {
-					item.setTitle(template.name);
-					item.setIcon(template.shape === 'hotspot' ? 'circle-dashed' : 'map-pin');
-					if (hasMultipleLayers) {
-						const sub = item.setSubmenu();
-						for (const layer of layers) {
-							sub.addItem((subItem) => {
-								subItem.setTitle(layer.name);
-								subItem.onClick(() =>
-									this.placeMarker(mapX, mapY, template.id, layer.id === DEFAULT_LAYER_ID ? null : layer.id),
-								);
-							});
-						}
-					} else {
-						item.onClick(() => this.placeMarker(mapX, mapY, template.id));
-					}
-				});
-			};
-
-			for (const template of topLevel) {
-				addTemplateToMenu(menu, template);
-			}
-
-			for (const folder of sortByName(folders)) {
-				const folderTemplates = sortByName(templates.filter((t) => t.folderId === folder.id));
-				if (folderTemplates.length === 0) continue;
-				menu.addItem((item) => {
-					item.setTitle(folder.name);
-					item.setIcon('folder');
-					const sub = item.setSubmenu();
-					for (const template of folderTemplates) {
-						addTemplateToMenu(sub, template);
-					}
-				});
-			}
-		}
+		buildPlaceMarkerMenu(menu, {
+			templates: this.plugin.settings.markerTemplates,
+			folders: this.plugin.settings.templateFolders,
+			layers: this.state.layers,
+			onPlace: (templateId, layerId) => this.placeMarker(mapX, mapY, templateId, layerId),
+		});
 
 		menu.addSeparator();
 		menu.addItem((item) => {

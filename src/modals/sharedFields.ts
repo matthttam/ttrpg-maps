@@ -1,5 +1,5 @@
 import { App, Setting } from 'obsidian';
-import { MarkerDirection, TextPlacement } from '../types';
+import { MarkerDirection, TextPlacement, MarkerFont, MARKER_FONT_LABELS, MARKER_FONT_STACKS } from '../types';
 import { IconSuggest } from '../suggests/IconSuggest';
 import { setMapIcon, getMapIcon } from '../utils/mapIcon';
 
@@ -88,12 +88,11 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
 	return setting;
 }
 
-/** Icon search + color picker + rotation. */
+/** Icon search + rotation + color picker. */
 export function buildIconField(ctx: FieldContext): {
 	setting: Setting;
 	colorPicker: { setValue: (hex: string) => void };
 	rotationInput: { setValue: (deg: number) => void };
-	rotationEl: HTMLElement;
 } {
 	const setting = new Setting(ctx.contentEl).setName('Icon');
 
@@ -169,21 +168,9 @@ export function buildIconField(ctx: FieldContext): {
 
 	updateInputPreview();
 
-	// Inline color picker (same row as icon search)
-	const colorWrap = setting.controlEl.createDiv({ cls: 'ttrpgmap-icon-color-wrap' });
-	colorWrap.createSpan({ cls: 'ttrpgmap-icon-color-label', text: 'Color:' });
-	const colorPicker = createColorPicker({
-		container: colorWrap,
-		value: ctx.state.iconColor,
-		onChange: (hex) => {
-			ctx.state.iconColor = hex;
-			ctx.onChanged();
-		},
-	});
-
-	// Rotation (own row below the icon setting)
-	const rotationWrap = ctx.contentEl.createDiv({ cls: 'ttrpgmap-icon-rotation-row' });
-	rotationWrap.createSpan({ cls: 'ttrpgmap-icon-color-label', text: 'Rotation:' });
+	// Inline rotation (between search and color)
+	const rotationWrap = setting.controlEl.createDiv({ cls: 'ttrpgmap-icon-rotation-inline' });
+	rotationWrap.createSpan({ cls: 'ttrpgmap-icon-color-label', text: 'Rot:' });
 	const rotationSlider = rotationWrap.createEl('input', {
 		cls: 'ttrpgmap-icon-rotation-slider',
 		type: 'range',
@@ -215,6 +202,18 @@ export function buildIconField(ctx: FieldContext): {
 		}
 	});
 
+	// Inline color picker (same row as icon search)
+	const colorWrap = setting.controlEl.createDiv({ cls: 'ttrpgmap-icon-color-wrap' });
+	colorWrap.createSpan({ cls: 'ttrpgmap-icon-color-label', text: 'Color:' });
+	const colorPicker = createColorPicker({
+		container: colorWrap,
+		value: ctx.state.iconColor,
+		onChange: (hex) => {
+			ctx.state.iconColor = hex;
+			ctx.onChanged();
+		},
+	});
+
 	return {
 		setting,
 		colorPicker,
@@ -224,7 +223,6 @@ export function buildIconField(ctx: FieldContext): {
 				rotationSlider.value = String(deg);
 			},
 		},
-		rotationEl: rotationWrap,
 	};
 }
 
@@ -364,4 +362,35 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 			if (textRef) textRef.setDisabled(d);
 		},
 	};
+}
+
+// ── Font dropdown ──
+
+interface FontDropdownOpts {
+	setting: Setting;
+	value: MarkerFont | 'inherit';
+	includeInherit?: boolean;
+	onChange: (value: MarkerFont | 'inherit') => void;
+}
+
+/**
+ * Add a font-family dropdown to a Setting.
+ * Each option is styled with its font for a visual preview.
+ */
+export function buildFontDropdown(opts: FontDropdownOpts): void {
+	const { setting, value, includeInherit = false, onChange } = opts;
+	setting.addDropdown((dropdown) => {
+		if (includeInherit) dropdown.addOption('inherit', 'Inherit');
+		for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
+			dropdown.addOption(key, label);
+		}
+		dropdown.setValue(value).onChange((v) => onChange(v as MarkerFont | 'inherit'));
+		// Style each option with its font
+		for (const option of Array.from(dropdown.selectEl.options)) {
+			const key = option.value;
+			if (key !== 'inherit' && key !== 'default' && key in MARKER_FONT_STACKS) {
+				option.style.fontFamily = MARKER_FONT_STACKS[key as Exclude<MarkerFont, 'default'>];
+			}
+		}
+	});
 }

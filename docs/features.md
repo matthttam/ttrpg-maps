@@ -62,7 +62,9 @@ Maps are rendered from `ttrpgmap` code blocks in your notes. The code block spec
 - **Lock Zoom** toggle - prevents zooming. When active, scroll wheel passes through to page scroll
 - **Lock Pan** toggle - prevents panning by click-and-drag
 
-Lock states persist across page reloads (saved per-map).
+Lock states persist across page reloads (saved per-map). Locks are also accessible from the map settings modal (Lock zoom and Lock pan in the general section, Lock markers in the Markers section).
+
+When a locked action is attempted, a warning toast appears next to the zoom controls (or top-left if controls are hidden). Hovering the toast pauses its dismissal. Clicking the toast opens the map settings modal and highlights the relevant lock toggle.
 
 The current zoom level is displayed as a percentage between the buttons.
 

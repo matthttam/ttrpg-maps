@@ -361,21 +361,42 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	/** Show a brief warning message next to the zoom controls */
-	private showLockWarning(text: string): void {
-		// Remove any existing warning
+	/** Show a brief warning toast. Hovering pauses dismissal. Clicking opens map settings. */
+	private showLockWarning(text: string, settingName?: string): void {
 		this.wrapper.querySelector('.ttrpgmap-lock-warning')?.remove();
-		const controls = this.wrapper.querySelector('.ttrpgmap-zoom-controls');
-		if (!controls) return;
 		const warning = this.wrapper.createDiv({ cls: 'ttrpgmap-lock-warning', text });
-		// Position to the right of controls
-		const rect = controls.getBoundingClientRect();
-		const wrapperRect = this.wrapper.getBoundingClientRect();
-		warning.setCssStyles({
-			top: `${rect.top - wrapperRect.top}px`,
-			left: `${rect.right - wrapperRect.left + 8}px`,
+
+		// Position next to zoom controls if visible, otherwise top-left fallback
+		const controls = this.zoomControlsEl;
+		if (controls && !controls.hasClass('ttrpgmap-hidden')) {
+			const rect = controls.getBoundingClientRect();
+			const wrapperRect = this.wrapper.getBoundingClientRect();
+			warning.setCssStyles({
+				top: `${rect.top - wrapperRect.top}px`,
+				left: `${rect.right - wrapperRect.left + 8}px`,
+			});
+		} else {
+			warning.setCssStyles({ top: '10px', left: '10px' });
+		}
+
+		if (settingName) {
+			warning.addClass('ttrpgmap-lock-warning-clickable');
+			warning.addEventListener('click', () => {
+				warning.remove();
+				this.openSettings(settingName);
+			});
+		}
+
+		// Auto-dismiss after 2s, but pause while hovering
+		let timer = setTimeout(() => warning.remove(), 2000);
+		warning.addEventListener('mouseenter', () => {
+			clearTimeout(timer);
+			warning.addClass('ttrpgmap-lock-warning-paused');
 		});
-		setTimeout(() => warning.remove(), 2000);
+		warning.addEventListener('mouseleave', () => {
+			warning.removeClass('ttrpgmap-lock-warning-paused');
+			timer = setTimeout(() => warning.remove(), 1000);
+		});
 	}
 
 	private buildMeasureDrawer(): void {
@@ -1016,7 +1037,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private adjustZoom(delta: number): void {
-		if (this.zoomLocked) { this.showLockWarning('Zoom is locked'); return; }
+		if (this.zoomLocked) { this.showLockWarning('Zoom is locked', 'Lock zoom'); return; }
 		const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
 		if (newZoom === this.zoom) return;
 		this.zoom = newZoom;
@@ -1094,7 +1115,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			return;
 		}
 
-		if (this.panLocked) { this.showLockWarning('Pan is locked'); return; }
+		if (this.panLocked) { this.showLockWarning('Pan is locked', 'Lock pan'); return; }
 		this.isPanning = true;
 		this.panStartX = e.clientX - this.panX;
 		this.panStartY = e.clientY - this.panY;
@@ -1267,7 +1288,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 		}
 
-		if (this.zoomLocked) { this.showLockWarning('Zoom is locked'); return; }
+		if (this.zoomLocked) { this.showLockWarning('Zoom is locked', 'Lock zoom'); return; }
 		e.preventDefault();
 
 		const delta = e.deltaY < 0 ? this.config.zoomStep : -this.config.zoomStep;
@@ -1665,7 +1686,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (this.resizingMarker) return;
 			e.stopPropagation();
 			if (this.markersLocked) {
-				this.showLockWarning('Marker positions are locked');
+				this.showLockWarning('Marker positions are locked', 'Lock markers');
 				return;
 			}
 			this.draggingMarker = marker;
@@ -2476,13 +2497,14 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	// ──────────────────── Settings Persistence ────────────────────
 
-	private openSettings(): void {
+	private openSettings(highlightSetting?: string): void {
 		if (!this.state) return;
 		new MapSettingsModal(
 			this.plugin.app,
 			this.plugin,
 			this.config,
 			this.state,
+			highlightSetting,
 			// onSave: normal settings save (no ID change)
 			(updatedConfig, updatedState) => {
 				this.config = updatedConfig;

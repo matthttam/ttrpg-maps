@@ -465,6 +465,7 @@ describe('MapRenderer copy marker', () => {
 			textScale: 2.0,
 			textScaleToZoom: true,
 			layerId: 'layer_1',
+			font: 'serif',
 		});
 		const plugin = createMockPlugin({ markers: [marker] });
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
@@ -486,6 +487,7 @@ describe('MapRenderer copy marker', () => {
 		expect(copy.textScale).toBe(2.0);
 		expect(copy.textScaleToZoom).toBe(true);
 		expect(copy.layerId).toBe('layer_1');
+		expect(copy.font).toBe('serif');
 	});
 
 	it('keydown cancels copy mode', async () => {

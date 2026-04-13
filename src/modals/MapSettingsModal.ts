@@ -9,12 +9,12 @@ import {
 	DEFAULT_LAYER_ID,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
-	MARKER_FONT_LABELS,
 	MarkerFont,
+	MARKER_FONT_LABELS,
 } from '../types';
 import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
-import { buildScaleSlider, buildPercentSlider } from './sharedFields';
+import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
 
 /** Persists collapsed/expanded state for each section across modal opens */
@@ -29,6 +29,7 @@ export class MapSettingsModal extends Modal {
 	private _idTextEl: HTMLInputElement | null = null;
 	private onSave: (config: MapConfig, state: MapState) => void;
 	private onIdChanged: (oldId: string, newId: string, action: 'migrate' | 'copy' | 'delete' | 'orphan') => void;
+	private highlightSetting: string | undefined;
 	private saved = false;
 
 	constructor(
@@ -36,6 +37,7 @@ export class MapSettingsModal extends Modal {
 		plugin: TTRPGMapsPlugin,
 		config: MapConfig,
 		state: MapState,
+		highlightSetting: string | undefined,
 		onSave: (config: MapConfig, state: MapState) => void,
 		onIdChanged: (oldId: string, newId: string, action: 'migrate' | 'copy' | 'delete' | 'orphan') => void,
 	) {
@@ -45,6 +47,7 @@ export class MapSettingsModal extends Modal {
 		this.state = JSON.parse(JSON.stringify(state));
 		this.originalConfig = JSON.stringify(config);
 		this.originalState = JSON.stringify(state);
+		this.highlightSetting = highlightSetting;
 		this.onSave = onSave;
 		this.onIdChanged = onIdChanged;
 	}
@@ -230,11 +233,63 @@ export class MapSettingsModal extends Modal {
 		this.modalEl.addClass('ttrpgmap-modal--wide');
 		this.titleEl.setText('Edit map');
 
-		const mapGroup = contentEl.createDiv({ cls: 'setting-group' });
-		const mapItems = mapGroup.createDiv({ cls: 'setting-items' });
+		this.buildGeneralSection(contentEl);
+		this.buildMarkersSection(contentEl);
+		this.buildTextSection(contentEl);
+		this.buildControlsSection(contentEl);
+		this.buildLayersSection(contentEl);
+		this.buildFooter(contentEl);
 
-		// ── Image ──
-		const imageSetting = new Setting(mapItems)
+		// Prevent auto-focus on the first input, then highlight the target setting if requested
+		activeWindow.setTimeout(() => {
+			(activeWindow.document.activeElement as HTMLElement)?.blur();
+			if (this.highlightSetting) this.scrollToSetting(contentEl, this.highlightSetting);
+		}, 0);
+	}
+
+	/** Find a setting by name, expand its section if collapsed, scroll to it, and pulse-highlight it */
+	private scrollToSetting(contentEl: HTMLElement, name: string): void {
+		const settingEls = contentEl.querySelectorAll<HTMLElement>('.setting-item');
+		let target: HTMLElement | null = null;
+		for (const el of Array.from(settingEls)) {
+			const nameEl = el.querySelector('.setting-item-name');
+			if (nameEl && nameEl.textContent === name) {
+				target = el;
+				break;
+			}
+		}
+		if (!target) return;
+
+		// Expand the collapsible section if the target is inside one
+		const collapsible = target.closest<HTMLElement>('.ttrpgmap-collapsible-content');
+		if (collapsible && collapsible.hasClass('is-collapsed')) {
+			collapsible.removeClass('is-collapsed');
+			const chevron = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-folder-chevron');
+			if (chevron) chevron.removeClass('is-collapsed');
+			// Persist expanded state
+			const heading = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-heading span:last-child');
+			if (heading?.textContent) {
+				const s = sectionExpanded.get(this.app) ?? {};
+				s[heading.textContent] = true;
+				sectionExpanded.set(this.app, s);
+			}
+		}
+
+		activeWindow.setTimeout(() => {
+			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			target.addClass('ttrpgmap-setting-highlight');
+			target.addEventListener('animationend', () => {
+				target.removeClass('ttrpgmap-setting-highlight');
+			}, { once: true });
+		}, 50);
+	}
+
+	private buildGeneralSection(contentEl: HTMLElement): void {
+		const group = contentEl.createDiv({ cls: 'setting-group' });
+		const items = group.createDiv({ cls: 'setting-items' });
+
+		// Image
+		const imageSetting = new Setting(items)
 			.setName('Image')
 			.setDesc('Search for a map image in your vault')
 			.addText((text) => {
@@ -252,7 +307,8 @@ export class MapSettingsModal extends Modal {
 			});
 		this.loadImageDimensions(imageSetting.descEl);
 
-		const idSetting = new Setting(mapItems)
+		// Map ID
+		const idSetting = new Setting(items)
 			.setName('Map ID')
 			.setDesc('Used to store map data. Set to a unique value to use the same image on multiple maps.');
 		idSetting.addText((text) => {
@@ -260,82 +316,49 @@ export class MapSettingsModal extends Modal {
 			this._idTextEl = text.inputEl;
 		});
 		idSetting.addExtraButton((btn) => {
-			btn
-				.setIcon('pencil')
-				.setTooltip('Change map ID')
-				.onClick(() => {
-					this.openChangeIdModal();
-				});
+			btn.setIcon('pencil').setTooltip('Change map ID').onClick(() => this.openChangeIdModal());
 		});
 
-		// ── Map Size ──
-		const sizeSetting = new Setting(mapItems)
+		// Map size
+		const sizeSetting = new Setting(items)
 			.setName('Map size')
 			.setDesc('Display dimensions (blank = auto from image aspect ratio)');
 		const sizeControl = sizeSetting.controlEl;
 		sizeControl.addClass('ttrpgmap-size-control');
 		sizeControl.createSpan({ text: 'Height:', cls: 'ttrpgmap-size-label' });
 		const heightInput = sizeControl.createEl('input', {
-			type: 'text',
-			cls: 'ttrpgmap-size-input',
-			value: this.config.height ?? '',
-			attr: { placeholder: '500' },
+			type: 'text', cls: 'ttrpgmap-size-input', value: this.config.height ?? '', attr: { placeholder: '500' },
 		});
-		heightInput.addEventListener('input', () => {
-			this.config.height = heightInput.value || null;
-		});
+		heightInput.addEventListener('input', () => { this.config.height = heightInput.value || null; });
 		sizeControl.createSpan({ text: '\u00d7', cls: 'ttrpgmap-size-separator' });
 		sizeControl.createSpan({ text: 'Width:', cls: 'ttrpgmap-size-label' });
 		const widthInput = sizeControl.createEl('input', {
-			type: 'text',
-			cls: 'ttrpgmap-size-input',
-			value: this.config.width ?? '',
-			attr: { placeholder: '800' },
+			type: 'text', cls: 'ttrpgmap-size-input', value: this.config.width ?? '', attr: { placeholder: '800' },
 		});
-		widthInput.addEventListener('input', () => {
-			this.config.width = widthInput.value || null;
-		});
+		widthInput.addEventListener('input', () => { this.config.width = widthInput.value || null; });
 
-		// ── Zoom ──
-		const zoomSetting = new Setting(mapItems)
+		// Zoom range
+		const zoomSetting = new Setting(items)
 			.setName('Zoom range')
 			.setDesc('Zoom range (%) and step size per scroll increment');
 		const zoomControl = zoomSetting.controlEl;
 		zoomControl.addClass('ttrpgmap-size-control');
-		zoomControl.createSpan({ text: 'Min:', cls: 'ttrpgmap-size-label' });
-		const zoomMinInput = zoomControl.createEl('input', {
-			type: 'text',
-			cls: 'ttrpgmap-size-input',
-			value: String(this.config.zoomMin),
-		});
-		zoomMinInput.addEventListener('input', () => {
-			this.config.zoomMin = parseInt(zoomMinInput.value, 10) || 50;
-		});
-		zoomControl.createSpan({ text: 'Max:', cls: 'ttrpgmap-size-label' });
-		const zoomMaxInput = zoomControl.createEl('input', {
-			type: 'text',
-			cls: 'ttrpgmap-size-input',
-			value: String(this.config.zoomMax),
-		});
-		zoomMaxInput.addEventListener('input', () => {
-			this.config.zoomMax = parseInt(zoomMaxInput.value, 10) || 200;
-		});
-		zoomControl.createSpan({ text: 'Step:', cls: 'ttrpgmap-size-label' });
-		const zoomStepInput = zoomControl.createEl('input', {
-			type: 'text',
-			cls: 'ttrpgmap-size-input',
-			value: String(this.config.zoomStep),
-		});
-		zoomStepInput.addEventListener('input', () => {
-			this.config.zoomStep = parseInt(zoomStepInput.value, 10) || 10;
-		});
+		const zoomFields: { label: string; value: string; fallback: number; setter: (v: number) => void }[] = [
+			{ label: 'Min:', value: String(this.config.zoomMin), fallback: 50, setter: (v) => { this.config.zoomMin = v; } },
+			{ label: 'Max:', value: String(this.config.zoomMax), fallback: 200, setter: (v) => { this.config.zoomMax = v; } },
+			{ label: 'Step:', value: String(this.config.zoomStep), fallback: 10, setter: (v) => { this.config.zoomStep = v; } },
+		];
+		for (const field of zoomFields) {
+			zoomControl.createSpan({ text: field.label, cls: 'ttrpgmap-size-label' });
+			const input = zoomControl.createEl('input', { type: 'text', cls: 'ttrpgmap-size-input', value: field.value });
+			input.addEventListener('input', () => { field.setter(parseInt(input.value, 10) || field.fallback); });
+		}
 
-		// ── Navigation ──
+		// Navigation
 		const globalNewTab = this.plugin.settings.openLinksInNewTab ?? false;
-		const globalNewTabLabel = globalNewTab ? 'New tab' : 'Current tab';
-		new Setting(mapItems)
+		new Setting(items)
 			.setName('Open links in')
-			.setDesc(`Inherit uses the global default (currently ${globalNewTabLabel})`)
+			.setDesc(`Inherit uses the global default (currently ${globalNewTab ? 'New tab' : 'Current tab'})`)
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption('inherit', 'Inherit')
@@ -349,10 +372,9 @@ export class MapSettingsModal extends Modal {
 			});
 
 		const globalHover = this.plugin.settings.showHoverPreview ?? false;
-		const globalHoverLabel = globalHover ? 'On' : 'Off';
-		new Setting(mapItems)
+		new Setting(items)
 			.setName('Hover preview')
-			.setDesc(`Inherit uses the global default (currently ${globalHoverLabel})`)
+			.setDesc(`Inherit uses the global default (currently ${globalHover ? 'On' : 'Off'})`)
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption('inherit', 'Inherit')
@@ -365,8 +387,8 @@ export class MapSettingsModal extends Modal {
 					});
 			});
 
-		// ── Locks ──
-		new Setting(mapItems)
+		// Locks
+		new Setting(items)
 			.setName('Lock zoom')
 			.setDesc('Prevent zooming. Scroll wheel passes through to page scroll')
 			.addToggle((toggle) => {
@@ -375,7 +397,7 @@ export class MapSettingsModal extends Modal {
 				});
 			});
 
-		new Setting(mapItems)
+		new Setting(items)
 			.setName('Lock pan')
 			.setDesc('Prevent panning by click-and-drag')
 			.addToggle((toggle) => {
@@ -383,74 +405,95 @@ export class MapSettingsModal extends Modal {
 					this.state.panLocked = value || undefined;
 				});
 			});
+	}
 
-		// ── Marker Scale ──
-		const markerItems = this.buildCollapsibleGroup(contentEl, 'Markers');
+	private buildScaleOverride(
+		container: HTMLElement,
+		name: string,
+		globalDefault: number,
+		currentValue: number | undefined,
+		onSet: (value: number | undefined) => void,
+	): void {
+		const hasOverride = currentValue != null;
+		const effective = currentValue ?? globalDefault;
+		const globalPct = Math.round(globalDefault * 100);
 
-		const globalScale = this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE;
-		const hasOverride = this.state.markerScale != null;
-		const effectiveScale = this.state.markerScale ?? globalScale;
-
-		const scaleSetting = new Setting(markerItems).setName('Marker size');
-
-		const scaleControls = buildScaleSlider({
-			setting: scaleSetting,
-			value: effectiveScale,
+		const setting = new Setting(container).setName(name);
+		const controls = buildScaleSlider({
+			setting,
+			value: effective,
 			onChange: (value) => {
-				this.state.markerScale = value;
-				scaleSetting.setDesc(
-					`Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalScale * 100)}%)`,
-				);
+				onSet(value);
+				setting.setDesc(`Map override: ${Math.round(value * 100)}% (global default: ${globalPct}%)`);
 			},
 			disabled: !hasOverride,
 		});
 
-		scaleSetting.addToggle((toggle) => {
+		setting.addToggle((toggle) => {
 			toggle.setValue(hasOverride).onChange((enabled) => {
 				if (enabled) {
-					scaleControls.setDisabled(false);
-					scaleControls.setValue(globalScale);
-					this.state.markerScale = globalScale;
-					scaleSetting.setDesc(
-						`Map override: ${Math.round(globalScale * 100)}% (global default: ${Math.round(globalScale * 100)}%)`,
-					);
+					controls.setDisabled(false);
+					controls.setValue(globalDefault);
+					onSet(globalDefault);
+					setting.setDesc(`Map override: ${globalPct}% (global default: ${globalPct}%)`);
 				} else {
-					scaleControls.setDisabled(true);
-					scaleControls.setValue(globalScale);
-					this.state.markerScale = undefined;
-					scaleSetting.setDesc(`Using global default: ${Math.round(globalScale * 100)}%`);
+					controls.setDisabled(true);
+					controls.setValue(globalDefault);
+					onSet(undefined);
+					setting.setDesc(`Using global default: ${globalPct}%`);
 				}
 			});
 		});
 
-		scaleSetting.setDesc(
+		setting.setDesc(
 			hasOverride
-				? `Map override: ${Math.round(effectiveScale * 100)}% (global default: ${Math.round(globalScale * 100)}%)`
-				: `Using global default: ${Math.round(globalScale * 100)}%`,
+				? `Map override: ${Math.round(effective * 100)}% (global default: ${globalPct}%)`
+				: `Using global default: ${globalPct}%`,
 		);
+	}
 
-		// Scale to Zoom
-		const globalScaleToZoom = this.plugin.settings.defaultScaleMarkersToZoom ?? true;
-		const globalZoomLabel = globalScaleToZoom ? 'Screen-constant' : 'Fixed to map';
-
-		new Setting(markerItems)
-			.setName('Scale markers to zoom')
-			.setDesc(`Inherit uses the global default (currently ${globalZoomLabel})`)
+	private buildZoomBehaviorDropdown(
+		container: HTMLElement,
+		name: string,
+		globalDefault: boolean,
+		currentValue: boolean | undefined,
+		onSet: (value: boolean | undefined) => void,
+	): void {
+		const globalLabel = globalDefault ? 'Screen-constant' : 'Fixed to map';
+		new Setting(container)
+			.setName(name)
+			.setDesc(`Inherit uses the global default (currently ${globalLabel})`)
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption('inherit', 'Inherit')
 					.addOption('screen', 'Screen-constant')
 					.addOption('map', 'Fixed to map')
-					.setValue(
-						this.state.scaleMarkersToZoom == null ? 'inherit' : this.state.scaleMarkersToZoom ? 'screen' : 'map',
-					)
+					.setValue(currentValue == null ? 'inherit' : currentValue ? 'screen' : 'map')
 					.onChange((value) => {
-						if (value === 'inherit') this.state.scaleMarkersToZoom = undefined;
-						else this.state.scaleMarkersToZoom = value === 'screen';
+						if (value === 'inherit') onSet(undefined);
+						else onSet(value === 'screen');
 					});
 			});
+	}
 
-		new Setting(markerItems)
+	private buildMarkersSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Markers');
+
+		this.buildScaleOverride(
+			items, 'Marker size',
+			this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
+			this.state.markerScale,
+			(v) => { this.state.markerScale = v; },
+		);
+
+		this.buildZoomBehaviorDropdown(
+			items, 'Scale markers to zoom',
+			this.plugin.settings.defaultScaleMarkersToZoom ?? true,
+			this.state.scaleMarkersToZoom,
+			(v) => { this.state.scaleMarkersToZoom = v; },
+		);
+
+		new Setting(items)
 			.setName('Lock markers')
 			.setDesc('Prevent moving markers by click-and-drag')
 			.addToggle((toggle) => {
@@ -458,93 +501,42 @@ export class MapSettingsModal extends Modal {
 					this.state.markersLocked = value || undefined;
 				});
 			});
+	}
 
-		// ── Text Scale ──
-		const textItems = this.buildCollapsibleGroup(contentEl, 'Text');
+	private buildTextSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Text');
 
-		const globalTextScale = this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE;
-		const hasTextOverride = this.state.markerTextScale != null;
-		const effectiveTextScale = this.state.markerTextScale ?? globalTextScale;
-
-		const textScaleSetting = new Setting(textItems).setName('Text size');
-
-		const textScaleControls = buildScaleSlider({
-			setting: textScaleSetting,
-			value: effectiveTextScale,
-			onChange: (value) => {
-				this.state.markerTextScale = value;
-				textScaleSetting.setDesc(
-					`Map override: ${Math.round(value * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`,
-				);
-			},
-			disabled: !hasTextOverride,
-		});
-
-		textScaleSetting.addToggle((toggle) => {
-			toggle.setValue(hasTextOverride).onChange((enabled) => {
-				if (enabled) {
-					textScaleControls.setDisabled(false);
-					textScaleControls.setValue(globalTextScale);
-					this.state.markerTextScale = globalTextScale;
-					textScaleSetting.setDesc(
-						`Map override: ${Math.round(globalTextScale * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`,
-					);
-				} else {
-					textScaleControls.setDisabled(true);
-					textScaleControls.setValue(globalTextScale);
-					this.state.markerTextScale = undefined;
-					textScaleSetting.setDesc(`Using global default: ${Math.round(globalTextScale * 100)}%`);
-				}
-			});
-		});
-
-		textScaleSetting.setDesc(
-			hasTextOverride
-				? `Map override: ${Math.round(effectiveTextScale * 100)}% (global default: ${Math.round(globalTextScale * 100)}%)`
-				: `Using global default: ${Math.round(globalTextScale * 100)}%`,
+		this.buildScaleOverride(
+			items, 'Text size',
+			this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
+			this.state.markerTextScale,
+			(v) => { this.state.markerTextScale = v; },
 		);
 
-		// Scale Text to Zoom
-		const globalTextScaleToZoom = this.plugin.settings.defaultScaleMarkerTextToZoom ?? true;
-		const globalTextZoomLabel = globalTextScaleToZoom ? 'Screen-constant' : 'Fixed to map';
-
-		new Setting(textItems)
-			.setName('Scale text to zoom')
-			.setDesc(`Inherit uses the global default (currently ${globalTextZoomLabel})`)
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption('inherit', 'Inherit')
-					.addOption('screen', 'Screen-constant')
-					.addOption('map', 'Fixed to map')
-					.setValue(
-						this.state.scaleMarkerTextToZoom == null ? 'inherit' : this.state.scaleMarkerTextToZoom ? 'screen' : 'map',
-					)
-					.onChange((value) => {
-						if (value === 'inherit') this.state.scaleMarkerTextToZoom = undefined;
-						else this.state.scaleMarkerTextToZoom = value === 'screen';
-					});
-			});
+		this.buildZoomBehaviorDropdown(
+			items, 'Scale text to zoom',
+			this.plugin.settings.defaultScaleMarkerTextToZoom ?? true,
+			this.state.scaleMarkerTextToZoom,
+			(v) => { this.state.scaleMarkerTextToZoom = v; },
+		);
 
 		const globalFont = this.plugin.settings.defaultMarkerFont ?? 'default';
-		const globalFontLabel = MARKER_FONT_LABELS[globalFont];
-		new Setting(textItems)
+		const fontSetting = new Setting(items)
 			.setName('Label font')
-			.setDesc(`Inherit uses the global default (currently ${globalFontLabel})`)
-			.addDropdown((dropdown) => {
-				dropdown.addOption('inherit', 'Inherit');
-				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
-					dropdown.addOption(key, label);
-				}
-				dropdown
-					.setValue(this.state.markerFont ?? 'inherit')
-					.onChange((value) => {
-						if (value === 'inherit') this.state.markerFont = undefined;
-						else this.state.markerFont = value as MarkerFont;
-					});
-			});
+			.setDesc(`Inherit uses the global default (currently ${MARKER_FONT_LABELS[globalFont]})`);
+		buildFontDropdown({
+			setting: fontSetting,
+			value: this.state.markerFont ?? 'inherit',
+			includeInherit: true,
+			onChange: (value) => {
+				if (value === 'inherit') this.state.markerFont = undefined;
+				else this.state.markerFont = value as MarkerFont;
+			},
+		});
+	}
 
-		// ── Controls visibility ──
-		const controlsItems = this.buildCollapsibleGroup(contentEl, 'Controls');
+	private buildControlsSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Controls');
 
 		const controlSettings: { name: string; desc: string; field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings' }[] = [
 			{ name: 'Measurement tools', desc: 'Distance measurement panel', field: 'showMeasurementTools' },
@@ -556,10 +548,9 @@ export class MapSettingsModal extends Modal {
 
 		for (const ctrl of controlSettings) {
 			const globalVal = this.plugin.settings[ctrl.field] ?? true;
-			const globalLabel = globalVal ? 'Shown' : 'Hidden';
-			new Setting(controlsItems)
+			new Setting(items)
 				.setName(ctrl.name)
-				.setDesc(`${ctrl.desc}. Inherit uses the global default (currently ${globalLabel})`)
+				.setDesc(`${ctrl.desc}. Inherit uses the global default (currently ${globalVal ? 'Shown' : 'Hidden'})`)
 				.addDropdown((dropdown) => {
 					dropdown
 						.addOption('inherit', 'Inherit')
@@ -573,21 +564,18 @@ export class MapSettingsModal extends Modal {
 				});
 		}
 
+		// Control opacity
 		const globalOpacity = this.plugin.settings.defaultControlOpacity ?? 50;
 		const hasOpacityOverride = this.state.controlOpacity != null;
 		const effectiveOpacity = this.state.controlOpacity ?? globalOpacity;
 
-		const opacitySetting = new Setting(controlsItems)
-			.setName('Control opacity');
-
+		const opacitySetting = new Setting(items).setName('Control opacity');
 		const opacityControls = buildPercentSlider({
 			setting: opacitySetting,
 			value: effectiveOpacity,
 			onChange: (value) => {
 				this.state.controlOpacity = value;
-				opacitySetting.setDesc(
-					`Map override: ${value}% (global default: ${globalOpacity}%)`,
-				);
+				opacitySetting.setDesc(`Map override: ${value}% (global default: ${globalOpacity}%)`);
 			},
 			disabled: !hasOpacityOverride,
 		});
@@ -598,9 +586,7 @@ export class MapSettingsModal extends Modal {
 					opacityControls.setDisabled(false);
 					opacityControls.setValue(globalOpacity);
 					this.state.controlOpacity = globalOpacity;
-					opacitySetting.setDesc(
-						`Map override: ${globalOpacity}% (global default: ${globalOpacity}%)`,
-					);
+					opacitySetting.setDesc(`Map override: ${globalOpacity}% (global default: ${globalOpacity}%)`);
 				} else {
 					opacityControls.setDisabled(true);
 					opacityControls.setValue(globalOpacity);
@@ -615,12 +601,14 @@ export class MapSettingsModal extends Modal {
 				? `Map override: ${effectiveOpacity}% (global default: ${globalOpacity}%)`
 				: `Using global default: ${globalOpacity}%`,
 		);
+	}
 
-		// ── Marker Layers ──
-		const layersContainer = this.buildCollapsibleGroup(contentEl, 'Layers');
-		this.renderLayers(layersContainer);
+	private buildLayersSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Layers');
+		this.renderLayers(items);
+	}
 
-		// ── Footer: Export + Save + Cancel ──
+	private buildFooter(contentEl: HTMLElement): void {
 		new Setting(contentEl)
 			.addButton((btn) => {
 				btn.setButtonText('Export map');
@@ -635,11 +623,6 @@ export class MapSettingsModal extends Modal {
 					.setCta()
 					.onClick(() => this.doSave()),
 			);
-
-		// Prevent auto-focus on the first input
-		activeWindow.setTimeout(() => {
-			(activeWindow.document.activeElement as HTMLElement)?.blur();
-		}, 0);
 	}
 
 	private formatZoomRange(layer: MarkerLayer): string {

@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MARKER_FONT_LABELS, MarkerFont } from '../types';
+import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MarkerFont, MARKER_FONT_STACKS } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createPinElement } from '../utils/markerPin';
 import { buildMarkerLabel } from '../utils/markerLabel';
@@ -10,10 +10,12 @@ import {
 	buildPinSelectorField,
 	buildIconField,
 	buildScaleSlider,
+	buildFontDropdown,
 	MarkerFieldState,
 } from './sharedFields';
 
 const sizeOverridesExpanded = new WeakMap<App, boolean>();
+const additionalOptionsExpanded = new WeakMap<App, boolean>();
 
 export class MarkerEditModal extends Modal {
 	private plugin: TTRPGMapsPlugin;
@@ -75,20 +77,6 @@ export class MarkerEditModal extends Modal {
 		);
 	}
 
-	private addInlineResetButton(container: HTMLElement, onReset: () => void): void {
-		if (!this.getTemplate()) return;
-		const btn = container.createDiv({
-			cls: 'clickable-icon extra-setting-button',
-			attr: { 'aria-label': 'Reset to template default' },
-		});
-		setIcon(btn, 'history');
-		btn.addEventListener('click', () => {
-			if (this.getTemplate()) {
-				onReset();
-				this.onOpen();
-			}
-		});
-	}
 
 	/** Bridge marker's nullable fields into the non-null MarkerFieldState the shared builders expect */
 	private getFieldState(): MarkerFieldState {
@@ -144,6 +132,12 @@ export class MarkerEditModal extends Modal {
 			shape: this.marker.shape ?? 'pin',
 		});
 
+		const font = this.marker.font;
+		if (font && font !== 'default') {
+			const stack = MARKER_FONT_STACKS[font];
+			if (stack) wrapper.style.setProperty('--marker-font', stack);
+		}
+
 		buildMarkerLabel(
 			wrapper,
 			this.marker.note,
@@ -157,22 +151,30 @@ export class MarkerEditModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		this.modalEl.addClass('ttrpgmap-modal--x-wide');
+		this.titleEl.setText(this.isNew ? 'Create marker' : 'Edit marker');
 
 		const template = this.getTemplate();
 
-		// ── Two-column layout: settings left, preview right ──
-		this.titleEl.setText(this.isNew ? 'Create marker' : 'Edit marker');
+		// Two-column layout: settings left, preview right
 		const headerGroup = contentEl.createDiv({ cls: 'setting-group' });
-
 		const layout = headerGroup.createDiv({ cls: 'ttrpgmap-modal-layout' });
 		const mainCol = layout.createDiv({ cls: 'ttrpgmap-modal-main' });
 		const previewContainer = layout.createDiv({ cls: 'ttrpgmap-edit-preview' });
 		this.renderPreview(previewContainer);
 
-		// ── Template & Layer ──
 		const infoItems = mainCol.createDiv({ cls: 'setting-items' });
+		this.buildMainFields(infoItems, template, previewContainer);
+		this.buildAdditionalOptions(contentEl, previewContainer);
+		this.buildSizeOverrides(contentEl);
+		this.buildFooter(contentEl, template);
+	}
 
-		new Setting(infoItems).setName('Template').addDropdown((dropdown) => {
+	private buildMainFields(
+		container: HTMLElement,
+		template: MarkerTemplate | undefined,
+		previewContainer: HTMLElement,
+	): void {
+		new Setting(container).setName('Template').addDropdown((dropdown) => {
 			for (const t of this.plugin.settings.markerTemplates) {
 				dropdown.addOption(t.id, t.name);
 			}
@@ -195,7 +197,7 @@ export class MarkerEditModal extends Modal {
 		});
 
 		if (this.layers.length > 1) {
-			new Setting(infoItems)
+			new Setting(container)
 				.setName('Layer')
 				.setDesc('Visibility layer for zoom-based show/hide')
 				.addDropdown((dropdown) => {
@@ -209,9 +211,9 @@ export class MarkerEditModal extends Modal {
 				});
 		}
 
-		new Setting(infoItems)
+		new Setting(container)
 			.setName('Note')
-			.setDesc('Link to a note. Type # for headings, #^ for blocks.')
+			.setDesc('Link to a note. Type # for headings, #^ for blocks')
 			.addText((text) => {
 				text
 					.setPlaceholder('Search for a note...')
@@ -226,7 +228,63 @@ export class MarkerEditModal extends Modal {
 				});
 			});
 
-		new Setting(infoItems)
+		// Appearance fields (text placement, pin, icon)
+		const fieldState = this.getFieldState();
+		const ctx = {
+			app: this.app,
+			contentEl: container,
+			state: fieldState,
+			onChanged: () => {
+				this.syncFromFieldState(fieldState);
+				this.renderPreview(previewContainer);
+			},
+		};
+
+		const tpSetting = buildTextPlacementField(ctx);
+		tpSetting.setDesc('');
+		this.addResetButton(tpSetting, () => {
+			this.marker.textPlacement = template?.textPlacement ?? 'above';
+		});
+
+		const pinSetting = buildPinSelectorField(ctx);
+		this.addResetButton(pinSetting, () => {
+			this.marker.useBaseMarker = template?.useBaseMarker ?? true;
+			this.marker.direction = template?.direction ?? 'down';
+			this.marker.color = template?.color ?? '#ffffff';
+		});
+
+		const { setting: iconSetting, colorPicker: iconColorPicker } = buildIconField(ctx);
+		this.addResetButton(iconSetting, () => {
+			this.marker.icon = template?.icon ?? null;
+			this.marker.iconColor = template?.iconColor ?? '#000000';
+			iconColorPicker.setValue(this.marker.iconColor);
+		});
+	}
+
+	private buildAdditionalOptions(contentEl: HTMLElement, previewContainer: HTMLElement): void {
+		const group = contentEl.createDiv({ cls: 'setting-group' });
+		const expanded = additionalOptionsExpanded.get(this.app) ?? false;
+
+		const heading = new Setting(group).setName('').setHeading();
+		const nameRow = heading.nameEl.createDiv({ cls: 'ttrpgmap-collapsible-heading' });
+		const chevron = nameRow.createSpan({ cls: 'ttrpgmap-folder-chevron' });
+		setIcon(chevron, 'chevron-down');
+		nameRow.createSpan({ text: 'Additional options' });
+		heading.settingEl.setCssStyles({ cursor: 'pointer' });
+
+		const items = group.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
+		if (!expanded) {
+			items.addClass('is-collapsed');
+			chevron.addClass('is-collapsed');
+		}
+		heading.settingEl.addEventListener('click', () => {
+			const expanding = items.hasClass('is-collapsed');
+			items.toggleClass('is-collapsed', !expanding);
+			chevron.toggleClass('is-collapsed', !expanding);
+			additionalOptionsExpanded.set(this.app, expanding);
+		});
+
+		new Setting(items)
 			.setName('Alias')
 			.setDesc('Display name shown instead of the note filename')
 			.addText((text) => {
@@ -239,7 +297,7 @@ export class MarkerEditModal extends Modal {
 					});
 			});
 
-		new Setting(infoItems)
+		new Setting(items)
 			.setName('Preview note')
 			.setDesc('Note shown on hover preview (blank uses the linked note)')
 			.addText((text) => {
@@ -254,7 +312,7 @@ export class MarkerEditModal extends Modal {
 				});
 			});
 
-		new Setting(infoItems)
+		new Setting(items)
 			.setName('Description')
 			.setDesc('Additional text shown below the note name')
 			.addTextArea((textArea) => {
@@ -266,82 +324,53 @@ export class MarkerEditModal extends Modal {
 				textArea.inputEl.rows = 3;
 			});
 
-		// ── Appearance fields (text placement, pin, icon) ──
-		const fieldState = this.getFieldState();
-		const ctx = {
-			app: this.app,
-			contentEl: infoItems,
-			state: fieldState,
-			onChanged: () => {
-				this.syncFromFieldState(fieldState);
+		const fontSetting = new Setting(items)
+			.setName('Label font')
+			.setDesc('Font family for this marker\'s label');
+		buildFontDropdown({
+			setting: fontSetting,
+			value: this.marker.font ?? 'inherit',
+			includeInherit: true,
+			onChange: (value) => {
+				if (value === 'inherit') this.marker.font = null;
+				else this.marker.font = value as MarkerFont;
 				this.renderPreview(previewContainer);
 			},
-		};
-
-		const tpSetting = buildTextPlacementField(ctx);
-		this.addResetButton(tpSetting, () => {
-			this.marker.textPlacement = template?.textPlacement ?? 'above';
 		});
+	}
 
-		const pinSetting = buildPinSelectorField(ctx);
-		this.addResetButton(pinSetting, () => {
-			this.marker.useBaseMarker = template?.useBaseMarker ?? true;
-			this.marker.direction = template?.direction ?? 'down';
-			this.marker.color = template?.color ?? '#ffffff';
-		});
+	private buildSizeOverrides(contentEl: HTMLElement): void {
+		const group = contentEl.createDiv({ cls: 'setting-group' });
+		const expanded = sizeOverridesExpanded.get(this.app) ?? false;
 
-		const {
-			setting: iconSetting,
-			colorPicker: iconColorPicker,
-			rotationInput: iconRotationInput,
-			rotationEl,
-		} = buildIconField(ctx);
-		this.addResetButton(iconSetting, () => {
-			this.marker.icon = template?.icon ?? null;
-			this.marker.iconColor = template?.iconColor ?? '#000000';
-			iconColorPicker.setValue(this.marker.iconColor);
-		});
-		this.addInlineResetButton(rotationEl, () => {
-			this.marker.iconRotation = template?.iconRotation ?? 0;
-			iconRotationInput.setValue(this.marker.iconRotation);
-		});
-
-		// ── Scale settings (collapsible, below the two-column layout) ──
-		const scaleGroup = contentEl.createDiv({ cls: 'setting-group' });
-		const isExpanded = sizeOverridesExpanded.get(this.app) ?? false;
-
-		const scaleHeading = new Setting(scaleGroup).setName('').setHeading();
-		const nameRow = scaleHeading.nameEl.createDiv({ cls: 'ttrpgmap-collapsible-heading' });
+		const heading = new Setting(group).setName('').setHeading();
+		const nameRow = heading.nameEl.createDiv({ cls: 'ttrpgmap-collapsible-heading' });
 		const chevron = nameRow.createSpan({ cls: 'ttrpgmap-folder-chevron' });
 		setIcon(chevron, 'chevron-down');
 		nameRow.createSpan({ text: 'Size overrides' });
-		scaleHeading.settingEl.setCssStyles({ cursor: 'pointer' });
+		heading.settingEl.setCssStyles({ cursor: 'pointer' });
 
-		const scaleItems = scaleGroup.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
-		if (!isExpanded) {
-			scaleItems.addClass('is-collapsed');
+		const items = group.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
+		if (!expanded) {
+			items.addClass('is-collapsed');
 			chevron.addClass('is-collapsed');
 		}
-
-		scaleHeading.settingEl.addEventListener('click', () => {
-			const nowExpanded = scaleItems.hasClass('is-collapsed');
-			scaleItems.toggleClass('is-collapsed', !nowExpanded);
-			chevron.toggleClass('is-collapsed', !nowExpanded);
-			sizeOverridesExpanded.set(this.app, nowExpanded);
+		heading.settingEl.addEventListener('click', () => {
+			const expanding = items.hasClass('is-collapsed');
+			items.toggleClass('is-collapsed', !expanding);
+			chevron.toggleClass('is-collapsed', !expanding);
+			sizeOverridesExpanded.set(this.app, expanding);
 		});
 
 		const hasScaleOverride = this.marker.scale != null;
-
-		const markerScaleSetting = new Setting(scaleItems)
+		const markerScaleSetting = new Setting(items)
 			.setName('Marker size')
 			.setDesc('Override the map marker scale for this marker');
 
 		const scaleControls = buildScaleSlider({
 			setting: markerScaleSetting,
 			value: this.marker.scale ?? 1.0,
-			onChange: (value) => {
-				this.marker.scale = value;
-			},
+			onChange: (value) => { this.marker.scale = value; },
 			disabled: !hasScaleOverride,
 		});
 
@@ -359,7 +388,7 @@ export class MarkerEditModal extends Modal {
 			});
 		});
 
-		new Setting(scaleItems)
+		new Setting(items)
 			.setName('Scale to zoom')
 			.setDesc('How this marker behaves when zooming')
 			.addDropdown((dropdown) => {
@@ -376,17 +405,14 @@ export class MarkerEditModal extends Modal {
 			});
 
 		const hasTextScaleOverride = this.marker.textScale != null;
-
-		const textScaleSetting = new Setting(scaleItems)
+		const textScaleSetting = new Setting(items)
 			.setName('Text size')
 			.setDesc('Override the text label scale for this marker');
 
 		const textScaleControls = buildScaleSlider({
 			setting: textScaleSetting,
 			value: this.marker.textScale ?? 1.0,
-			onChange: (value) => {
-				this.marker.textScale = value;
-			},
+			onChange: (value) => { this.marker.textScale = value; },
 			disabled: !hasTextScaleOverride,
 		});
 
@@ -404,7 +430,7 @@ export class MarkerEditModal extends Modal {
 			});
 		});
 
-		new Setting(scaleItems)
+		new Setting(items)
 			.setName('Text scale to zoom')
 			.setDesc("How this marker's text behaves when zooming")
 			.addDropdown((dropdown) => {
@@ -419,24 +445,9 @@ export class MarkerEditModal extends Modal {
 						else this.marker.textScaleToZoom = false;
 					});
 			});
+	}
 
-		new Setting(scaleItems)
-			.setName('Label font')
-			.setDesc('Font family for this marker\'s label')
-			.addDropdown((dropdown) => {
-				dropdown.addOption('inherit', 'Inherit');
-				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
-					dropdown.addOption(key, label);
-				}
-				dropdown
-					.setValue(this.marker.font ?? 'inherit')
-					.onChange((value) => {
-						if (value === 'inherit') this.marker.font = null;
-						else this.marker.font = value as MarkerFont;
-					});
-			});
-
-		// ── Save / Cancel ──
+	private buildFooter(contentEl: HTMLElement, template: MarkerTemplate | undefined): void {
 		const hasTemplate = !!template;
 		new Setting(contentEl)
 			.addButton((btn) => {
@@ -447,26 +458,26 @@ export class MarkerEditModal extends Modal {
 						const tpl = this.getTemplate();
 						if (!tpl) return;
 						void confirmAction(
-						this.app,
-						'Reset to template',
-						`This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
-						'Reset',
-					).then((confirmed) => {
-						if (!confirmed) return;
-						this.marker.direction = tpl.direction;
-						this.marker.textPlacement = tpl.textPlacement;
-						this.marker.color = tpl.color;
-						this.marker.icon = tpl.icon;
-						this.marker.iconColor = tpl.iconColor;
-						this.marker.iconRotation = tpl.iconRotation;
-						this.marker.useBaseMarker = tpl.useBaseMarker;
-						this.marker.shape = tpl.shape;
-						this.marker.scale = null;
-						this.marker.scaleToZoom = null;
-						this.marker.textScale = null;
-						this.marker.textScaleToZoom = null;
-						this.onOpen();
-					});
+							this.app,
+							'Reset to template',
+							`This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
+							'Reset',
+						).then((confirmed) => {
+							if (!confirmed) return;
+							this.marker.direction = tpl.direction;
+							this.marker.textPlacement = tpl.textPlacement;
+							this.marker.color = tpl.color;
+							this.marker.icon = tpl.icon;
+							this.marker.iconColor = tpl.iconColor;
+							this.marker.iconRotation = tpl.iconRotation;
+							this.marker.useBaseMarker = tpl.useBaseMarker;
+							this.marker.shape = tpl.shape;
+							this.marker.scale = null;
+							this.marker.scaleToZoom = null;
+							this.marker.textScale = null;
+							this.marker.textScaleToZoom = null;
+							this.onOpen();
+						});
 					});
 				if (!hasTemplate) btn.setTooltip('Template not found');
 			})

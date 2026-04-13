@@ -124,13 +124,31 @@
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
-	pointer-events: none;
+	pointer-events: auto;
 	animation: ttrpgmap-warning-fade 2s ease forwards;
+}
+
+.ttrpgmap-lock-warning-clickable {
+	cursor: pointer;
+}
+
+.ttrpgmap-lock-warning-paused {
+	animation-play-state: paused;
 }
 
 @keyframes ttrpgmap-warning-fade {
 	0%, 70% { opacity: 1; }
 	100% { opacity: 0; }
+}
+
+/* Setting highlight pulse (used when clicking a lock warning) */
+.ttrpgmap-setting-highlight {
+	animation: ttrpgmap-highlight-pulse 1.5s ease;
+}
+
+@keyframes ttrpgmap-highlight-pulse {
+	0%, 100% { background: transparent; }
+	30%, 70% { background: var(--background-modifier-hover); }
 }
 
 /* ===== Measurement Panel (top-right drawer) ===== */
@@ -1173,7 +1191,8 @@
 
 .ttrpgmap-zoom-range-input {
 	position: absolute;
-	top: 0;
+	top: 50%;
+	transform: translateY(-50%);
 	left: 0;
 	width: 100% !important;
 	height: 100%;
@@ -1421,12 +1440,10 @@
 	margin-left: auto;
 }
 
-.ttrpgmap-icon-rotation-row {
+.ttrpgmap-icon-rotation-inline {
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
 	gap: 4px;
-	padding: 4px 0;
 }
 
 .ttrpgmap-icon-rotation-slider {

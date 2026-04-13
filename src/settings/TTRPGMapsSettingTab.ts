@@ -1,8 +1,8 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MARKER_FONT_LABELS, MarkerFont } from '../types';
-import { buildScaleSlider, buildPercentSlider } from '../modals/sharedFields';
+import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MarkerFont } from '../types';
+import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from '../modals/sharedFields';
 import { renderTemplateManager } from './renderTemplateManager';
 
 export class TTRPGMapsSettingTab extends PluginSettingTab {
@@ -85,21 +85,18 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
+		const fontSetting = new Setting(containerEl)
 			.setName('Default label font')
-			.setDesc('Font family used for marker labels on all maps')
-			.addDropdown((dropdown) => {
-				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
-					dropdown.addOption(key, label);
-				}
-				dropdown
-					.setValue(this.plugin.settings.defaultMarkerFont ?? 'default')
-					.onChange((value) => {
-						this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
-						void this.plugin.dataManager.saveSettings(this.plugin.settings);
-						this.plugin.triggerMapRefresh();
-					});
-			});
+			.setDesc('Font family used for marker labels on all maps');
+		buildFontDropdown({
+			setting: fontSetting,
+			value: this.plugin.settings.defaultMarkerFont ?? 'default',
+			onChange: (value) => {
+				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
+				void this.plugin.dataManager.saveSettings(this.plugin.settings);
+				this.plugin.triggerMapRefresh();
+			},
+		});
 
 		// ── Navigation ──
 		new Setting(containerEl).setName('Navigation').setHeading();

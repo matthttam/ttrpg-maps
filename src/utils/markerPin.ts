@@ -106,8 +106,7 @@ export function createPinElement(container: HTMLElement, opts: PinElementOpts): 
 		if (opts.icon) {
 			const iconEl = pin.createDiv({ cls: `ttrpgmap-pin-icon ${opts.iconClass}` });
 			if (opts.iconColor) iconEl.setCssStyles({ color: opts.iconColor });
-			if (opts.iconRotation)
-				iconEl.setCssStyles({ '--icon-rotation': `${opts.iconRotation}deg` } as Record<string, string>);
+			if (opts.iconRotation) iconEl.style.setProperty('--icon-rotation', `${opts.iconRotation}deg`);
 			renderIcon(iconEl, opts.icon);
 		}
 
@@ -118,8 +117,7 @@ export function createPinElement(container: HTMLElement, opts: PinElementOpts): 
 	const pin = container.createDiv({ cls: `ttrpgmap-pin ttrpgmap-pin--standalone ${opts.pinClass}` });
 	const iconEl = pin.createDiv({ cls: 'ttrpgmap-pin-standalone-icon' });
 	if (opts.iconColor) iconEl.setCssStyles({ color: opts.iconColor });
-	if (opts.iconRotation)
-		iconEl.setCssStyles({ '--icon-rotation': `${opts.iconRotation}deg` } as Record<string, string>);
+	if (opts.iconRotation) iconEl.style.setProperty('--icon-rotation', `${opts.iconRotation}deg`);
 	renderIcon(iconEl, opts.icon);
 
 	return pin;

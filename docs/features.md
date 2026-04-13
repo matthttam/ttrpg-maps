@@ -19,6 +19,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
   - [Labels](#labels)
   - [Direction](#direction)
   - [Scale and Zoom Behavior](#scale-and-zoom-behavior)
+  - [Label Fonts](#label-fonts)
 - [Marker Templates](#marker-templates)
   - [Managing Templates](#managing-templates)
   - [Template Folders](#template-folders)
@@ -108,6 +109,7 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                |
 | **Text size**               | Override the map-level text scale (toggle to enable, slider 25-300%)    |
 | **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                |
+| **Label font**              | Inherit / Default / Serif / Monospace / Handwritten / Fantasy / System  |
 | **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)      |
 
 Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
@@ -258,6 +260,27 @@ Each level can also configure **zoom behavior**:
 | **Screen-constant** | Marker stays the same size on screen regardless of zoom level    |
 | **Fixed to map**    | Marker scales proportionally with the map as you zoom in and out |
 | **Inherit**         | Uses the setting from the next level up                          |
+
+### Label Fonts
+
+Marker label text can use a custom font family, following the same three-tier hierarchy as scale settings:
+
+1. **Per-marker override** (in Size overrides section of marker edit modal)
+2. **Per-map override** (in Text section of map settings modal)
+3. **Global default** (in Text section of plugin settings)
+
+Available fonts:
+
+| Font          | CSS stack                                                  |
+| ------------- | ---------------------------------------------------------- |
+| **Default**   | Inherits from Obsidian's theme                             |
+| **Serif**     | Georgia, Times New Roman, serif                            |
+| **Monospace** | Obsidian's monospace font, Courier New, monospace          |
+| **Handwritten** | Segoe Script, Bradley Hand, Comic Sans MS, cursive       |
+| **Fantasy**   | Copperplate, Papyrus, fantasy                              |
+| **System**    | System UI, Apple system font, sans-serif                   |
+
+Each font stack includes cross-platform fallbacks ending with a generic CSS family, so labels degrade gracefully on any operating system.
 
 ---
 
@@ -462,6 +485,8 @@ Access map settings via the **gear button** in the bottom-right corner of the ma
 
 Changes are only saved when you click **Save**. Clicking **Cancel** or closing the modal with unsaved changes prompts you to Save, Discard, or go back and continue editing.
 
+The Markers, Text, Controls, and Layers sections are collapsible accordion groups. Their expanded/collapsed state persists across modal opens.
+
 ### Image
 
 - **Image path** - Change the map image. Autocomplete searches vault files. The native image dimensions are displayed below the input
@@ -485,6 +510,8 @@ Changes are only saved when you click **Save**. Clicking **Cancel** or closing t
 
 - **Open Links in** - Inherit / New tab / Current tab. Controls whether clicking a marker's linked note opens in a new tab or the current one
 - **Hover Preview** - Inherit / On / Off. Show Obsidian's page preview when hovering markers with linked notes
+- **Lock zoom** - Prevent zooming. Scroll wheel passes through to page scroll
+- **Lock pan** - Prevent panning by click-and-drag
 
 ### Marker scale (per-map override)
 
@@ -498,9 +525,17 @@ Changes are only saved when you click **Save**. Clicking **Cancel** or closing t
 - **Screen-constant** - Markers stay the same screen size at all zoom levels
 - **Fixed to map** - Markers scale proportionally with zoom
 
+### Lock markers (per-map)
+
+- **Lock markers** - Prevent moving markers by click-and-drag
+
 ### Text scale and text scale to zoom
 
 Same controls as marker scale, but for label text.
+
+### Label font (per-map override)
+
+- **Label font** - Inherit / Default / Serif / Monospace / Handwritten / Fantasy / System. Sets the font for all marker labels on this map
 
 ### Controls (per-map override)
 
@@ -528,6 +563,7 @@ Access via **Settings** > **TTRPG Maps**.
 
 - **Default Text Scale** - Size of marker labels on all maps (slider, 25-300%, default 100%)
 - **Scale Text to Zoom** - Screen-constant or Fixed to map
+- **Default Label Font** - Font family for marker labels (Default / Serif / Monospace / Handwritten / Fantasy / System)
 
 ### Navigation section
 
@@ -547,6 +583,8 @@ Toggle visibility of individual map UI controls. Each setting defaults to on. Pe
 | **Show map settings**      | Gear button in the bottom-right. When hidden, "Edit map" appears in the right-click context menu |
 
 Controls are toggled via CSS without rebuilding the map. When only one list tab is visible, the tab bar adapts its corner rounding automatically. When both list tabs are hidden, the entire panel is hidden.
+
+A **Control opacity** slider (0-100%, default 50%) sets the resting opacity of all map UI controls. Controls still go fully opaque on hover. The per-map override uses the same toggle + slider pattern as marker size.
 
 ### Marker Templates section
 
@@ -700,8 +738,10 @@ Mutable per-map state, including:
 - Per-map marker and text scale overrides
 - Layer definitions and zoom ranges
 - Navigation and hover preview overrides
+- Label font override
 - Control visibility overrides (zoom, measurement, marker list, layer list, settings)
-- Zoom and pan lock states
+- Control opacity override
+- Zoom, pan, and marker lock states
 - Last known image path and source file path (for data management identification)
 
 Saves are debounced (300ms) for performance. These files can be committed to version control or synced across devices.
@@ -713,5 +753,7 @@ Global settings managed by Obsidian's built-in persistence:
 - Default marker and text scale
 - Default zoom behavior
 - Navigation and hover preview defaults
+- Default label font
 - Control visibility defaults
+- Default control opacity
 - All marker templates and template folders

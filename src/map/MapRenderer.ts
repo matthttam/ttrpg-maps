@@ -13,6 +13,7 @@ import {
 	DEFAULT_LAYER,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
+	MARKER_FONT_STACKS,
 } from '../types';
 import { MapSettingsModal } from '../modals/MapSettingsModal';
 import { MarkerEditModal } from '../modals/MarkerEditModal';
@@ -153,6 +154,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		void (async () => {
 			this.state = await this.plugin.dataManager.loadMapState(this.config.id);
 			this.applyControlVisibility();
+			this.applyControlOpacity();
 			this.applyLockState();
 			this.renderMarkers();
 			this.refreshMarkerList();
@@ -222,6 +224,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.buildMarkerListPanel();
 		this.buildTotalDisplay();
 		this.applyControlVisibility();
+		this.applyControlOpacity();
 		this.bindEvents();
 
 		// Render markers immediately (positions corrected on image load)
@@ -1331,6 +1334,12 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 	}
 
+	/** Apply control opacity from global + per-map settings */
+	private applyControlOpacity(): void {
+		const opacity = this.state?.controlOpacity ?? this.plugin.settings.defaultControlOpacity ?? 50;
+		this.wrapper?.style.setProperty('--control-opacity', String(opacity / 100));
+	}
+
 	/** Toggle visibility of UI controls based on global + per-map settings */
 	private applyControlVisibility(): void {
 		const showZoom = this.isControlVisible('showZoomControls');
@@ -1388,6 +1397,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Resolve whether a marker's text scales to zoom */
 	private getTextScaleToZoom(): boolean {
 		return this.state?.scaleMarkerTextToZoom ?? this.plugin.settings.defaultScaleMarkerTextToZoom ?? true;
+	}
+
+	/** Resolve the effective font for a marker, walking the 3-tier hierarchy */
+	private getMarkerFont(marker: MapMarker): string | null {
+		const font = marker.font ?? this.state?.markerFont ?? this.plugin.settings.defaultMarkerFont ?? 'default';
+		if (font === 'default') return null;
+		return MARKER_FONT_STACKS[font] ?? null;
 	}
 
 	/** Compute effective scale (accounting for zoom if fixed-to-map) */
@@ -1542,6 +1558,9 @@ export class MapRenderer extends MarkdownRenderChild {
 			'--marker-text-scale',
 			String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)),
 		);
+
+		const fontStack = this.getMarkerFont(marker);
+		if (fontStack) markerEl.style.setProperty('--marker-font', fontStack);
 
 		if (isMeasuring) {
 			markerEl.addClass('ttrpgmap-marker-measuring');
@@ -1737,6 +1756,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			scaleToZoom: null,
 			textScale: null,
 			textScaleToZoom: null,
+			font: null,
 		};
 
 		new MarkerEditModal(
@@ -1788,6 +1808,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		const textScaleToZoom = source.textScaleToZoom ?? this.getTextScaleToZoom();
 
 		ghost.style.setProperty('--marker-text-scale', String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
+		const ghostFont = this.getMarkerFont(source);
+		if (ghostFont) ghost.style.setProperty('--marker-font', ghostFont);
 		ghost.dataset.direction = source.direction ?? 'down';
 		ghost.dataset.textPlacement = source.textPlacement ?? 'above';
 		createPinElement(ghost, {
@@ -2476,6 +2498,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				}
 				this.plugin.dataManager.saveMapState(this.config.id, updatedState);
 				this.applyControlVisibility();
+				this.applyControlOpacity();
 				this.applyLockState();
 				this.renderMarkers();
 				this.refreshMarkerList();

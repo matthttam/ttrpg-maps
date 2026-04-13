@@ -71,6 +71,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
 		scaleToZoom: null,
 		textScale: null,
 		textScaleToZoom: null,
+		font: null,
 		...overrides,
 	};
 }

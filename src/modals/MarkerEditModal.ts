@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID } from '../types';
+import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MARKER_FONT_LABELS, MarkerFont } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createPinElement } from '../utils/markerPin';
 import { buildMarkerLabel } from '../utils/markerLabel';
@@ -37,6 +37,7 @@ export class MarkerEditModal extends Modal {
 		scaleToZoom: boolean | null;
 		textScale: number | null;
 		textScaleToZoom: boolean | null;
+		font: MarkerFont | null;
 	};
 	private onSave: (marker: typeof this.marker) => void;
 
@@ -316,15 +317,15 @@ export class MarkerEditModal extends Modal {
 		nameRow.createSpan({ text: 'Size overrides' });
 		scaleHeading.settingEl.setCssStyles({ cursor: 'pointer' });
 
-		const scaleItems = scaleGroup.createDiv({ cls: 'setting-items' });
+		const scaleItems = scaleGroup.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
 		if (!isExpanded) {
-			scaleItems.addClass('ttrpgmap-hidden');
+			scaleItems.addClass('is-collapsed');
 			chevron.addClass('is-collapsed');
 		}
 
 		scaleHeading.settingEl.addEventListener('click', () => {
-			const nowExpanded = scaleItems.hasClass('ttrpgmap-hidden');
-			scaleItems.toggleClass('ttrpgmap-hidden', !nowExpanded);
+			const nowExpanded = scaleItems.hasClass('is-collapsed');
+			scaleItems.toggleClass('is-collapsed', !nowExpanded);
 			chevron.toggleClass('is-collapsed', !nowExpanded);
 			sizeOverridesExpanded.set(this.app, nowExpanded);
 		});
@@ -416,6 +417,22 @@ export class MarkerEditModal extends Modal {
 						if (value === 'inherit') this.marker.textScaleToZoom = null;
 						else if (value === 'screen') this.marker.textScaleToZoom = true;
 						else this.marker.textScaleToZoom = false;
+					});
+			});
+
+		new Setting(scaleItems)
+			.setName('Label font')
+			.setDesc('Font family for this marker\'s label')
+			.addDropdown((dropdown) => {
+				dropdown.addOption('inherit', 'Inherit');
+				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
+					dropdown.addOption(key, label);
+				}
+				dropdown
+					.setValue(this.marker.font ?? 'inherit')
+					.onChange((value) => {
+						if (value === 'inherit') this.marker.font = null;
+						else this.marker.font = value as MarkerFont;
 					});
 			});
 

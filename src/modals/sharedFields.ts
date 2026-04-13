@@ -246,6 +246,75 @@ interface ScaleSliderOpts {
  * Add a linked slider (25-300%) + text input to a Setting.
  * Both controls stay in sync. Values are in fractions (1.0 = 100%).
  */
+export interface PercentSliderControls {
+	setValue: (pct: number) => void;
+	setDisabled: (disabled: boolean) => void;
+}
+
+interface PercentSliderOpts {
+	setting: Setting;
+	value: number;
+	min?: number;
+	max?: number;
+	step?: number;
+	onChange: (value: number) => void;
+	disabled?: boolean;
+}
+
+/**
+ * Add a linked slider + text input to a Setting.
+ * Values are direct integers (e.g. 0-100 for opacity).
+ */
+export function buildPercentSlider(opts: PercentSliderOpts): PercentSliderControls {
+	const { setting, value, min = 0, max = 100, step = 1, onChange, disabled = false } = opts;
+	let sliderRef: { setValue: (v: number) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
+	let textRef: { setValue: (v: string) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
+
+	setting.addSlider((slider) => {
+		sliderRef = slider;
+		slider
+			.setLimits(min, max, step)
+			.setValue(value)
+			.onChange((v: number) => {
+				if (textRef) textRef.setValue(String(v));
+				onChange(v);
+			});
+		slider.sliderEl.addEventListener('input', () => {
+			const v = parseInt(slider.sliderEl.value, 10);
+			if (textRef) textRef.setValue(String(v));
+		});
+		if (disabled) slider.setDisabled(true);
+	});
+
+	setting.addText((text) => {
+		textRef = text;
+		text.inputEl.type = 'number';
+		text.inputEl.min = String(min);
+		text.inputEl.max = String(max);
+		text.inputEl.step = String(step);
+		text.inputEl.addClass('ttrpgmap-scale-input');
+		text.setValue(String(value)).onChange((v: string) => {
+			const num = parseInt(v, 10);
+			if (!isNaN(num) && num >= min && num <= max) {
+				if (sliderRef) sliderRef.setValue(num);
+				onChange(num);
+			}
+		});
+		if (disabled) text.setDisabled(true);
+	});
+
+	return {
+		setValue(pct: number) {
+			if (sliderRef) sliderRef.setValue(pct);
+			if (textRef) textRef.setValue(String(pct));
+		},
+		setDisabled(d: boolean) {
+			if (sliderRef) sliderRef.setDisabled(d);
+			if (textRef) textRef.setDisabled(d);
+		},
+	};
+}
+
 export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	const { setting, value, onChange, disabled = false } = opts;
 	let sliderRef: { setValue: (v: number) => unknown; setDisabled: (d: boolean) => unknown } | null = null;

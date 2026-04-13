@@ -68,7 +68,30 @@ export interface MapMarker {
 	scaleToZoom: boolean | null;
 	textScale: number | null;
 	textScaleToZoom: boolean | null;
+	font: MarkerFont | null;
 }
+
+/** Available font families for marker labels */
+export type MarkerFont = 'default' | 'serif' | 'monospace' | 'handwritten' | 'fantasy' | 'system';
+
+/** Font family CSS stacks keyed by MarkerFont */
+export const MARKER_FONT_STACKS: Record<Exclude<MarkerFont, 'default'>, string> = {
+	serif: "Georgia, 'Times New Roman', serif",
+	monospace: "var(--font-monospace), 'Courier New', monospace",
+	handwritten: "'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive",
+	fantasy: "'Copperplate', 'Papyrus', fantasy",
+	system: 'system-ui, -apple-system, sans-serif',
+};
+
+/** Display labels for each font option */
+export const MARKER_FONT_LABELS: Record<MarkerFont, string> = {
+	default: 'Default',
+	serif: 'Serif',
+	monospace: 'Monospace',
+	handwritten: 'Handwritten',
+	fantasy: 'Fantasy',
+	system: 'System',
+};
 
 /** How measured distances should be rounded */
 export type RoundingMode = 'none' | 'up' | 'down' | 'closest';
@@ -118,6 +141,8 @@ export interface MapState {
 	scaleMarkersToZoom?: boolean;
 	markerTextScale?: number;
 	scaleMarkerTextToZoom?: boolean;
+	markerFont?: MarkerFont;
+	controlOpacity?: number;
 	openLinksInNewTab?: boolean;
 	showHoverPreview?: boolean;
 	zoomLocked?: boolean;
@@ -142,6 +167,8 @@ export interface TTRPGMapsSettings {
 	defaultScaleMarkersToZoom?: boolean;
 	defaultMarkerTextScale?: number;
 	defaultScaleMarkerTextToZoom?: boolean;
+	defaultMarkerFont?: MarkerFont;
+	defaultControlOpacity?: number;
 	openLinksInNewTab?: boolean;
 	showHoverPreview?: boolean;
 	showMeasurementTools?: boolean;

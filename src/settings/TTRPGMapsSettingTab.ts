@@ -1,8 +1,8 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE } from '../types';
-import { buildScaleSlider } from '../modals/sharedFields';
+import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MARKER_FONT_LABELS, MarkerFont } from '../types';
+import { buildScaleSlider, buildPercentSlider } from '../modals/sharedFields';
 import { renderTemplateManager } from './renderTemplateManager';
 
 export class TTRPGMapsSettingTab extends PluginSettingTab {
@@ -80,6 +80,22 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 					.setValue((this.plugin.settings.defaultScaleMarkerTextToZoom ?? true) ? 'screen' : 'map')
 					.onChange((value) => {
 						this.plugin.settings.defaultScaleMarkerTextToZoom = value === 'screen';
+						void this.plugin.dataManager.saveSettings(this.plugin.settings);
+						this.plugin.triggerMapRefresh();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Default label font')
+			.setDesc('Font family used for marker labels on all maps')
+			.addDropdown((dropdown) => {
+				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
+					dropdown.addOption(key, label);
+				}
+				dropdown
+					.setValue(this.plugin.settings.defaultMarkerFont ?? 'default')
+					.onChange((value) => {
+						this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
 						void this.plugin.dataManager.saveSettings(this.plugin.settings);
 						this.plugin.triggerMapRefresh();
 					});
@@ -165,6 +181,20 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 					this.plugin.triggerMapRefresh();
 				});
 			});
+
+		const opacitySetting = new Setting(containerEl)
+			.setName('Control opacity')
+			.setDesc('Resting opacity of map controls (%)');
+
+		buildPercentSlider({
+			setting: opacitySetting,
+			value: this.plugin.settings.defaultControlOpacity ?? 50,
+			onChange: (value) => {
+				this.plugin.settings.defaultControlOpacity = value;
+				void this.plugin.dataManager.saveSettings(this.plugin.settings);
+				this.plugin.triggerMapRefresh();
+			},
+		});
 
 		// ── Marker Templates ──
 		const templatesContainer = containerEl.createDiv();

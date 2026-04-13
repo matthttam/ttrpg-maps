@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, setIcon } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
 import {
@@ -9,11 +9,16 @@ import {
 	DEFAULT_LAYER_ID,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
+	MARKER_FONT_LABELS,
+	MarkerFont,
 } from '../types';
 import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
-import { buildScaleSlider } from './sharedFields';
+import { buildScaleSlider, buildPercentSlider } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
+
+/** Persists collapsed/expanded state for each section across modal opens */
+const sectionExpanded = new WeakMap<App, Record<string, boolean>>();
 
 export class MapSettingsModal extends Modal {
 	private plugin: TTRPGMapsPlugin;
@@ -42,6 +47,35 @@ export class MapSettingsModal extends Modal {
 		this.originalState = JSON.stringify(state);
 		this.onSave = onSave;
 		this.onIdChanged = onIdChanged;
+	}
+
+	/** Create a collapsible setting group with an animated accordion heading */
+	private buildCollapsibleGroup(parent: HTMLElement, name: string, startCollapsed = true): HTMLElement {
+		const states = sectionExpanded.get(this.app) ?? {};
+		const isExpanded = states[name] ?? !startCollapsed;
+
+		const group = parent.createDiv({ cls: 'setting-group' });
+		const heading = new Setting(group).setName('').setHeading();
+		const nameRow = heading.nameEl.createDiv({ cls: 'ttrpgmap-collapsible-heading' });
+		const chevron = nameRow.createSpan({ cls: 'ttrpgmap-folder-chevron' });
+		setIcon(chevron, 'chevron-down');
+		nameRow.createSpan({ text: name });
+		heading.settingEl.setCssStyles({ cursor: 'pointer' });
+
+		const items = group.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
+		if (!isExpanded) {
+			items.addClass('is-collapsed');
+			chevron.addClass('is-collapsed');
+		}
+		heading.settingEl.addEventListener('click', () => {
+			const expanding = items.hasClass('is-collapsed');
+			items.toggleClass('is-collapsed', !expanding);
+			chevron.toggleClass('is-collapsed', !expanding);
+			const s = sectionExpanded.get(this.app) ?? {};
+			s[name] = expanding;
+			sectionExpanded.set(this.app, s);
+		});
+		return items;
 	}
 
 	private isDirty(): boolean {
@@ -133,6 +167,12 @@ export class MapSettingsModal extends Modal {
 			cls: 'ttrpgmap-muted',
 		});
 
+		const list = contentEl.createEl('ul');
+		list.createEl('li').setText('Migrate - move all data to the new ID, delete the old');
+		list.createEl('li').setText('Copy - copy all data to the new ID, keep the old');
+		list.createEl('li').setText('Orphan - start fresh with the new ID, keep old data behind');
+		list.createEl('li').setText('Delete - start fresh with the new ID, permanently delete old data');
+
 		const oldId = this.config.id;
 		const executeIdChange = (action: 'migrate' | 'copy' | 'delete' | 'orphan') => {
 			const id = newId.trim();
@@ -161,26 +201,22 @@ export class MapSettingsModal extends Modal {
 				btn
 					.setButtonText('Migrate')
 					.setCta()
-					.setTooltip('Move data to the new ID, delete old')
 					.onClick(() => executeIdChange('migrate')),
 			)
 			.addButton((btn) =>
 				btn
 					.setButtonText('Copy')
-					.setTooltip('Copy data to the new ID, keep old')
 					.onClick(() => executeIdChange('copy')),
 			)
 			.addButton((btn) =>
 				btn
 					.setButtonText('Orphan')
-					.setTooltip('Start fresh, keep old data behind')
 					.onClick(() => executeIdChange('orphan')),
 			)
 			.addButton((btn) =>
 				btn
 					.setButtonText('Delete')
 					.setWarning()
-					.setTooltip('Start fresh, delete old data')
 					.onClick(() => executeIdChange('delete')),
 			)
 			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => modal.close()));
@@ -349,18 +385,7 @@ export class MapSettingsModal extends Modal {
 			});
 
 		// ── Marker Scale ──
-		const markerGroup = contentEl.createDiv({ cls: 'setting-group' });
-		new Setting(markerGroup).setName('Markers').setHeading();
-		const markerItems = markerGroup.createDiv({ cls: 'setting-items' });
-
-		new Setting(markerItems)
-			.setName('Lock markers')
-			.setDesc('Prevent moving markers by click-and-drag')
-			.addToggle((toggle) => {
-				toggle.setValue(this.state.markersLocked ?? false).onChange((value) => {
-					this.state.markersLocked = value || undefined;
-				});
-			});
+		const markerItems = this.buildCollapsibleGroup(contentEl, 'Markers');
 
 		const globalScale = this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE;
 		const hasOverride = this.state.markerScale != null;
@@ -425,10 +450,17 @@ export class MapSettingsModal extends Modal {
 					});
 			});
 
+		new Setting(markerItems)
+			.setName('Lock markers')
+			.setDesc('Prevent moving markers by click-and-drag')
+			.addToggle((toggle) => {
+				toggle.setValue(this.state.markersLocked ?? false).onChange((value) => {
+					this.state.markersLocked = value || undefined;
+				});
+			});
+
 		// ── Text Scale ──
-		const textGroup = contentEl.createDiv({ cls: 'setting-group' });
-		new Setting(textGroup).setName('Text').setHeading();
-		const textItems = textGroup.createDiv({ cls: 'setting-items' });
+		const textItems = this.buildCollapsibleGroup(contentEl, 'Text');
 
 		const globalTextScale = this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE;
 		const hasTextOverride = this.state.markerTextScale != null;
@@ -493,10 +525,26 @@ export class MapSettingsModal extends Modal {
 					});
 			});
 
+		const globalFont = this.plugin.settings.defaultMarkerFont ?? 'default';
+		const globalFontLabel = MARKER_FONT_LABELS[globalFont];
+		new Setting(textItems)
+			.setName('Label font')
+			.setDesc(`Inherit uses the global default (currently ${globalFontLabel})`)
+			.addDropdown((dropdown) => {
+				dropdown.addOption('inherit', 'Inherit');
+				for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
+					dropdown.addOption(key, label);
+				}
+				dropdown
+					.setValue(this.state.markerFont ?? 'inherit')
+					.onChange((value) => {
+						if (value === 'inherit') this.state.markerFont = undefined;
+						else this.state.markerFont = value as MarkerFont;
+					});
+			});
+
 		// ── Controls visibility ──
-		const controlsGroup = contentEl.createDiv({ cls: 'setting-group' });
-		new Setting(controlsGroup).setName('Controls').setHeading();
-		const controlsItems = controlsGroup.createDiv({ cls: 'setting-items' });
+		const controlsItems = this.buildCollapsibleGroup(contentEl, 'Controls');
 
 		const controlSettings: { name: string; desc: string; field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings' }[] = [
 			{ name: 'Measurement tools', desc: 'Distance measurement panel', field: 'showMeasurementTools' },
@@ -525,10 +573,51 @@ export class MapSettingsModal extends Modal {
 				});
 		}
 
+		const globalOpacity = this.plugin.settings.defaultControlOpacity ?? 50;
+		const hasOpacityOverride = this.state.controlOpacity != null;
+		const effectiveOpacity = this.state.controlOpacity ?? globalOpacity;
+
+		const opacitySetting = new Setting(controlsItems)
+			.setName('Control opacity');
+
+		const opacityControls = buildPercentSlider({
+			setting: opacitySetting,
+			value: effectiveOpacity,
+			onChange: (value) => {
+				this.state.controlOpacity = value;
+				opacitySetting.setDesc(
+					`Map override: ${value}% (global default: ${globalOpacity}%)`,
+				);
+			},
+			disabled: !hasOpacityOverride,
+		});
+
+		opacitySetting.addToggle((toggle) => {
+			toggle.setValue(hasOpacityOverride).onChange((enabled) => {
+				if (enabled) {
+					opacityControls.setDisabled(false);
+					opacityControls.setValue(globalOpacity);
+					this.state.controlOpacity = globalOpacity;
+					opacitySetting.setDesc(
+						`Map override: ${globalOpacity}% (global default: ${globalOpacity}%)`,
+					);
+				} else {
+					opacityControls.setDisabled(true);
+					opacityControls.setValue(globalOpacity);
+					this.state.controlOpacity = undefined;
+					opacitySetting.setDesc(`Using global default: ${globalOpacity}%`);
+				}
+			});
+		});
+
+		opacitySetting.setDesc(
+			hasOpacityOverride
+				? `Map override: ${effectiveOpacity}% (global default: ${globalOpacity}%)`
+				: `Using global default: ${globalOpacity}%`,
+		);
+
 		// ── Marker Layers ──
-		const layerGroup = contentEl.createDiv({ cls: 'setting-group' });
-		new Setting(layerGroup).setName('Layers').setHeading();
-		const layersContainer = layerGroup.createDiv({ cls: 'setting-items' });
+		const layersContainer = this.buildCollapsibleGroup(contentEl, 'Layers');
 		this.renderLayers(layersContainer);
 
 		// ── Footer: Export + Save + Cancel ──

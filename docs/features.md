@@ -35,6 +35,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
 - [Marker List Panel](#marker-list-panel)
 - [Map Settings](#map-settings)
 - [Global Settings](#global-settings)
+  - [Controls](#controls-section)
   - [Data Management](#data-management)
 - [Code Block Reference](#code-block-reference)
 - [Context Menus](#context-menus)
@@ -448,7 +449,7 @@ Each row in the list shows:
 Interactions:
 
 - **Click a row** to pan the map and center on that marker
-- **Hover a row** to highlight the corresponding marker on the map with a bounce animation
+- **Hover a row** to highlight the corresponding marker on the map with a bounce animation. The animation finishes its current cycle before stopping. Hotspot markers become visible with a translucent fill while bouncing
 - **Hover the marker name** to see the full description in a tooltip
 
 The list is sorted alphabetically and scrolls independently from the map (max height 250px).
@@ -501,6 +502,10 @@ Changes are only saved when you click **Save**. Clicking **Cancel** or closing t
 
 Same controls as marker scale, but for label text.
 
+### Controls (per-map override)
+
+Each control can be set to **Inherit** (use the global default), **Show**, or **Hide**. The description shows the current global default for reference. See [Controls section](#controls-section) under Global Settings for the full list.
+
 ### Layers
 
 - **Add Layer** button to create a new visibility layer
@@ -528,6 +533,20 @@ Access via **Settings** > **TTRPG Maps**.
 
 - **Open Links in New Tab** - When clicking a marker's linked note, open in a new tab (default off - opens in current tab)
 - **Show Hover Preview** - Show Obsidian's page preview when hovering markers with linked notes (default off)
+
+### Controls section
+
+Toggle visibility of individual map UI controls. Each setting defaults to on. Per-map overrides (Inherit / Show / Hide) are available in the map settings modal.
+
+| Setting                    | What it controls                                                   |
+| -------------------------- | ------------------------------------------------------------------ |
+| **Show measurement tools** | Ruler toggle and measurement drawer in the top-right               |
+| **Show zoom controls**     | +/- buttons, center, fit, and lock toggles in the top-left         |
+| **Show marker list**       | Markers tab button in the bottom-left panel                        |
+| **Show layer list**        | Layers tab button in the bottom-left panel                         |
+| **Show map settings**      | Gear button in the bottom-right. When hidden, "Edit map" appears in the right-click context menu |
+
+Controls are toggled via CSS without rebuilding the map. When only one list tab is visible, the tab bar adapts its corner rounding automatically. When both list tabs are hidden, the entire panel is hidden.
 
 ### Marker Templates section
 
@@ -586,6 +605,7 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 | _Template name_            | Places a marker using that template           |
 | _Folder name_ > _Template_ | Templates in folders appear as submenus       |
 | **Edit Templates**         | Opens plugin settings to the template manager |
+| **Edit Map**               | Opens the map settings modal (only shown when the settings button is hidden) |
 
 When the map has multiple layers, each template entry expands into a submenu to select the target layer. Templates and folders are sorted alphabetically.
 
@@ -680,6 +700,7 @@ Mutable per-map state, including:
 - Per-map marker and text scale overrides
 - Layer definitions and zoom ranges
 - Navigation and hover preview overrides
+- Control visibility overrides (zoom, measurement, marker list, layer list, settings)
 - Zoom and pan lock states
 - Last known image path and source file path (for data management identification)
 
@@ -692,4 +713,5 @@ Global settings managed by Obsidian's built-in persistence:
 - Default marker and text scale
 - Default zoom behavior
 - Navigation and hover preview defaults
+- Control visibility defaults
 - All marker templates and template folders

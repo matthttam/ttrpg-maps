@@ -19,6 +19,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon
 - **Per-map and per-marker settings** - Override scale, zoom behavior, label placement, navigation mode, and hover preview at every level
+- **Control visibility** - Show or hide zoom controls, measurement tools, marker list, layer list, and settings button globally or per-map
 - **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar
 - **Import/export** - Export maps as ZIP bundles (with image) and import them on another vault. Import/export template sets
 - **Map data management** - View, identify, and delete stored map data from global settings

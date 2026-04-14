@@ -4,6 +4,7 @@ import path from 'path';
 export default defineConfig({
 	test: {
 		environment: 'jsdom',
+		fileParallelism: false,
 		setupFiles: ['tests/__mocks__/obsidian-dom.ts'],
 		include: ['tests/**/*.test.ts'],
 		alias: {

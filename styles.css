@@ -361,8 +361,13 @@
 	cursor: crosshair;
 }
 
-.ttrpgmap-marker.ttrpgmap-culled {
-	display: none;
+.ttrpgmap-marker-fade-in {
+	animation: ttrpgmap-marker-appear 0.3s ease;
+}
+
+@keyframes ttrpgmap-marker-appear {
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 
 .ttrpgmap-marker.ttrpgmap-marker-measuring {

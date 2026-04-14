@@ -145,7 +145,6 @@ export class MeasurementController {
 
 		const saveState = () => {
 			if (this.state) this.ctx.plugin.dataManager.saveMapState(this.ctx.config.id, this.state);
-			this.updateTotalDisplay();
 		};
 
 		modeSelect.addEventListener('change', () => {
@@ -498,7 +497,7 @@ export class MeasurementController {
 		return `${display} ${label}`;
 	}
 
-	updateTotalDisplay(): void {
+	private updateTotalDisplay(): void {
 		if (!this.totalDisplay) return;
 		const total = this.calculateTotalDistance();
 		if (total === null || total === 0) {

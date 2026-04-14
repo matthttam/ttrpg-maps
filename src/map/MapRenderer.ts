@@ -206,7 +206,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.applyWrapperSize();
 			this.updateImageScaleCache();
 			this.applyTransform();
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 			this.renderMarkers();
 		});
 
@@ -237,7 +237,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				this.imageEl.removeClass('ttrpgmap-pixelated');
 				this.svgOverlay.removeClass('ttrpgmap-hidden');
 				this.updateImageScaleCache();
-				this.updateMarkerPositions();
+				this.syncViewportMarkers(true);
 				this.markerOverlay.removeClass('ttrpgmap-visibility-hidden');
 			}, 150);
 		});
@@ -548,7 +548,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		row.addEventListener('mouseenter', () => {
 		});
 		row.addEventListener('mouseleave', () => {
-			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker:not(.ttrpgmap-culled)').forEach((el) => {
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
 				el.removeClass('ttrpgmap-marker-layer-highlight');
 				el.setCssStyles({ opacity: '' });
 				this.stopBounce(el);
@@ -556,7 +556,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 		row.addEventListener('click', (e) => {
 			e.stopPropagation();
-			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker:not(.ttrpgmap-culled)').forEach((el) => {
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
 				const mid = el.dataset.markerId;
 				if (!mid || !this.state) return;
 				const marker = this.state.markers.find((m) => m.id === mid);
@@ -590,7 +590,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			const next = current === 'show' ? 'hide' : current === 'hide' ? 'always' : 'show';
 			this.layerVisibilityOverrides.set(layerId, next);
 			updateIcon(next);
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 			this.refreshMarkerList();
 		});
 	}
@@ -608,7 +608,7 @@ export class MapRenderer extends MarkdownRenderChild {
 					Object.assign(layer, saved);
 					if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
 					this.renderLayerList(container);
-					this.updateMarkerScalesAndVisibility();
+					this.syncViewportMarkers(true);
 				},
 			}).open();
 		});
@@ -624,7 +624,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			layer.zoomMax = DEFAULT_LAYER.zoomMax;
 			if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			this.renderLayerList(container);
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 		});
 	}
 
@@ -756,7 +756,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 
 			// Highlight map marker on hover or click (skip if off-screen)
-			const findMarkerEl = () => this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]:not(.ttrpgmap-culled)`);
+			const findMarkerEl = () => this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
 			row.addEventListener('mouseenter', () => {
 				});
 			row.addEventListener('mouseleave', () => {
@@ -911,11 +911,11 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (this.zoom === this._lastSettledZoom) {
 			// Pan only: translate the overlay without scale
 			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
-			// Debounced viewport culling during pan
+			// Debounced viewport sync during pan (add/remove markers entering/leaving)
 			if (this._cullTimeout) clearTimeout(this._cullTimeout);
 			this._cullTimeout = setTimeout(() => {
 				this._cullTimeout = null;
-				this.updateViewportCulling();
+				this.syncViewportMarkers();
 			}, 100);
 			return;
 		}
@@ -930,7 +930,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this._zoomSettleTimeout = null;
 			this._lastSettledZoom = this.zoom;
 			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 		}, 150);
 	}
 
@@ -1159,7 +1159,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (isLabel && isMapLevel) {
 			if (this.state.markerTextScale == null) this.state.markerTextScale = this.getTextBaseScale(marker);
 			this.state.markerTextScale = clamp(this.state.markerTextScale + delta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 		} else if (isLabel) {
 			if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
 			marker.textScale = clamp(marker.textScale + delta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
@@ -1168,7 +1168,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		} else if (isMapLevel) {
 			if (this.state.markerScale == null) this.state.markerScale = this.getMarkerBaseScale(marker);
 			this.state.markerScale = clamp(this.state.markerScale + delta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
-			this.updateMarkerScalesAndVisibility();
+			this.syncViewportMarkers(true);
 		} else {
 			if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
 			marker.scale = clamp(marker.scale + delta, MIN_MARKER_SCALE, MAX_MARKER_SCALE);
@@ -1379,42 +1379,10 @@ export class MapRenderer extends MarkdownRenderChild {
 		};
 	}
 
-	/** Reposition all marker elements to current pan/zoom without re-creating them */
-	/** Reposition all marker elements (accounts for zoom scale, pan handled by overlay transform) */
-	private updateMarkerPositions(): void {
-		if (!this.state) return;
-		const { sx, sy } = this.getImageScale();
-		const scale = this.zoom / 100;
-		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
-		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-			const marker = markerMap.get(el.dataset.markerId ?? '');
-			if (!marker) return;
-			el.style.left = `${marker.x * sx * scale}px`;
-			el.style.top = `${marker.y * sy * scale}px`;
-		});
-	}
-
-	/** Lightweight culling pass: only toggle display of off-screen markers */
-	private updateViewportCulling(): void {
-		if (!this.state) return;
-		const { sx, sy } = this.getImageScale();
-		const scale = this.zoom / 100;
-		const vp = this.getViewportBounds();
-		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
-		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-			const marker = markerMap.get(el.dataset.markerId ?? '');
-			if (!marker) return;
-			const px = marker.x * sx * scale;
-			const py = marker.y * sy * scale;
-			el.toggleClass('ttrpgmap-culled', px < vp.left || px > vp.right || py < vp.top || py > vp.bottom);
-		});
-	}
-
-	/** Viewport bounds in display-space coordinates (for culling off-screen markers) */
+	/** Viewport bounds in display-space coordinates */
 	private getViewportBounds(): { left: number; top: number; right: number; bottom: number } {
 		const rect = this.wrapper.getBoundingClientRect();
-		// Pad generously so markers near the edge (with labels/pins extending out) aren't clipped
-		const pad = 200;
+		const pad = 400; // generous buffer so markers fade in before reaching the edge
 		return {
 			left: -this.panX - pad,
 			top: -this.panY - pad,
@@ -1423,39 +1391,62 @@ export class MapRenderer extends MarkdownRenderChild {
 		};
 	}
 
-	/** Update positions, scale CSS vars, and visibility in a single pass */
-	private updateMarkerScalesAndVisibility(): void {
+	/** Check if a marker is within the current viewport (in display coords) */
+	private isInViewport(marker: MapMarker, sx: number, sy: number, scale: number, vp: ReturnType<typeof this.getViewportBounds>): boolean {
+		const px = marker.x * sx * scale;
+		const py = marker.y * sy * scale;
+		return px >= vp.left && px <= vp.right && py >= vp.top && py <= vp.bottom;
+	}
+
+	/** Differential viewport render: add markers entering the viewport, remove those leaving */
+	private syncViewportMarkers(updateScales = false): void {
 		if (!this.state) return;
 		const { sx, sy } = this.getImageScale();
 		const scale = this.zoom / 100;
-		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
+		const vp = this.getViewportBounds();
+		const isMeasuring = this.measurement.mode !== 'pan';
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
-		const vp = this.getViewportBounds();
 
+		// Track which marker IDs should be in the DOM (in viewport AND layer-visible)
+		const visibleIds = new Set<string>();
+		for (const marker of this.state.markers) {
+			if (this.isMarkerVisible(marker) && this.isInViewport(marker, sx, sy, scale, vp)) {
+				visibleIds.add(marker.id);
+			}
+		}
+
+		// Remove markers no longer visible (left viewport or layer hidden)
 		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-			const marker = markerMap.get(el.dataset.markerId ?? '');
-			if (!marker) return;
-
-			// Position
-			const px = marker.x * sx * scale;
-			const py = marker.y * sy * scale;
-			el.style.left = `${px}px`;
-			el.style.top = `${py}px`;
-
-			// Viewport culling: hide markers far outside the visible area
-			const offScreen = px < vp.left || px > vp.right || py < vp.top || py > vp.bottom;
-			el.toggleClass('ttrpgmap-culled', offScreen);
-
-			// Layer visibility
-			el.toggleClass('ttrpgmap-marker-layer-hidden', !this.isMarkerVisible(marker));
-
-			// Scales
-			const mScale = this.computeEffectiveScale(this.getMarkerBaseScale(marker), marker.scaleToZoom ?? mapScaleToZoom);
-			const tScale = this.computeEffectiveScale(this.getTextBaseScale(marker), marker.textScaleToZoom ?? mapTextScaleToZoom);
-			el.style.setProperty('--marker-scale', String(mScale));
-			el.style.setProperty('--marker-text-scale', String(tScale));
+			const id = el.dataset.markerId ?? '';
+			if (!visibleIds.has(id)) {
+				el.remove();
+			} else if (updateScales) {
+				const marker = this.state!.markers.find((m) => m.id === id);
+				if (!marker) return;
+				el.style.left = `${marker.x * sx * scale}px`;
+				el.style.top = `${marker.y * sy * scale}px`;
+				const mScale = this.computeEffectiveScale(this.getMarkerBaseScale(marker), marker.scaleToZoom ?? mapScaleToZoom);
+				const tScale = this.computeEffectiveScale(this.getTextBaseScale(marker), marker.textScaleToZoom ?? mapTextScaleToZoom);
+				el.style.setProperty('--marker-scale', String(mScale));
+				el.style.setProperty('--marker-text-scale', String(tScale));
+				visibleIds.delete(id);
+			} else {
+				visibleIds.delete(id);
+			}
 		});
+
+		// Create markers newly entering visibility
+		if (visibleIds.size > 0) {
+			const fragment = document.createDocumentFragment();
+			for (const marker of this.state.markers) {
+				if (!visibleIds.has(marker.id)) continue;
+				const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
+				if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
+				markerEl.addClass('ttrpgmap-marker-fade-in');
+			}
+			this.markerOverlay.appendChild(fragment);
+		}
 	}
 
 	private renderMarkers(): void {
@@ -1464,15 +1455,17 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.isDraggingHandle = false;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
 
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
+		const vp = this.getViewportBounds();
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 		const isMeasuring = this.measurement.mode !== 'pan';
 
-		// Build all markers in a fragment for a single DOM insertion
 		const fragment = document.createDocumentFragment();
 		for (const marker of this.state.markers) {
+			if (!this.isMarkerVisible(marker) || !this.isInViewport(marker, sx, sy, scale, vp)) continue;
 			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
-			if (!this.isMarkerVisible(marker)) markerEl.addClass('ttrpgmap-marker-layer-hidden');
 			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
 		}
 		this.markerOverlay.appendChild(fragment);
@@ -1562,7 +1555,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (!marker.note) return;
 		const navPath = linkPath(marker.note);
 		markerEl.addEventListener('click', (e) => {
-			if (this.hasDragged) {
+			if (this.hasDragged || this.pendingCopy) {
 				this.hasDragged = false;
 				return;
 			}
@@ -1623,7 +1616,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private attachMarkerDrag(marker: MapMarker, markerEl: HTMLElement): void {
 		markerEl.addEventListener('mousedown', (e) => {
-			if (e.button !== 0 || this.resizingMarker) return;
+			if (e.button !== 0 || this.resizingMarker || this.pendingCopy) return;
 			e.stopPropagation();
 			this.draggingMarker = marker;
 			this.dragMarkerEl = markerEl;

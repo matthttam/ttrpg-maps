@@ -10,7 +10,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 
 ## Features
 
-- **Interactive maps** - Embed any image as a pannable, zoomable map inside a note with lock zoom/pan and fit-to-screen controls
+- **Interactive maps** - Embed any image as a pannable, zoomable map inside a note with lock zoom/pan and fit-to-screen controls. Viewport-only rendering and CSS-transform panning keep large maps smooth
 - **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
 - **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note with `#heading` and `#^block` support)
 - **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
@@ -18,7 +18,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon
-- **Label fonts** - Choose from 6 font families (Default, Serif, Monospace, Handwritten, Fantasy, System) at the global, per-map, or per-marker level
+- **Label fonts** - Choose from 12 font families (with runtime availability detection) at the global, per-map, or per-marker level
 - **Per-map and per-marker settings** - Override scale, zoom behavior, label placement, font, navigation mode, and hover preview at every level
 - **Control visibility and opacity** - Show or hide zoom controls, measurement tools, marker list, layer list, and settings button globally or per-map. Adjust resting opacity of UI controls
 - **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar

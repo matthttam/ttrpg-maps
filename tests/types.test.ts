@@ -9,6 +9,10 @@ import {
 	MapState,
 	TTRPGMapsSettings,
 	DEFAULT_LAYER,
+	MARKER_FONTS,
+	getMarkerFontDef,
+	getMarkerFontStack,
+	getAvailableMarkerFonts,
 } from '../src/types';
 
 describe('DEFAULT_SETTINGS', () => {
@@ -379,5 +383,226 @@ describe('MapMarker text scale fields', () => {
 		};
 		expect(marker.textScale).toBeNull();
 		expect(marker.textScaleToZoom).toBeNull();
+	});
+});
+
+describe('MapMarker font field', () => {
+	it('accepts a font string value', () => {
+		const marker: MapMarker = {
+			id: 'test',
+			templateId: 'default',
+			x: 0,
+			y: 0,
+			layerId: null,
+			note: null,
+			alias: null,
+			previewNote: null,
+			description: null,
+			direction: null,
+			textPlacement: null,
+			color: null,
+			icon: null,
+			iconColor: null,
+			iconRotation: null,
+			useBaseMarker: null,
+			shape: null,
+			scale: null,
+			scaleToZoom: null,
+			textScale: null,
+			textScaleToZoom: null,
+			font: 'serif',
+		};
+		expect(marker.font).toBe('serif');
+	});
+
+	it('null font means inherit from map/global', () => {
+		const marker: MapMarker = {
+			id: 'test',
+			templateId: 'default',
+			x: 0,
+			y: 0,
+			layerId: null,
+			note: null,
+			alias: null,
+			previewNote: null,
+			description: null,
+			direction: null,
+			textPlacement: null,
+			color: null,
+			icon: null,
+			iconColor: null,
+			iconRotation: null,
+			useBaseMarker: null,
+			shape: null,
+			scale: null,
+			scaleToZoom: null,
+			textScale: null,
+			textScaleToZoom: null,
+			font: null,
+		};
+		expect(marker.font).toBeNull();
+	});
+});
+
+describe('MARKER_FONTS', () => {
+	it('is a non-empty array', () => {
+		expect(MARKER_FONTS.length).toBeGreaterThan(0);
+	});
+
+	it('each entry has id, label, stack, and testFont fields', () => {
+		for (const font of MARKER_FONTS) {
+			expect(typeof font.id).toBe('string');
+			expect(typeof font.label).toBe('string');
+			expect(typeof font.stack).toBe('string');
+			expect(font.testFont === null || typeof font.testFont === 'string').toBe(true);
+		}
+	});
+
+	it('contains generic stacks with null testFont', () => {
+		const genericFonts = MARKER_FONTS.filter((f) => f.testFont === null);
+		expect(genericFonts.length).toBeGreaterThanOrEqual(1);
+	});
+
+	it('has unique IDs', () => {
+		const ids = MARKER_FONTS.map((f) => f.id);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+});
+
+describe('getMarkerFontDef', () => {
+	it('returns a font definition for a known ID', () => {
+		const def = getMarkerFontDef('serif');
+		expect(def).toBeDefined();
+		expect(def!.id).toBe('serif');
+		expect(def!.label).toBe('Serif');
+	});
+
+	it('returns undefined for an unknown ID', () => {
+		expect(getMarkerFontDef('nonexistent-font')).toBeUndefined();
+	});
+});
+
+describe('getMarkerFontStack', () => {
+	it('returns the CSS font stack for a known font ID', () => {
+		const stack = getMarkerFontStack('serif');
+		expect(stack).not.toBeNull();
+		expect(stack).toContain('serif');
+	});
+
+	it('returns null for the "default" ID', () => {
+		expect(getMarkerFontStack('default')).toBeNull();
+	});
+
+	it('returns null for an unknown font ID', () => {
+		expect(getMarkerFontStack('nonexistent-font')).toBeNull();
+	});
+});
+
+describe('getAvailableMarkerFonts', () => {
+	it('returns an array of font definitions when document.fonts is available', () => {
+		// Polyfill document.fonts for jsdom (not natively supported)
+		const original = (document as any).fonts;
+		(document as any).fonts = { check: () => true };
+		try {
+			const fonts = getAvailableMarkerFonts();
+			expect(Array.isArray(fonts)).toBe(true);
+			expect(fonts.length).toBeGreaterThan(0);
+		} finally {
+			(document as any).fonts = original;
+		}
+	});
+
+	it('always includes generic stacks (testFont === null)', () => {
+		const original = (document as any).fonts;
+		(document as any).fonts = { check: () => false };
+		try {
+			const fonts = getAvailableMarkerFonts();
+			const genericFonts = MARKER_FONTS.filter((f) => f.testFont === null);
+			for (const generic of genericFonts) {
+				expect(fonts.some((f) => f.id === generic.id)).toBe(true);
+			}
+		} finally {
+			(document as any).fonts = original;
+		}
+	});
+
+	it('excludes platform-specific fonts when they are not available', () => {
+		const original = (document as any).fonts;
+		(document as any).fonts = { check: () => false };
+		try {
+			const fonts = getAvailableMarkerFonts();
+			const platformFonts = MARKER_FONTS.filter((f) => f.testFont !== null);
+			for (const pf of platformFonts) {
+				expect(fonts.some((f) => f.id === pf.id)).toBe(false);
+			}
+		} finally {
+			(document as any).fonts = original;
+		}
+	});
+});
+
+describe('MapState view state persistence', () => {
+	it('accepts saved zoom and pan values', () => {
+		const state: MapState = {
+			mapId: 'test',
+			markers: [],
+			layers: [{ ...DEFAULT_LAYER }],
+			distanceScale: null,
+			savedZoom: 150,
+			savedPanX: 200,
+			savedPanY: -100,
+		};
+		expect(state.savedZoom).toBe(150);
+		expect(state.savedPanX).toBe(200);
+		expect(state.savedPanY).toBe(-100);
+	});
+
+	it('defaults view state fields to undefined', () => {
+		const state: MapState = {
+			mapId: 'test',
+			markers: [],
+			layers: [{ ...DEFAULT_LAYER }],
+			distanceScale: null,
+		};
+		expect(state.savedZoom).toBeUndefined();
+		expect(state.savedPanX).toBeUndefined();
+		expect(state.savedPanY).toBeUndefined();
+	});
+});
+
+describe('MapState markerFont', () => {
+	it('accepts per-map markerFont', () => {
+		const state: MapState = {
+			mapId: 'test',
+			markers: [],
+			layers: [{ ...DEFAULT_LAYER }],
+			distanceScale: null,
+			markerFont: 'serif',
+		};
+		expect(state.markerFont).toBe('serif');
+	});
+
+	it('defaults to undefined when not set', () => {
+		const state: MapState = {
+			mapId: 'test',
+			markers: [],
+			layers: [{ ...DEFAULT_LAYER }],
+			distanceScale: null,
+		};
+		expect(state.markerFont).toBeUndefined();
+	});
+});
+
+describe('TTRPGMapsSettings defaultMarkerFont', () => {
+	it('is optional and undefined in DEFAULT_SETTINGS', () => {
+		expect(DEFAULT_SETTINGS.defaultMarkerFont).toBeUndefined();
+	});
+
+	it('accepts a defaultMarkerFont value', () => {
+		const settings: TTRPGMapsSettings = {
+			...DEFAULT_SETTINGS,
+			defaultMarkerFont: 'monospace',
+		};
+		expect(settings.defaultMarkerFont).toBe('monospace');
 	});
 });

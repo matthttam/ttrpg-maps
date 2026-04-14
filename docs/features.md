@@ -52,6 +52,9 @@ Maps are rendered from `ttrpgmap` code blocks in your notes. The code block spec
 
 ![Marker Creation](https://github.com/user-attachments/assets/d919bc5f-b857-4d03-9383-3a66a5a1f295)
 
+**Performance**: Only markers within the current viewport are added to the DOM. As you pan or zoom, markers entering the viewport are created and those leaving are removed. Panning uses a CSS transform on the container rather than updating every marker individually. After zooming settles, a short debounce triggers a crisp re-render so text and icons stay sharp.
+
+**View state persistence**: The current zoom level and pan position are saved to the map's sidecar file and restored when you navigate back to the note, so the map reopens where you left off.
 
 **Zoom controls** appear in the top-left corner:
 
@@ -64,7 +67,9 @@ Maps are rendered from `ttrpgmap` code blocks in your notes. The code block spec
 
 Lock states persist across page reloads (saved per-map). Locks are also accessible from the map settings modal (Lock zoom and Lock pan in the general section, Lock markers in the Markers section).
 
-When a locked action is attempted, a warning toast appears next to the zoom controls (or top-left if controls are hidden). Hovering the toast pauses its dismissal. Clicking the toast opens the map settings modal and highlights the relevant lock toggle.
+When a locked action is attempted, a warning toast appears next to the zoom controls (or top-left if controls are hidden). The toast is always visible even when zoom controls are hidden. Hovering the toast pauses its auto-dismissal timer. Clicking the toast opens the map settings modal and highlights the relevant lock toggle.
+
+Dragging a locked marker converts the gesture into a pan instead of blocking interaction entirely.
 
 The current zoom level is displayed as a percentage between the buttons.
 
@@ -111,14 +116,14 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                |
 | **Text size**               | Override the map-level text scale (toggle to enable, slider 25-300%)    |
 | **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                |
-| **Label font**              | Inherit / Default / Serif / Monospace / Handwritten / Fantasy / System  |
+| **Label font**              | Inherit / Default, plus any installed fonts from the 12 available families |
 | **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)      |
 
 Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
 
 A **Reset to template** button resets all visual properties to the template defaults with a confirmation prompt. The reset is applied in the modal so you can review the changes before saving. This button is disabled when the marker's template no longer exists.
 
-**Size overrides** (marker size, scale to zoom, text size, text scale to zoom) are in a collapsible section that defaults to collapsed. Click the chevron to expand. The expanded/collapsed state persists within the session.
+**Size overrides** (marker size, scale to zoom, text size, text scale to zoom) are in a collapsible **Additional options** section that defaults to collapsed. Click the chevron to expand. The expanded/collapsed state persists within the session.
 
 A **live preview** in the modal shows how the marker will look as you change settings. Overlapping markers bump to the front on hover.
 
@@ -163,6 +168,7 @@ Right-click a marker and choose **Copy Marker** to enter copy mode.
 - The cursor changes to a copy icon
 - A ghost preview of the marker follows the cursor
 - Click on the map to place the copy at that position
+- Clicking an existing marker during copy mode places the copy without navigating to the marker's linked note
 - The new marker has all the same properties as the original (except position and ID)
 - Cancel with **Escape**, **right-click**, or any **keypress**
 
@@ -197,6 +203,8 @@ Markers support four base shapes:
 
 Set `Use Pin Shape` to off in the marker edit modal to render the icon **standalone** (no pin or circle background). The icon renders at full size directly on the map.
 
+Pin and circle SVGs use an expanded viewBox so strokes are never clipped at the edges.
+
 ### Icons
 
 Over 5,500 icons are available:
@@ -221,7 +229,7 @@ Both use a color picker.
 
 ### Labels
 
-Markers can display a text label with a **title** (from the linked note name or alias) and a **description**.
+Markers can display a text label with a **title** (from the linked note name or alias) and a **description**. The alias is displayed as the label even when no note is linked.
 
 <img width="313" height="303" alt="image" src="https://github.com/user-attachments/assets/224cb6ee-7083-4176-bddb-5d8f648d774e" />
 
@@ -271,18 +279,24 @@ Marker label text can use a custom font family, following the same three-tier hi
 2. **Per-map override** (in Text section of map settings modal)
 3. **Global default** (in Text section of plugin settings)
 
-Available fonts:
+There are 12 available fonts. The plugin detects which fonts are installed on the current system at runtime and only shows those that are available.
 
-| Font          | CSS stack                                                  |
-| ------------- | ---------------------------------------------------------- |
-| **Default**   | Inherits from Obsidian's theme                             |
-| **Serif**     | Georgia, Times New Roman, serif                            |
-| **Monospace** | Obsidian's monospace font, Courier New, monospace          |
-| **Handwritten** | Segoe Script, Bradley Hand, Comic Sans MS, cursive       |
-| **Fantasy**   | Copperplate, Papyrus, fantasy                              |
-| **System**    | System UI, Apple system font, sans-serif                   |
+| Font            | CSS stack                                                    |
+| --------------- | ------------------------------------------------------------ |
+| **Default**     | Inherits from Obsidian's theme                               |
+| **Serif**       | Georgia, Times New Roman, serif                              |
+| **Monospace**   | Obsidian's monospace font, Courier New, monospace            |
+| **System**      | System UI, Apple system font, sans-serif                     |
+| **Palatino**    | Palatino Linotype, Palatino, Book Antiqua, serif             |
+| **Garamond**    | Garamond, EB Garamond, Times New Roman, serif                |
+| **Humanist**    | Gill Sans, Segoe UI, Tahoma, sans-serif                      |
+| **Trebuchet**   | Trebuchet MS, Lucida Grande, sans-serif                      |
+| **Impact**      | Impact, Arial Black, sans-serif                              |
+| **Handwritten** | Segoe Script, Bradley Hand, Comic Sans MS, cursive           |
+| **Fantasy**     | Copperplate, Papyrus, fantasy                                |
+| **Typewriter**  | Courier New, Lucida Console, monospace                       |
 
-Each font stack includes cross-platform fallbacks ending with a generic CSS family, so labels degrade gracefully on any operating system.
+The first three (Serif, Monospace, System) use generic CSS stacks and are always available. The remaining nine are tested with `document.fonts.check()` and hidden if not installed. Each font stack includes cross-platform fallbacks ending with a generic CSS family.
 
 ---
 
@@ -411,7 +425,7 @@ Examples with 0 decimal places: `40 ft`. With 1: `40.0 ft`. With 3 and no roundi
 
 ### Measurement Behavior
 
-During measurement, markers and their labels are dimmed and non-interactive. The cursor stays as a crosshair over markers during measurement mode.
+During measurement, markers and their labels are dimmed, non-interactive, and do not show hover highlights. The cursor stays as a crosshair over markers during measurement mode. Distance labels displayed on the map are also non-interactive and do not interfere with placing measurement points.
 
 ---
 
@@ -473,8 +487,7 @@ Each row in the list shows:
 
 Interactions:
 
-- **Click a row** to pan the map and center on that marker
-- **Hover a row** to highlight the corresponding marker on the map with a bounce animation. The animation finishes its current cycle before stopping. Hotspot markers become visible with a translucent fill while bouncing
+- **Click a row** to pan the map, center on that marker, and trigger a bounce animation. The animation finishes its current cycle before stopping. Hotspot markers become visible with a translucent fill while bouncing
 - **Hover the marker name** to see the full description in a tooltip
 
 The list is sorted alphabetically and scrolls independently from the map (max height 250px).
@@ -537,7 +550,7 @@ Same controls as marker scale, but for label text.
 
 ### Label font (per-map override)
 
-- **Label font** - Inherit / Default / Serif / Monospace / Handwritten / Fantasy / System. Sets the font for all marker labels on this map
+- **Label font** - Inherit / Default, plus any installed fonts from the 12 available families. Sets the font for all marker labels on this map
 
 ### Controls (per-map override)
 
@@ -565,7 +578,7 @@ Access via **Settings** > **TTRPG Maps**.
 
 - **Default Text Scale** - Size of marker labels on all maps (slider, 25-300%, default 100%)
 - **Scale Text to Zoom** - Screen-constant or Fixed to map
-- **Default Label Font** - Font family for marker labels (Default / Serif / Monospace / Handwritten / Fantasy / System)
+- **Default Label Font** - Font family for marker labels. 12 fonts available; only those installed on the current system are shown
 
 ### Navigation section
 
@@ -744,6 +757,7 @@ Mutable per-map state, including:
 - Control visibility overrides (zoom, measurement, marker list, layer list, settings)
 - Control opacity override
 - Zoom, pan, and marker lock states
+- Saved view state (zoom level and pan position for restoration on revisit)
 - Last known image path and source file path (for data management identification)
 
 Saves are debounced (300ms) for performance. These files can be committed to version control or synced across devices.

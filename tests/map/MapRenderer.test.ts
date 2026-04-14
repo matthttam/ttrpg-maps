@@ -739,6 +739,145 @@ describe('MapRenderer Alt+Scroll resize', () => {
 	});
 });
 
+describe('MapRenderer copy mode blocks drag', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	it('marker drag is blocked during copy mode', async () => {
+		const marker = createMarker({ note: 'Test' });
+		const plugin = createMockPlugin({ markers: [marker] });
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		// Enter copy mode
+		(renderer as any).startCopyMarker(marker);
+
+		const markerEl = container.querySelector('.ttrpgmap-marker') as HTMLElement;
+
+		// Attempt mousedown on marker (should not initiate drag)
+		markerEl.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 100, clientY: 100, bubbles: true }));
+
+		expect((renderer as any).draggingMarker).toBeNull();
+	});
+});
+
+describe('MapRenderer view state persistence', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	it('restores saved zoom and pan from state on load', async () => {
+		const plugin = createMockPlugin({
+			savedZoom: 150,
+			savedPanX: 200,
+			savedPanY: -100,
+		});
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		expect((renderer as any).zoom).toBe(150);
+		expect((renderer as any).panX).toBe(200);
+		expect((renderer as any).panY).toBe(-100);
+	});
+
+	it('uses default zoom and pan when no saved state', async () => {
+		const plugin = createMockPlugin();
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		expect((renderer as any).zoom).toBe(100);
+		expect((renderer as any).panX).toBe(0);
+		expect((renderer as any).panY).toBe(0);
+	});
+
+	it('saves view state on unload', async () => {
+		const plugin = createMockPlugin();
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		// Simulate zoom/pan changes
+		(renderer as any).zoom = 175;
+		(renderer as any).panX = 50;
+		(renderer as any).panY = -30;
+
+		renderer.onunload();
+
+		const state = (renderer as any).state;
+		expect(state.savedZoom).toBe(175);
+		expect(state.savedPanX).toBe(50);
+		expect(state.savedPanY).toBe(-30);
+		expect(plugin.dataManager.saveMapState).toHaveBeenCalled();
+	});
+});
+
+describe('MapRenderer marker font', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	it('sets --marker-font CSS variable when marker has a font', async () => {
+		const marker = createMarker({ font: 'serif', note: 'Test' });
+		const plugin = createMockPlugin({ markers: [marker] });
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const markerEl = container.querySelector('.ttrpgmap-marker') as HTMLElement;
+		const fontVal = markerEl.style.getPropertyValue('--marker-font');
+		expect(fontVal).toContain('serif');
+	});
+
+	it('does not set --marker-font when font is null and no map/global default', async () => {
+		const marker = createMarker({ font: null });
+		const plugin = createMockPlugin({ markers: [marker] });
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const markerEl = container.querySelector('.ttrpgmap-marker') as HTMLElement;
+		// 'default' font returns null from getMarkerFontStack, so no CSS var set
+		const fontVal = markerEl.style.getPropertyValue('--marker-font');
+		expect(fontVal).toBe('');
+	});
+
+	it('inherits font from map-level markerFont when marker font is null', async () => {
+		const marker = createMarker({ font: null, note: 'Test' });
+		const plugin = createMockPlugin({ markers: [marker], markerFont: 'monospace' });
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const markerEl = container.querySelector('.ttrpgmap-marker') as HTMLElement;
+		const fontVal = markerEl.style.getPropertyValue('--marker-font');
+		expect(fontVal).toContain('monospace');
+	});
+});
+
+describe('MapRenderer renders label with alias but no note', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	it('renders label with alias when note is null', async () => {
+		const marker = createMarker({ note: null, alias: 'Standalone Label' });
+		const plugin = createMockPlugin({ markers: [marker] });
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const label = container.querySelector('.ttrpgmap-marker-label');
+		expect(label).not.toBeNull();
+		const title = label!.querySelector('.ttrpgmap-marker-title');
+		expect(title).not.toBeNull();
+		expect(title!.textContent).toBe('Standalone Label');
+	});
+});
+
 describe('EmptyMapRenderer DOM', () => {
 	it('renders placeholder with configure button', async () => {
 		const { EmptyMapRenderer } = await import('../../src/map/EmptyMapRenderer');

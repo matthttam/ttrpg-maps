@@ -45,6 +45,22 @@ describe('displayTitle', () => {
 	it('explicit alias takes precedence over pipe alias', () => {
 		expect(displayTitle('Places/Tavern|Old Alias', 'New Alias')).toBe('New Alias');
 	});
+
+	it('returns alias when noteLink is null', () => {
+		expect(displayTitle(null, 'My Alias')).toBe('My Alias');
+	});
+
+	it('returns empty string when noteLink is null and alias is null', () => {
+		expect(displayTitle(null, null)).toBe('');
+	});
+
+	it('returns empty string when noteLink is null and alias is empty', () => {
+		expect(displayTitle(null, '')).toBe('');
+	});
+
+	it('returns empty string when noteLink is null and alias is undefined', () => {
+		expect(displayTitle(null)).toBe('');
+	});
 });
 
 describe('linkPath', () => {
@@ -144,5 +160,39 @@ describe('buildMarkerLabel', () => {
 
 		const title = container.querySelector('.ttrpgmap-marker-title');
 		expect(title!.textContent).toBe('My Tavern');
+	});
+
+	it('creates a label with alias when note is null', () => {
+		const container = makeContainer();
+		buildMarkerLabel(container, null, 'Standalone Alias', null, 'label-cls');
+
+		const label = container.querySelector('.label-cls');
+		expect(label).not.toBeNull();
+
+		const title = label!.querySelector('.ttrpgmap-marker-title');
+		expect(title).not.toBeNull();
+		expect(title!.textContent).toBe('Standalone Alias');
+	});
+
+	it('creates a label with alias and description when note is null', () => {
+		const container = makeContainer();
+		buildMarkerLabel(container, null, 'Alias Only', 'Some description', 'label-cls');
+
+		const label = container.querySelector('.label-cls');
+		expect(label).not.toBeNull();
+
+		const title = label!.querySelector('.ttrpgmap-marker-title');
+		expect(title).not.toBeNull();
+		expect(title!.textContent).toBe('Alias Only');
+
+		const desc = label!.querySelector('.ttrpgmap-marker-desc');
+		expect(desc).not.toBeNull();
+		expect(desc!.textContent).toBe('Some description');
+	});
+
+	it('does nothing when note is null, alias is null, and description is null', () => {
+		const container = makeContainer();
+		buildMarkerLabel(container, null, null, null, 'label-cls');
+		expect(container.children.length).toBe(0);
 	});
 });

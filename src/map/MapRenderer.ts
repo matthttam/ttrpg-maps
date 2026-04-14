@@ -11,7 +11,7 @@ import {
 	DEFAULT_LAYER,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
-	MARKER_FONT_STACKS,
+	getMarkerFontStack,
 } from '../types';
 import { MapSettingsModal } from '../modals/MapSettingsModal';
 import { MarkerEditModal } from '../modals/MarkerEditModal';
@@ -144,6 +144,11 @@ export class MapRenderer extends MarkdownRenderChild {
 			// Register last known paths for identification in data management
 			this.state.lastImagePath = this.config.image;
 			this.state.lastSourcePath = this.sourcePath;
+			// Restore persisted view state
+			if (this.state.savedZoom != null) this.zoom = this.state.savedZoom;
+			if (this.state.savedPanX != null) this.panX = this.state.savedPanX;
+			if (this.state.savedPanY != null) this.panY = this.state.savedPanY;
+			this._lastSettledZoom = this.zoom;
 			this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			this.plugin.onMapRefresh(this.refreshCallback);
 			this.buildDOM();
@@ -151,6 +156,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	onunload(): void {
+		// Persist view state so it restores on back-navigation
+		if (this.state) {
+			this.state.savedZoom = this.zoom;
+			this.state.savedPanX = this.panX;
+			this.state.savedPanY = this.panY;
+			this.plugin.dataManager.saveMapState(this.config.id, this.state);
+		}
 		this.plugin.offMapRefresh(this.refreshCallback);
 		if (this._cancelCopy) {
 			this._cancelCopy();
@@ -192,6 +204,9 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.svgOverlay.setAttribute('width', String(this.imageEl.naturalWidth));
 			this.svgOverlay.setAttribute('height', String(this.imageEl.naturalHeight));
 			this.applyWrapperSize();
+			this.updateImageScaleCache();
+			this.applyTransform();
+			this.updateMarkerScalesAndVisibility();
 			this.renderMarkers();
 		});
 
@@ -221,6 +236,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				this._resizeDebounce = null;
 				this.imageEl.removeClass('ttrpgmap-pixelated');
 				this.svgOverlay.removeClass('ttrpgmap-hidden');
+				this.updateImageScaleCache();
 				this.updateMarkerPositions();
 				this.markerOverlay.removeClass('ttrpgmap-visibility-hidden');
 			}, 150);
@@ -528,25 +544,30 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.buildLayerDeleteButton(actionGroup, layer, container);
 		}
 
-		// Hover: bounce markers on this layer, dim others
+		// Click: bounce and highlight visible markers on this layer, dim others
 		row.addEventListener('mouseenter', () => {
-			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+		});
+		row.addEventListener('mouseleave', () => {
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker:not(.ttrpgmap-culled)').forEach((el) => {
+				el.removeClass('ttrpgmap-marker-layer-highlight');
+				el.setCssStyles({ opacity: '' });
+				this.stopBounce(el);
+			});
+		});
+		row.addEventListener('click', (e) => {
+			e.stopPropagation();
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker:not(.ttrpgmap-culled)').forEach((el) => {
 				const mid = el.dataset.markerId;
 				if (!mid || !this.state) return;
 				const marker = this.state.markers.find((m) => m.id === mid);
 				if (!marker) return;
 				if ((marker.layerId ?? DEFAULT_LAYER_ID) === layerId) {
 					this.startBounce(el);
+					el.addClass('ttrpgmap-marker-layer-highlight');
 					el.setCssStyles({ opacity: '1' });
 				} else {
 					el.setCssStyles({ opacity: '0.3' });
 				}
-			});
-		});
-		row.addEventListener('mouseleave', () => {
-			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-				el.setCssStyles({ opacity: '' });
-				this.stopBounce(el);
 			});
 		});
 	}
@@ -734,14 +755,17 @@ export class MapRenderer extends MarkdownRenderChild {
 				setIcon(hiddenIcon, 'eye-off');
 			}
 
-			// Highlight map marker on hover
+			// Highlight map marker on hover or click (skip if off-screen)
+			const findMarkerEl = () => this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]:not(.ttrpgmap-culled)`);
 			row.addEventListener('mouseenter', () => {
-				const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
-				if (el) this.startBounce(el);
-			});
+				});
 			row.addEventListener('mouseleave', () => {
-				const el = this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
+					const el = findMarkerEl();
 				if (el) this.stopBounce(el);
+			});
+			row.addEventListener('click', () => {
+				const el = findMarkerEl();
+				if (el) this.startBounce(el);
 			});
 
 			// Description tooltip on hover
@@ -876,19 +900,54 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	// ──────────────────── Pan / Zoom ────────────────────
 
+	private _zoomSettleTimeout: ReturnType<typeof setTimeout> | null = null;
+	private _cullTimeout: ReturnType<typeof setTimeout> | null = null;
+	private _lastSettledZoom = 100;
+
 	private applyTransform(): void {
 		const scale = this.zoom / 100;
-
 		this.mapContainer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${scale})`;
-		this.updateMarkerPositions();
+
+		if (this.zoom === this._lastSettledZoom) {
+			// Pan only: translate the overlay without scale
+			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
+			// Debounced viewport culling during pan
+			if (this._cullTimeout) clearTimeout(this._cullTimeout);
+			this._cullTimeout = setTimeout(() => {
+				this._cullTimeout = null;
+				this.updateViewportCulling();
+			}, 100);
+			return;
+		}
+
+		// Zoom changed: scale the overlay for instant feedback (may blur slightly)
+		const relativeScale = this.zoom / this._lastSettledZoom;
+		this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${relativeScale})`;
+
+		// After zoom settles, re-rasterize at native resolution
+		if (this._zoomSettleTimeout) clearTimeout(this._zoomSettleTimeout);
+		this._zoomSettleTimeout = setTimeout(() => {
+			this._zoomSettleTimeout = null;
+			this._lastSettledZoom = this.zoom;
+			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
+			this.updateMarkerScalesAndVisibility();
+		}, 150);
+	}
+
+	private _cachedImageScale: { sx: number; sy: number } = { sx: 1, sy: 1 };
+
+	/** Recalculate and cache the display-to-natural image ratio */
+	private updateImageScaleCache(): void {
+		if (this.imageEl?.naturalWidth && this.imageEl?.naturalHeight) {
+			this._cachedImageScale = {
+				sx: this.imageEl.clientWidth / this.imageEl.naturalWidth,
+				sy: this.imageEl.clientHeight / this.imageEl.naturalHeight,
+			};
+		}
 	}
 
 	private getImageScale(): { sx: number; sy: number } {
-		if (!this.imageEl || !this.imageEl.naturalWidth || !this.imageEl.naturalHeight) return { sx: 1, sy: 1 };
-		return {
-			sx: this.imageEl.clientWidth / this.imageEl.naturalWidth,
-			sy: this.imageEl.clientHeight / this.imageEl.naturalHeight,
-		};
+		return this._cachedImageScale;
 	}
 
 	private adjustZoom(delta: number): void {
@@ -897,7 +956,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (newZoom === this.zoom) return;
 		this.zoom = newZoom;
 		this.applyTransform();
-		this.updateMarkerScalesAndVisibility();
 		const label = this.wrapper.querySelector('.ttrpgmap-zoom-label');
 		if (label) label.setText(`${this.zoom}%`);
 	}
@@ -922,7 +980,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.panX = (rect.width - imgW * scale) / 2;
 		this.panY = (rect.height - imgH * scale) / 2;
 		this.applyTransform();
-		this.updateMarkerScalesAndVisibility();
 		const label = this.wrapper.querySelector('.ttrpgmap-zoom-label');
 		if (label) label.setText(`${this.zoom}%`);
 	}
@@ -978,11 +1035,6 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private onMouseMove(e: MouseEvent): void {
-		// Marker hover proximity for measurement modes
-		if (this.measurement.mode !== 'pan') {
-			this.updateMarkerMeasureHover(e);
-		}
-
 		// Measure preview: rubber-band line from last committed point to cursor
 		if (this.measurement.mode === 'measure' && this.measurement.hasDrawingPoints) {
 			this.measurement.updateMeasurePreview(e);
@@ -1023,18 +1075,30 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (this.dismissActiveHover) { this.dismissActiveHover(); this.dismissActiveHover = null; }
 			const dx = e.clientX - this.dragStartX;
 			const dy = e.clientY - this.dragStartY;
-			if (dx !== 0 || dy !== 0) this.hasDragged = true;
+			if (dx === 0 && dy === 0) return;
+			// Markers locked: cancel drag, show warning, and start panning instead
+			if (this.markersLocked) {
+				this.showLockWarning('Marker positions are locked', 'Lock markers');
+				this.dragMarkerEl.removeClass('ttrpgmap-marker-dragging');
+				this.draggingMarker = null;
+				this.dragMarkerEl = null;
+				this.hasDragged = true;
+				if (!this.panLocked) {
+					this.isPanning = true;
+					this.panStartX = e.clientX - this.panX;
+					this.panStartY = e.clientY - this.panY;
+					this.wrapper.addClass('ttrpgmap-panning');
+				}
+				return;
+			}
+			this.hasDragged = true;
 			const scale = this.zoom / 100;
 			const { sx, sy } = this.getImageScale();
-			// Update natural coords
 			this.draggingMarker.x = this.dragOrigX + dx / scale / sx;
 			this.draggingMarker.y = this.dragOrigY + dy / scale / sy;
-			// Position in screen coords (marker is in the overlay, not the scaled container)
-			const screen = this.toScreenCoords(this.draggingMarker.x, this.draggingMarker.y);
 
-			this.dragMarkerEl.style.left = `${screen.x}px`;
-
-			this.dragMarkerEl.style.top = `${screen.y}px`;
+			this.dragMarkerEl.style.left = `${this.draggingMarker.x * sx * scale}px`;
+			this.dragMarkerEl.style.top = `${this.draggingMarker.y * sy * scale}px`;
 			return;
 		}
 		if (!this.isPanning) return;
@@ -1143,7 +1207,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.panY = cursorY - mapY * newScale;
 		this.zoom = newZoom;
 		this.applyTransform();
-		this.updateMarkerScalesAndVisibility();
 
 		const label = this.wrapper.querySelector('.ttrpgmap-zoom-label');
 		if (label) label.setText(`${this.zoom}%`);
@@ -1292,13 +1355,18 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Resolve the effective font for a marker, walking the 3-tier hierarchy */
 	private getMarkerFont(marker: MapMarker): string | null {
 		const font = marker.font ?? this.state?.markerFont ?? this.plugin.settings.defaultMarkerFont ?? 'default';
-		if (font === 'default') return null;
-		return MARKER_FONT_STACKS[font] ?? null;
+		return getMarkerFontStack(font);
 	}
 
 	/** Compute effective scale (accounting for zoom if fixed-to-map) */
 	private computeEffectiveScale(baseScale: number, scaleToZoom: boolean): number {
 		return scaleToZoom ? baseScale : baseScale * (this.zoom / 100);
+	}
+
+	/** Convert natural image coords to display coords (image-space, before zoom/pan transform) */
+	private toDisplayCoords(natX: number, natY: number): { x: number; y: number } {
+		const { sx, sy } = this.getImageScale();
+		return { x: natX * sx, y: natY * sy };
 	}
 
 	/** Convert natural image coords to screen coords within the wrapper */
@@ -1312,96 +1380,102 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	/** Reposition all marker elements to current pan/zoom without re-creating them */
+	/** Reposition all marker elements (accounts for zoom scale, pan handled by overlay transform) */
 	private updateMarkerPositions(): void {
 		if (!this.state) return;
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
 		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
-		const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
-		els.forEach((el) => {
-			const id = el.dataset.markerId;
-			if (!id) return;
-			const marker = markerMap.get(id);
+		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+			const marker = markerMap.get(el.dataset.markerId ?? '');
 			if (!marker) return;
-			const { x, y } = this.toScreenCoords(marker.x, marker.y);
-
-			el.style.left = `${x}px`;
-
-			el.style.top = `${y}px`;
+			el.style.left = `${marker.x * sx * scale}px`;
+			el.style.top = `${marker.y * sy * scale}px`;
 		});
 	}
 
-	/** Update scale CSS vars and visibility on existing marker elements (no DOM rebuild) */
+	/** Lightweight culling pass: only toggle display of off-screen markers */
+	private updateViewportCulling(): void {
+		if (!this.state) return;
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
+		const vp = this.getViewportBounds();
+		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
+		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+			const marker = markerMap.get(el.dataset.markerId ?? '');
+			if (!marker) return;
+			const px = marker.x * sx * scale;
+			const py = marker.y * sy * scale;
+			el.toggleClass('ttrpgmap-culled', px < vp.left || px > vp.right || py < vp.top || py > vp.bottom);
+		});
+	}
+
+	/** Viewport bounds in display-space coordinates (for culling off-screen markers) */
+	private getViewportBounds(): { left: number; top: number; right: number; bottom: number } {
+		const rect = this.wrapper.getBoundingClientRect();
+		// Pad generously so markers near the edge (with labels/pins extending out) aren't clipped
+		const pad = 200;
+		return {
+			left: -this.panX - pad,
+			top: -this.panY - pad,
+			right: -this.panX + rect.width + pad,
+			bottom: -this.panY + rect.height + pad,
+		};
+	}
+
+	/** Update positions, scale CSS vars, and visibility in a single pass */
 	private updateMarkerScalesAndVisibility(): void {
 		if (!this.state) return;
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
 		const markerMap = new Map(this.state.markers.map((m) => [m.id, m]));
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
-		const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
-		const needsFullRender = false;
+		const vp = this.getViewportBounds();
 
-		els.forEach((el) => {
-			const id = el.dataset.markerId;
-			if (!id) return;
-			const marker = markerMap.get(id);
+		this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+			const marker = markerMap.get(el.dataset.markerId ?? '');
 			if (!marker) return;
 
-			// Update visibility (fade instead of instant hide)
-			const visible = this.isMarkerVisible(marker);
-			el.toggleClass('ttrpgmap-marker-layer-hidden', !visible);
+			// Position
+			const px = marker.x * sx * scale;
+			const py = marker.y * sy * scale;
+			el.style.left = `${px}px`;
+			el.style.top = `${py}px`;
 
-			// Update scales
-			const markerBaseScale = this.getMarkerBaseScale(marker);
-			const markerScaleToZoom = marker.scaleToZoom ?? mapScaleToZoom;
+			// Viewport culling: hide markers far outside the visible area
+			const offScreen = px < vp.left || px > vp.right || py < vp.top || py > vp.bottom;
+			el.toggleClass('ttrpgmap-culled', offScreen);
 
-			el.style.setProperty('--marker-scale', String(this.computeEffectiveScale(markerBaseScale, markerScaleToZoom)));
+			// Layer visibility
+			el.toggleClass('ttrpgmap-marker-layer-hidden', !this.isMarkerVisible(marker));
 
-			const textBaseScale = this.getTextBaseScale(marker);
-			const textScaleToZoom = marker.textScaleToZoom ?? mapTextScaleToZoom;
-
-			el.style.setProperty('--marker-text-scale', String(this.computeEffectiveScale(textBaseScale, textScaleToZoom)));
-		});
-
-		if (needsFullRender) this.renderMarkers();
-	}
-
-	/** Update marker hover state during measurement modes */
-	private updateMarkerMeasureHover(e: MouseEvent): void {
-		const els = this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker');
-		const mx = e.clientX;
-		const my = e.clientY;
-		const pad = 5;
-		els.forEach((el) => {
-			// Check the marker element itself
-			const rect = el.getBoundingClientRect();
-			let isNear = mx >= rect.left - pad && mx <= rect.right + pad && my >= rect.top - pad && my <= rect.bottom + pad;
-			// Also check the label if it extends outside the marker box
-			if (!isNear) {
-				const label = el.querySelector<HTMLElement>('.ttrpgmap-marker-label');
-				if (label) {
-					const lr = label.getBoundingClientRect();
-					isNear = mx >= lr.left - pad && mx <= lr.right + pad && my >= lr.top - pad && my <= lr.bottom + pad;
-				}
-			}
-			el.toggleClass('ttrpgmap-marker-measure-hover', isNear);
+			// Scales
+			const mScale = this.computeEffectiveScale(this.getMarkerBaseScale(marker), marker.scaleToZoom ?? mapScaleToZoom);
+			const tScale = this.computeEffectiveScale(this.getTextBaseScale(marker), marker.textScaleToZoom ?? mapTextScaleToZoom);
+			el.style.setProperty('--marker-scale', String(mScale));
+			el.style.setProperty('--marker-text-scale', String(tScale));
 		});
 	}
 
 	private renderMarkers(): void {
 		if (!this.state) return;
-		// Null out refs before DOM wipe (elements are removed with the markers)
 		this.resizeHandleEl = null;
 		this.isDraggingHandle = false;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
 
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
-
 		const isMeasuring = this.measurement.mode !== 'pan';
 
+		// Build all markers in a fragment for a single DOM insertion
+		const fragment = document.createDocumentFragment();
 		for (const marker of this.state.markers) {
-			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring);
+			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
 			if (!this.isMarkerVisible(marker)) markerEl.addClass('ttrpgmap-marker-layer-hidden');
 			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
 		}
+		this.markerOverlay.appendChild(fragment);
 
 		this.recoverResizeMode();
 	}
@@ -1411,18 +1485,22 @@ export class MapRenderer extends MarkdownRenderChild {
 		mapScaleToZoom: boolean,
 		mapTextScaleToZoom: boolean,
 		isMeasuring: boolean,
+		parent?: DocumentFragment,
 	): HTMLElement {
 		const color = marker.color ?? '#ffffff';
 		const iconColor = marker.iconColor ?? '#000000';
 		const direction = marker.direction ?? 'down';
 		const textPlacement = marker.textPlacement ?? 'above';
 
-		const { x, y } = this.toScreenCoords(marker.x, marker.y);
-		const markerEl = this.markerOverlay.createDiv({ cls: 'ttrpgmap-marker' });
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
+		const markerEl = document.createElement('div');
+		markerEl.addClass('ttrpgmap-marker');
+		(parent ?? this.markerOverlay).appendChild(markerEl);
 
-		markerEl.style.left = `${x}px`;
+		markerEl.style.left = `${marker.x * sx * scale}px`;
 
-		markerEl.style.top = `${y}px`;
+		markerEl.style.top = `${marker.y * sy * scale}px`;
 
 		markerEl.style.setProperty('--marker-color', color);
 
@@ -1547,10 +1625,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		markerEl.addEventListener('mousedown', (e) => {
 			if (e.button !== 0 || this.resizingMarker) return;
 			e.stopPropagation();
-			if (this.markersLocked) {
-				this.showLockWarning('Marker positions are locked', 'Lock markers');
-				return;
-			}
 			this.draggingMarker = marker;
 			this.dragMarkerEl = markerEl;
 			this.dragStartX = e.clientX;

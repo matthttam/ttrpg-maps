@@ -71,27 +71,57 @@ export interface MapMarker {
 	font: MarkerFont | null;
 }
 
-/** Available font families for marker labels */
-export type MarkerFont = 'default' | 'serif' | 'monospace' | 'handwritten' | 'fantasy' | 'system';
+/** Font ID stored in settings/state. Always a string key from MARKER_FONTS. */
+export type MarkerFont = string;
 
-/** Font family CSS stacks keyed by MarkerFont */
-export const MARKER_FONT_STACKS: Record<Exclude<MarkerFont, 'default'>, string> = {
-	serif: "Georgia, 'Times New Roman', serif",
-	monospace: "var(--font-monospace), 'Courier New', monospace",
-	handwritten: "'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive",
-	fantasy: "'Copperplate', 'Papyrus', fantasy",
-	system: 'system-ui, -apple-system, sans-serif',
-};
+/** Definition of a selectable font */
+export interface MarkerFontDef {
+	id: string;
+	label: string;
+	stack: string;
+	/** Primary font name to test for availability (null = always available) */
+	testFont: string | null;
+}
 
-/** Display labels for each font option */
-export const MARKER_FONT_LABELS: Record<MarkerFont, string> = {
-	default: 'Default',
-	serif: 'Serif',
-	monospace: 'Monospace',
-	handwritten: 'Handwritten',
-	fantasy: 'Fantasy',
-	system: 'System',
-};
+/** All available marker label fonts, in display order */
+export const MARKER_FONTS: MarkerFontDef[] = [
+	// Generic stacks (always available)
+	{ id: 'serif', label: 'Serif', stack: "Georgia, 'Times New Roman', serif", testFont: null },
+	{ id: 'monospace', label: 'Monospace', stack: "var(--font-monospace), 'Courier New', monospace", testFont: null },
+	{ id: 'system', label: 'System', stack: 'system-ui, -apple-system, sans-serif', testFont: null },
+
+	// Specific fonts (availability varies by platform)
+	{ id: 'palatino', label: 'Palatino', stack: "'Palatino Linotype', Palatino, 'Book Antiqua', serif", testFont: 'Palatino Linotype' },
+	{ id: 'garamond', label: 'Garamond', stack: "Garamond, 'EB Garamond', 'Times New Roman', serif", testFont: 'Garamond' },
+	{ id: 'humanist', label: 'Humanist', stack: "'Gill Sans', 'Segoe UI', Tahoma, sans-serif", testFont: 'Gill Sans' },
+	{ id: 'trebuchet', label: 'Trebuchet', stack: "'Trebuchet MS', 'Lucida Grande', sans-serif", testFont: 'Trebuchet MS' },
+	{ id: 'impact', label: 'Impact', stack: "Impact, 'Arial Black', sans-serif", testFont: 'Impact' },
+	{ id: 'handwritten', label: 'Handwritten', stack: "'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive", testFont: 'Segoe Script' },
+	{ id: 'fantasy', label: 'Fantasy', stack: "'Copperplate', 'Papyrus', fantasy", testFont: 'Copperplate' },
+	{ id: 'typewriter', label: 'Typewriter', stack: "'Courier New', 'Lucida Console', monospace", testFont: 'Courier New' },
+];
+
+/** Lookup a font definition by ID */
+export function getMarkerFontDef(id: string): MarkerFontDef | undefined {
+	return MARKER_FONTS.find((f) => f.id === id);
+}
+
+/** Get the CSS font-family stack for a font ID, or null for 'default' */
+export function getMarkerFontStack(id: string): string | null {
+	if (id === 'default') return null;
+	return getMarkerFontDef(id)?.stack ?? null;
+}
+
+/** Test whether a font is available on the current system */
+function isFontAvailable(name: string): boolean {
+	if (typeof document === 'undefined') return true;
+	return document.fonts.check(`16px "${name}"`);
+}
+
+/** Get only the fonts available on the current system (always includes generic stacks) */
+export function getAvailableMarkerFonts(): MarkerFontDef[] {
+	return MARKER_FONTS.filter((f) => f.testFont === null || isFontAvailable(f.testFont));
+}
 
 /** How measured distances should be rounded */
 export type RoundingMode = 'none' | 'up' | 'down' | 'closest';
@@ -153,6 +183,10 @@ export interface MapState {
 	showMarkerList?: boolean;
 	showLayerList?: boolean;
 	showMapSettings?: boolean;
+	/** Persisted view state (restored on re-render) */
+	savedZoom?: number;
+	savedPanX?: number;
+	savedPanY?: number;
 	/** Last known image path (set on render for identification) */
 	lastImagePath?: string;
 	/** Last known source file path (set on render for identification) */

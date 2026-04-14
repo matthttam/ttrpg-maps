@@ -398,7 +398,13 @@ export class MeasurementController {
 	private updateMeasureMode(): void {
 		const isMeasuring = this.mode !== 'pan';
 		this.ctx.wrapper.toggleClass('ttrpgmap-measuring', isMeasuring);
-		this.ctx.renderMarkers();
+		// Toggle measuring class on existing markers instead of full re-render
+		const overlay = this.ctx.wrapper.querySelector('.ttrpgmap-marker-overlay');
+		if (overlay) {
+			overlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+				el.toggleClass('ttrpgmap-marker-measuring', isMeasuring);
+			});
+		}
 	}
 
 	private updateToolbarState(): void {

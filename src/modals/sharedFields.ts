@@ -1,5 +1,5 @@
 import { App, Setting } from 'obsidian';
-import { MarkerDirection, TextPlacement, MarkerFont, MARKER_FONT_LABELS, MARKER_FONT_STACKS } from '../types';
+import { MarkerDirection, TextPlacement, MarkerFont, getAvailableMarkerFonts, getMarkerFontStack } from '../types';
 import { IconSuggest } from '../suggests/IconSuggest';
 import { setMapIcon, getMapIcon } from '../utils/mapIcon';
 
@@ -375,22 +375,23 @@ interface FontDropdownOpts {
 
 /**
  * Add a font-family dropdown to a Setting.
+ * Only fonts available on the current system are listed.
  * Each option is styled with its font for a visual preview.
  */
 export function buildFontDropdown(opts: FontDropdownOpts): void {
 	const { setting, value, includeInherit = false, onChange } = opts;
+	const fonts = getAvailableMarkerFonts();
 	setting.addDropdown((dropdown) => {
 		if (includeInherit) dropdown.addOption('inherit', 'Inherit');
-		for (const [key, label] of Object.entries(MARKER_FONT_LABELS)) {
-			dropdown.addOption(key, label);
+		dropdown.addOption('default', 'Default');
+		for (const font of fonts) {
+			dropdown.addOption(font.id, font.label);
 		}
 		dropdown.setValue(value).onChange((v) => onChange(v as MarkerFont | 'inherit'));
 		// Style each option with its font
 		for (const option of Array.from(dropdown.selectEl.options)) {
-			const key = option.value;
-			if (key !== 'inherit' && key !== 'default' && key in MARKER_FONT_STACKS) {
-				option.style.fontFamily = MARKER_FONT_STACKS[key as Exclude<MarkerFont, 'default'>];
-			}
+			const stack = getMarkerFontStack(option.value);
+			if (stack) option.style.fontFamily = stack;
 		}
 	});
 }

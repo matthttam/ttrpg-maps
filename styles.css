@@ -147,6 +147,11 @@
 	animation: ttrpgmap-highlight-pulse 1.5s ease;
 }
 
+.setting-items > .setting-item.ttrpgmap-setting-highlight:last-child {
+	padding-bottom: 20px !important;
+	margin-bottom: -20px;
+}
+
 @keyframes ttrpgmap-highlight-pulse {
 	0%, 100% { background: transparent; }
 	30%, 70% { background: var(--background-modifier-hover); }
@@ -356,14 +361,18 @@
 	cursor: crosshair;
 }
 
+.ttrpgmap-marker.ttrpgmap-culled {
+	display: none;
+}
+
 .ttrpgmap-marker.ttrpgmap-marker-measuring {
 	pointer-events: none;
 	opacity: 0.3;
 	transition: opacity 0.15s ease;
 }
 
-.ttrpgmap-marker.ttrpgmap-marker-measuring.ttrpgmap-marker-measure-hover {
-	opacity: 1;
+.ttrpgmap-marker.ttrpgmap-marker-measuring .ttrpgmap-marker-label {
+	pointer-events: none;
 }
 
 /* ===== Settings Button (bottom-right) ===== */
@@ -570,6 +579,7 @@
 	background: var(--background-modifier-hover);
 }
 
+
 .ttrpgmap-marker-list-row--hidden {
 	opacity: 0.5;
 }
@@ -679,6 +689,9 @@
 	top: 0;
 	left: 0;
 	width: 100%;
+	transform-origin: 0 0;
+	will-change: transform;
+	contain: layout style;
 	height: 100%;
 	pointer-events: none;
 	z-index: 5;
@@ -697,9 +710,16 @@
 	transition: opacity 0.5s ease;
 }
 
-.ttrpgmap-marker-layer-hidden {
+.ttrpgmap-marker-layer-hidden,
+.ttrpgmap-marker-layer-hidden .ttrpgmap-marker-label {
 	opacity: 0;
 	pointer-events: none;
+}
+
+/* Layer hover highlight overrides hidden state */
+.ttrpgmap-marker-layer-hidden.ttrpgmap-marker-layer-highlight,
+.ttrpgmap-marker-layer-hidden.ttrpgmap-marker-layer-highlight .ttrpgmap-marker-label {
+	opacity: 1;
 }
 
 .ttrpgmap-marker-dragging {
@@ -896,6 +916,7 @@
 .ttrpgmap-pin .ttrpgmap-pin-svg {
 	width: 100%;
 	height: 100%;
+	overflow: visible;
 }
 
 .ttrpgmap-pin-icon {
@@ -1091,6 +1112,10 @@
 
 .ttrpgmap-modal--x-wide {
 	width: 120ch;
+}
+
+.ttrpgmap-modal--x-wide .setting-item-info {
+	min-width: 5ch;
 }
 
 @media (max-width: 880px) {

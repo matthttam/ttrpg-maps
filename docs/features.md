@@ -411,7 +411,7 @@ Examples with 0 decimal places: `40 ft`. With 1: `40.0 ft`. With 3 and no roundi
 
 ### Measurement Behavior
 
-During measurement, markers and their labels are dimmed and non-interactive. Hovering near a marker or its label while measuring highlights it for snapping. The cursor stays as a crosshair over markers during measurement mode.
+During measurement, markers and their labels are dimmed and non-interactive. The cursor stays as a crosshair over markers during measurement mode.
 
 ---
 

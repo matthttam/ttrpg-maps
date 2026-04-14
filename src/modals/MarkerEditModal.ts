@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MarkerFont, MARKER_FONT_STACKS } from '../types';
+import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MarkerFont, getMarkerFontStack } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createPinElement } from '../utils/markerPin';
 import { buildMarkerLabel } from '../utils/markerLabel';
@@ -132,11 +132,8 @@ export class MarkerEditModal extends Modal {
 			shape: this.marker.shape ?? 'pin',
 		});
 
-		const font = this.marker.font;
-		if (font && font !== 'default') {
-			const stack = MARKER_FONT_STACKS[font];
-			if (stack) wrapper.style.setProperty('--marker-font', stack);
-		}
+		const fontStack = this.marker.font ? getMarkerFontStack(this.marker.font) : null;
+		if (fontStack) wrapper.style.setProperty('--marker-font', fontStack);
 
 		buildMarkerLabel(
 			wrapper,

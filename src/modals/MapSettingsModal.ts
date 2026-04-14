@@ -10,7 +10,7 @@ import {
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
 	MarkerFont,
-	MARKER_FONT_LABELS,
+	getMarkerFontDef,
 } from '../types';
 import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
@@ -521,9 +521,10 @@ export class MapSettingsModal extends Modal {
 		);
 
 		const globalFont = this.plugin.settings.defaultMarkerFont ?? 'default';
+		const globalFontLabel = getMarkerFontDef(globalFont)?.label ?? 'Default';
 		const fontSetting = new Setting(items)
 			.setName('Label font')
-			.setDesc(`Inherit uses the global default (currently ${MARKER_FONT_LABELS[globalFont]})`);
+			.setDesc(`Inherit uses the global default (currently ${globalFontLabel})`);
 		buildFontDropdown({
 			setting: fontSetting,
 			value: this.state.markerFont ?? 'inherit',

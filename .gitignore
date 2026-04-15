@@ -26,8 +26,11 @@ gi-icons.json
 .*
 !.gitignore
 !.github
+!.husky
+!.lintstagedrc.json
 !.nvmrc
 !.prettierrc
+!.release-please-manifest.json
 
 # Data files
 data.json

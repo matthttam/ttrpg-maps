@@ -72,7 +72,19 @@ export interface MapMarker {
 }
 
 /** Font ID stored in settings/state. Always a string key from MARKER_FONTS. */
-export type MarkerFont = string;
+export type MarkerFont =
+	| 'default'
+	| 'serif'
+	| 'monospace'
+	| 'system'
+	| 'palatino'
+	| 'garamond'
+	| 'humanist'
+	| 'trebuchet'
+	| 'impact'
+	| 'handwritten'
+	| 'fantasy'
+	| 'typewriter';
 
 /** Definition of a selectable font */
 export interface MarkerFontDef {
@@ -91,14 +103,39 @@ export const MARKER_FONTS: MarkerFontDef[] = [
 	{ id: 'system', label: 'System', stack: 'system-ui, -apple-system, sans-serif', testFont: null },
 
 	// Specific fonts (availability varies by platform)
-	{ id: 'palatino', label: 'Palatino', stack: "'Palatino Linotype', Palatino, 'Book Antiqua', serif", testFont: 'Palatino Linotype' },
-	{ id: 'garamond', label: 'Garamond', stack: "Garamond, 'EB Garamond', 'Times New Roman', serif", testFont: 'Garamond' },
+	{
+		id: 'palatino',
+		label: 'Palatino',
+		stack: "'Palatino Linotype', Palatino, 'Book Antiqua', serif",
+		testFont: 'Palatino Linotype',
+	},
+	{
+		id: 'garamond',
+		label: 'Garamond',
+		stack: "Garamond, 'EB Garamond', 'Times New Roman', serif",
+		testFont: 'Garamond',
+	},
 	{ id: 'humanist', label: 'Humanist', stack: "'Gill Sans', 'Segoe UI', Tahoma, sans-serif", testFont: 'Gill Sans' },
-	{ id: 'trebuchet', label: 'Trebuchet', stack: "'Trebuchet MS', 'Lucida Grande', sans-serif", testFont: 'Trebuchet MS' },
+	{
+		id: 'trebuchet',
+		label: 'Trebuchet',
+		stack: "'Trebuchet MS', 'Lucida Grande', sans-serif",
+		testFont: 'Trebuchet MS',
+	},
 	{ id: 'impact', label: 'Impact', stack: "Impact, 'Arial Black', sans-serif", testFont: 'Impact' },
-	{ id: 'handwritten', label: 'Handwritten', stack: "'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive", testFont: 'Segoe Script' },
+	{
+		id: 'handwritten',
+		label: 'Handwritten',
+		stack: "'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive",
+		testFont: 'Segoe Script',
+	},
 	{ id: 'fantasy', label: 'Fantasy', stack: "'Copperplate', 'Papyrus', fantasy", testFont: 'Copperplate' },
-	{ id: 'typewriter', label: 'Typewriter', stack: "'Courier New', 'Lucida Console', monospace", testFont: 'Courier New' },
+	{
+		id: 'typewriter',
+		label: 'Typewriter',
+		stack: "'Courier New', 'Lucida Console', monospace",
+		testFont: 'Courier New',
+	},
 ];
 
 /** Lookup a font definition by ID */

@@ -22,15 +22,8 @@ coverage/
 src/generated/
 gi-icons.json
 
-# Hidden files and folders (except .gitignore)
-.*
-!.gitignore
-!.github
-!.husky
-!.lintstagedrc.json
-!.nvmrc
-!.prettierrc
-!.releaserc.json
+# Claude Code local settings
+.claude/
 
 # Data files
 data.json

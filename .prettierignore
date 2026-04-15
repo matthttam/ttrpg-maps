@@ -1,0 +1,5 @@
+# Ignore artifacts:
+.claude
+.spectral
+assets
+package-lock.json

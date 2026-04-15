@@ -7,28 +7,17 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  build-and-release:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v6
         with:
@@ -40,24 +29,7 @@ jobs:
       - name: Build plugin
         run: npm run build
 
-      - name: Update versions.json
-        run: |
-          VERSION=$(jq -r '.version' manifest.json)
-          MIN_APP=$(jq -r '.minAppVersion' manifest.json)
-          jq --arg v "$VERSION" --arg m "$MIN_APP" '. + {($v): $m}' versions.json > tmp.json
-          mv tmp.json versions.json
-
-      - name: Commit versions.json
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add versions.json
-          git diff --cached --quiet || (git commit -m "chore: update versions.json [skip ci]" && git push)
-
-      - name: Upload release assets
+      - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "${{ needs.release-please.outputs.tag_name }}" \
-            --clobber \
-            main.js manifest.json styles.css
+        run: npx semantic-release

@@ -30,7 +30,7 @@ gi-icons.json
 !.lintstagedrc.json
 !.nvmrc
 !.prettierrc
-!.release-please-manifest.json
+!.releaserc.json
 
 # Data files
 data.json

@@ -410,6 +410,7 @@ export class MapRenderer extends MarkdownRenderChild {
 					this._cancelCopy = null;
 				}
 			},
+			openSettings: () => this.openSettings(),
 		};
 	}
 
@@ -545,8 +546,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 
 		// Click: bounce and highlight visible markers on this layer, dim others
-		row.addEventListener('mouseenter', () => {
-		});
+		row.addEventListener('mouseenter', () => {});
 		row.addEventListener('mouseleave', () => {
 			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
 				el.removeClass('ttrpgmap-marker-layer-highlight');
@@ -574,13 +574,18 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private buildLayerVisibilityToggle(actionGroup: HTMLElement, layerId: string): void {
 		const visOverride = this.layerVisibilityOverrides.get(layerId) ?? 'show';
-		const eyeBtn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': this.getVisibilityLabel(visOverride) } });
+		const eyeBtn = actionGroup.createDiv({
+			cls: 'ttrpgmap-marker-list-action',
+			attr: { 'aria-label': this.getVisibilityLabel(visOverride) },
+		});
 		const updateIcon = (vis: 'show' | 'hide' | 'always') => {
 			eyeBtn.empty();
 			eyeBtn.removeClass('ttrpgmap-layer-eye-always');
 			if (vis === 'hide') setIcon(eyeBtn, 'eye-off');
-			else if (vis === 'always') { setIcon(eyeBtn, 'eye'); eyeBtn.addClass('ttrpgmap-layer-eye-always'); }
-			else setIcon(eyeBtn, 'minus');
+			else if (vis === 'always') {
+				setIcon(eyeBtn, 'eye');
+				eyeBtn.addClass('ttrpgmap-layer-eye-always');
+			} else setIcon(eyeBtn, 'minus');
 			eyeBtn.setAttribute('aria-label', this.getVisibilityLabel(vis));
 		};
 		updateIcon(visOverride);
@@ -615,7 +620,10 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private buildLayerResetButton(actionGroup: HTMLElement, layer: MarkerLayer, container: HTMLElement): void {
-		const btn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Reset to defaults' } });
+		const btn = actionGroup.createDiv({
+			cls: 'ttrpgmap-marker-list-action',
+			attr: { 'aria-label': 'Reset to defaults' },
+		});
 		setIcon(btn, 'rotate-ccw');
 		btn.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -629,15 +637,19 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private buildLayerDeleteButton(actionGroup: HTMLElement, layer: MarkerLayer, container: HTMLElement): void {
-		const btn = actionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete', attr: { 'aria-label': 'Delete layer' } });
+		const btn = actionGroup.createDiv({
+			cls: 'ttrpgmap-marker-list-action ttrpgmap-marker-list-delete',
+			attr: { 'aria-label': 'Delete layer' },
+		});
 		setIcon(btn, 'trash-2');
 		btn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			if (!this.state) return;
 			const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
-			const msg = count > 0
-				? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
-				: `Delete "${layer.name}"?`;
+			const msg =
+				count > 0
+					? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
+					: `Delete "${layer.name}"?`;
 			void confirmAction(this.plugin.app, 'Delete layer', msg, 'Delete').then((confirmed) => {
 				if (!confirmed || !this.state) return;
 				for (const m of this.state.markers) {
@@ -665,7 +677,12 @@ export class MapRenderer extends MarkdownRenderChild {
 			let n = 1;
 			while (existingNames.has(`layer ${n}`.toLowerCase())) n++;
 			const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-			const newLayer: MarkerLayer = { id, name: `Layer ${n}`, zoomMin: this.config.zoomMin, zoomMax: this.config.zoomMax };
+			const newLayer: MarkerLayer = {
+				id,
+				name: `Layer ${n}`,
+				zoomMin: this.config.zoomMin,
+				zoomMax: this.config.zoomMax,
+			};
 			this.state.layers.push(newLayer);
 			this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			this.renderLayerList(container);
@@ -757,10 +774,9 @@ export class MapRenderer extends MarkdownRenderChild {
 
 			// Highlight map marker on hover or click (skip if off-screen)
 			const findMarkerEl = () => this.markerOverlay.querySelector<HTMLElement>(`[data-marker-id="${marker.id}"]`);
-			row.addEventListener('mouseenter', () => {
-				});
+			row.addEventListener('mouseenter', () => {});
 			row.addEventListener('mouseleave', () => {
-					const el = findMarkerEl();
+				const el = findMarkerEl();
 				if (el) this.stopBounce(el);
 			});
 			row.addEventListener('click', () => {
@@ -778,7 +794,10 @@ export class MapRenderer extends MarkdownRenderChild {
 			const markerActionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
 
 			// Edit button
-			const editBtn = markerActionGroup.createDiv({ cls: 'ttrpgmap-marker-list-action', attr: { 'aria-label': 'Edit' } });
+			const editBtn = markerActionGroup.createDiv({
+				cls: 'ttrpgmap-marker-list-action',
+				attr: { 'aria-label': 'Edit' },
+			});
 			setIcon(editBtn, 'pencil');
 			editBtn.addEventListener('click', (e) => {
 				e.stopPropagation();
@@ -836,7 +855,10 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 		});
 		this.wrapper.addEventListener('dblclick', (e) => {
-			if ((this.measurement.mode === 'measure' || this.measurement.mode === 'freehand') && this.measurement.getMeasurePointCount() >= 2) {
+			if (
+				(this.measurement.mode === 'measure' || this.measurement.mode === 'freehand') &&
+				this.measurement.getMeasurePointCount() >= 2
+			) {
 				e.preventDefault();
 				this.measurement.finishMeasuring();
 			}
@@ -951,7 +973,10 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private adjustZoom(delta: number): void {
-		if (this.zoomLocked) { this.showLockWarning('Zoom is locked', 'Lock zoom'); return; }
+		if (this.zoomLocked) {
+			this.showLockWarning('Zoom is locked', 'Lock zoom');
+			return;
+		}
 		const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
 		if (newZoom === this.zoom) return;
 		this.zoom = newZoom;
@@ -1027,7 +1052,10 @@ export class MapRenderer extends MarkdownRenderChild {
 			return;
 		}
 
-		if (this.panLocked) { this.showLockWarning('Pan is locked', 'Lock pan'); return; }
+		if (this.panLocked) {
+			this.showLockWarning('Pan is locked', 'Lock pan');
+			return;
+		}
 		this.isPanning = true;
 		this.panStartX = e.clientX - this.panX;
 		this.panStartY = e.clientY - this.panY;
@@ -1072,7 +1100,10 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		if (this.draggingMarker && this.dragMarkerEl) {
 			// Dismiss any hover popover that appeared in the race between timeout and mousedown
-			if (this.dismissActiveHover) { this.dismissActiveHover(); this.dismissActiveHover = null; }
+			if (this.dismissActiveHover) {
+				this.dismissActiveHover();
+				this.dismissActiveHover = null;
+			}
 			const dx = e.clientX - this.dragStartX;
 			const dy = e.clientY - this.dragStartY;
 			if (dx === 0 && dy === 0) return;
@@ -1158,7 +1189,11 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		if (isLabel && isMapLevel) {
 			if (this.state.markerTextScale == null) this.state.markerTextScale = this.getTextBaseScale(marker);
-			this.state.markerTextScale = clamp(this.state.markerTextScale + delta, MIN_MARKER_TEXT_SCALE, MAX_MARKER_TEXT_SCALE);
+			this.state.markerTextScale = clamp(
+				this.state.markerTextScale + delta,
+				MIN_MARKER_TEXT_SCALE,
+				MAX_MARKER_TEXT_SCALE,
+			);
 			this.syncViewportMarkers(true);
 		} else if (isLabel) {
 			if (marker.textScale === null) marker.textScale = this.getTextBaseScale(marker);
@@ -1188,7 +1223,10 @@ export class MapRenderer extends MarkdownRenderChild {
 	private onWheel(e: WheelEvent): void {
 		if (e.altKey && this.handleAltScrollResize(e)) return;
 
-		if (this.zoomLocked) { this.showLockWarning('Zoom is locked', 'Lock zoom'); return; }
+		if (this.zoomLocked) {
+			this.showLockWarning('Zoom is locked', 'Lock zoom');
+			return;
+		}
 		e.preventDefault();
 
 		const delta = e.deltaY < 0 ? this.config.zoomStep : -this.config.zoomStep;
@@ -1224,15 +1262,21 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Stop the bounce animation after the current cycle completes */
 	private stopBounce(el: HTMLElement): void {
 		el.addClass('ttrpgmap-marker-bounce-stopping');
-		el.addEventListener('animationiteration', () => {
-			if (el.hasClass('ttrpgmap-marker-bounce-stopping')) {
-				el.removeClass('ttrpgmap-marker-bounce');
-				el.removeClass('ttrpgmap-marker-bounce-stopping');
-			}
-		}, { once: true });
+		el.addEventListener(
+			'animationiteration',
+			() => {
+				if (el.hasClass('ttrpgmap-marker-bounce-stopping')) {
+					el.removeClass('ttrpgmap-marker-bounce');
+					el.removeClass('ttrpgmap-marker-bounce-stopping');
+				}
+			},
+			{ once: true },
+		);
 	}
 
-	private isControlVisible(field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings'): boolean {
+	private isControlVisible(
+		field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings',
+	): boolean {
 		return this.state?.[field] ?? this.plugin.settings[field] ?? true;
 	}
 
@@ -1392,7 +1436,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	/** Check if a marker is within the current viewport (in display coords) */
-	private isInViewport(marker: MapMarker, sx: number, sy: number, scale: number, vp: ReturnType<typeof this.getViewportBounds>): boolean {
+	private isInViewport(
+		marker: MapMarker,
+		sx: number,
+		sy: number,
+		scale: number,
+		vp: ReturnType<typeof this.getViewportBounds>,
+	): boolean {
 		const px = marker.x * sx * scale;
 		const py = marker.y * sy * scale;
 		return px >= vp.left && px <= vp.right && py >= vp.top && py <= vp.bottom;
@@ -1426,8 +1476,14 @@ export class MapRenderer extends MarkdownRenderChild {
 				if (!marker) return;
 				el.style.left = `${marker.x * sx * scale}px`;
 				el.style.top = `${marker.y * sy * scale}px`;
-				const mScale = this.computeEffectiveScale(this.getMarkerBaseScale(marker), marker.scaleToZoom ?? mapScaleToZoom);
-				const tScale = this.computeEffectiveScale(this.getTextBaseScale(marker), marker.textScaleToZoom ?? mapTextScaleToZoom);
+				const mScale = this.computeEffectiveScale(
+					this.getMarkerBaseScale(marker),
+					marker.scaleToZoom ?? mapScaleToZoom,
+				);
+				const tScale = this.computeEffectiveScale(
+					this.getTextBaseScale(marker),
+					marker.textScaleToZoom ?? mapTextScaleToZoom,
+				);
 				el.style.setProperty('--marker-scale', String(mScale));
 				el.style.setProperty('--marker-text-scale', String(tScale));
 				visibleIds.delete(id);
@@ -1570,11 +1626,17 @@ export class MapRenderer extends MarkdownRenderChild {
 		const hoverParent: { hoverPopover: { hide: () => void } | null } = { hoverPopover: null };
 
 		const clearHoverTimeout = () => {
-			if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
+			if (hoverTimeout) {
+				clearTimeout(hoverTimeout);
+				hoverTimeout = null;
+			}
 		};
 		const dismissPopover = () => {
 			clearHoverTimeout();
-			if (hoverParent.hoverPopover) { hoverParent.hoverPopover.hide(); hoverParent.hoverPopover = null; }
+			if (hoverParent.hoverPopover) {
+				hoverParent.hoverPopover.hide();
+				hoverParent.hoverPopover = null;
+			}
 			hoverSuppressed = true;
 		};
 
@@ -1600,8 +1662,12 @@ export class MapRenderer extends MarkdownRenderChild {
 				if (this.draggingMarker || hoverSuppressed) return;
 				hoverParent.hoverPopover = null;
 				this.plugin.app.workspace.trigger('hover-link', {
-					event: e, source: 'ttrpg-maps', hoverParent, targetEl: markerEl,
-					linktext: previewPath, sourcePath: '',
+					event: e,
+					source: 'ttrpg-maps',
+					hoverParent,
+					targetEl: markerEl,
+					linktext: previewPath,
+					sourcePath: '',
 				});
 			}, 300);
 		});
@@ -1635,11 +1701,31 @@ export class MapRenderer extends MarkdownRenderChild {
 			e.stopPropagation();
 			if (this.resizingMarker) this.commitResize();
 			const menu = new Menu();
-			menu.addItem((item) => { item.setTitle('Edit'); item.setIcon('pencil'); item.onClick(() => this.editMarker(marker)); });
-			menu.addItem((item) => { item.setTitle('Copy marker'); item.setIcon('copy'); item.onClick(() => this.startCopyMarker(marker)); });
-			menu.addItem((item) => { item.setTitle('Resize marker'); item.setIcon('maximize-2'); item.onClick(() => this.enterResizeMode(marker, markerEl, 'marker')); });
-			menu.addItem((item) => { item.setTitle('Resize text'); item.setIcon('a-large-small'); item.onClick(() => this.enterResizeMode(marker, markerEl, 'text')); });
-			menu.addItem((item) => { item.setTitle('Delete'); item.setIcon('trash-2'); item.onClick(() => this.deleteMarker(marker)); });
+			menu.addItem((item) => {
+				item.setTitle('Edit');
+				item.setIcon('pencil');
+				item.onClick(() => this.editMarker(marker));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Copy marker');
+				item.setIcon('copy');
+				item.onClick(() => this.startCopyMarker(marker));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Resize marker');
+				item.setIcon('maximize-2');
+				item.onClick(() => this.enterResizeMode(marker, markerEl, 'marker'));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Resize text');
+				item.setIcon('a-large-small');
+				item.onClick(() => this.enterResizeMode(marker, markerEl, 'text'));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Delete');
+				item.setIcon('trash-2');
+				item.onClick(() => this.deleteMarker(marker));
+			});
 			menu.showAtMouseEvent(e);
 		});
 	}
@@ -1915,7 +2001,10 @@ export class MapRenderer extends MarkdownRenderChild {
 		// Close any active resize handle when opening map context menu
 		if (this.resizingMarker) this.commitResize();
 
-		if ((this.measurement.mode === 'measure' || this.measurement.mode === 'freehand') && this.measurement.getMeasurePointCount() >= 2) {
+		if (
+			(this.measurement.mode === 'measure' || this.measurement.mode === 'freehand') &&
+			this.measurement.getMeasurePointCount() >= 2
+		) {
 			this.measurement.finishMeasuring();
 			return;
 		}

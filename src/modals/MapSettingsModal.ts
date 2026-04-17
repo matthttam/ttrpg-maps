@@ -5,6 +5,7 @@ import {
 	MapConfig,
 	MapState,
 	MarkerLayer,
+	RoundingMode,
 	DEFAULT_LAYER,
 	DEFAULT_LAYER_ID,
 	DEFAULT_MARKER_SCALE,
@@ -227,6 +228,7 @@ export class MapSettingsModal extends Modal {
 		this.buildGeneralSection(contentEl);
 		this.buildMarkersSection(contentEl);
 		this.buildTextSection(contentEl);
+		this.buildMeasurementSection(contentEl);
 		this.buildControlsSection(contentEl);
 		this.buildLayersSection(contentEl);
 		this.buildFooter(contentEl);
@@ -579,6 +581,83 @@ export class MapSettingsModal extends Modal {
 				else this.state.markerFont = value;
 			},
 		});
+	}
+
+	private buildMeasurementSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Measurement');
+
+		const currentMode = this.state.roundingMode ?? 'none';
+
+		// Rounding mode
+		const roundingSetting = new Setting(items).setName('Rounding mode').setDesc('How measured distances are rounded');
+
+		// Rounding multiple (conditionally visible)
+		const multipleSetting = new Setting(items)
+			.setName('Rounding multiple')
+			.setDesc('Round distances to the nearest multiple of this value');
+
+		// Show raw distance (conditionally visible)
+		const rawSetting = new Setting(items)
+			.setName('Show raw distance')
+			.setDesc('Display the unrounded distance alongside the rounded value');
+
+		const updateConditionalVisibility = (mode: string) => {
+			const isNone = mode === 'none';
+			multipleSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+			rawSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+		};
+
+		roundingSetting.addDropdown((dropdown) => {
+			dropdown
+				.addOption('none', 'None')
+				.addOption('closest', 'Closest')
+				.addOption('up', 'Up to')
+				.addOption('down', 'Down to')
+				.setValue(currentMode)
+				.onChange((value) => {
+					this.state.roundingMode = value as RoundingMode;
+					updateConditionalVisibility(value);
+				});
+		});
+
+		multipleSetting.addText((text) => {
+			text
+				.setValue(String(this.state.roundingMultiple ?? 5))
+				.setPlaceholder('5')
+				.onChange((value) => {
+					const num = parseFloat(value);
+					if (!isNaN(num) && num > 0) this.state.roundingMultiple = num;
+				});
+			text.inputEl.type = 'number';
+			text.inputEl.min = '0';
+			text.inputEl.step = 'any';
+		});
+
+		rawSetting.addToggle((toggle) => {
+			toggle.setValue(this.state.showRawDistance ?? false).onChange((value) => {
+				this.state.showRawDistance = value;
+			});
+		});
+
+		updateConditionalVisibility(currentMode);
+
+		// Decimal places
+		new Setting(items)
+			.setName('Decimal places')
+			.setDesc('Number of decimal places shown in distance values')
+			.addText((text) => {
+				text
+					.setValue(String(this.state.distanceDecimals ?? 0))
+					.setPlaceholder('0')
+					.onChange((value) => {
+						const num = parseInt(value, 10);
+						if (!isNaN(num) && num >= 0 && num <= 6) this.state.distanceDecimals = num;
+					});
+				text.inputEl.type = 'number';
+				text.inputEl.min = '0';
+				text.inputEl.max = '6';
+				text.inputEl.step = '1';
+			});
 	}
 
 	private buildControlsSection(contentEl: HTMLElement): void {

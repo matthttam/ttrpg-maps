@@ -20,6 +20,22 @@ export class DataManager {
 		const data = (await this.plugin.loadData()) as Partial<TTRPGMapsSettings> | null;
 		const settings: TTRPGMapsSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
+		// Coerce array fields: a corrupt data.json may have null or the wrong shape.
+		// Filter out entries missing the id/name strings that downstream code
+		// (e.g., renderTemplateManager) unconditionally dereferences.
+		const hasIdAndName = (v: unknown): v is { id: string; name: string } =>
+			v != null &&
+			typeof v === 'object' &&
+			!Array.isArray(v) &&
+			typeof (v as { id?: unknown }).id === 'string' &&
+			typeof (v as { name?: unknown }).name === 'string';
+		settings.markerTemplates = Array.isArray(settings.markerTemplates)
+			? settings.markerTemplates.filter((t): t is (typeof settings.markerTemplates)[number] => hasIdAndName(t))
+			: [];
+		settings.templateFolders = Array.isArray(settings.templateFolders)
+			? settings.templateFolders.filter((f): f is (typeof settings.templateFolders)[number] => hasIdAndName(f))
+			: [];
+
 		// Ensure each predefined template exists in the list (seed on first load)
 		for (const predefined of DEFAULT_SETTINGS.markerTemplates) {
 			const exists = settings.markerTemplates.some((t) => t.id === predefined.id);
@@ -28,8 +44,6 @@ export class DataManager {
 			}
 		}
 
-		// Migrate: ensure templateFolders array and folderId field exist
-		if (!settings.templateFolders) settings.templateFolders = [];
 		for (const t of settings.markerTemplates) {
 			if (t.folderId === undefined) t.folderId = null;
 		}

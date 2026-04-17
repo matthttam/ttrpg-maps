@@ -206,6 +206,41 @@ describe('DataManager', () => {
 			expect(settings.markerTemplates[0].id).toBe('default');
 			expect(settings.markerTemplates[1].id).toBe('custom');
 		});
+
+		it('coerces null markerTemplates to a seeded array', async () => {
+			const { dm } = createDataManager({ markerTemplates: null });
+
+			const settings = await dm.loadSettings();
+
+			expect(Array.isArray(settings.markerTemplates)).toBe(true);
+			expect(settings.markerTemplates[0].id).toBe('default');
+		});
+
+		it('coerces non-array templateFolders to an empty array', async () => {
+			const { dm } = createDataManager({ templateFolders: 'corrupt' });
+
+			const settings = await dm.loadSettings();
+
+			expect(settings.templateFolders).toEqual([]);
+		});
+
+		it('filters out malformed template entries', async () => {
+			const { dm } = createDataManager({
+				markerTemplates: [
+					null,
+					'string-entry',
+					{ id: 'custom', name: 'Custom' },
+					{ noId: true },
+					{ id: 'missing-name' },
+					{ id: 42, name: 'bad-id' },
+				],
+			});
+
+			const settings = await dm.loadSettings();
+
+			// Only the entry with both string id and string name survives, plus seeded default.
+			expect(settings.markerTemplates.map((t) => t.id).sort()).toEqual(['custom', 'default']);
+		});
 	});
 
 	describe('saveSettings', () => {

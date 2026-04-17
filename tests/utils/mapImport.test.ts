@@ -72,6 +72,56 @@ describe('validateManifest', () => {
 	it('rejects a primitive', () => {
 		expect(validateManifest('not an object')).toBe(false);
 	});
+
+	it('rejects config that is an array', () => {
+		expect(
+			validateManifest({
+				config: [],
+				state: { mapId: 'map_1', markers: [] },
+				imageFilename: 'img.png',
+			}),
+		).toBe(false);
+	});
+
+	it('rejects state that is an array', () => {
+		expect(
+			validateManifest({
+				config: { id: 'map_1', image: 'img.png' },
+				state: [],
+				imageFilename: 'img.png',
+			}),
+		).toBe(false);
+	});
+
+	it('rejects state that is a string', () => {
+		expect(
+			validateManifest({
+				config: { id: 'map_1', image: 'img.png' },
+				state: 'corrupt',
+				imageFilename: 'img.png',
+			}),
+		).toBe(false);
+	});
+
+	it('rejects config missing image path', () => {
+		expect(
+			validateManifest({
+				config: { id: 'map_1' },
+				state: { mapId: 'map_1', markers: [] },
+				imageFilename: 'img.png',
+			}),
+		).toBe(false);
+	});
+
+	it('rejects state missing markers array', () => {
+		expect(
+			validateManifest({
+				config: { id: 'map_1', image: 'img.png' },
+				state: { mapId: 'map_1' },
+				imageFilename: 'img.png',
+			}),
+		).toBe(false);
+	});
 });
 
 describe('resolveUniquePath', () => {

@@ -13,6 +13,22 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 let giIconsLoaded = false;
 let giIcons: Record<string, IconEntry> = {};
 
+/** Parse icon-map JSON and keep only entries that match the full IconEntry shape. */
+function parseIconMap(json: string): Record<string, IconEntry> {
+	const raw: unknown = JSON.parse(json);
+	if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {};
+	const result: Record<string, IconEntry> = {};
+	for (const [name, value] of Object.entries(raw)) {
+		if (value == null || typeof value !== 'object') continue;
+		const v = value as Partial<IconEntry>;
+		if (typeof v.viewBox !== 'string' || typeof v.path !== 'string') continue;
+		if (typeof v.set !== 'string') continue;
+		if (!Array.isArray(v.terms) || !v.terms.every((t) => typeof t === 'string')) continue;
+		result[name] = v as IconEntry;
+	}
+	return result;
+}
+
 /** Check if Game Icons have been loaded */
 export function isGameIconsLoaded(): boolean {
 	return giIconsLoaded;
@@ -23,7 +39,13 @@ export async function loadGameIcons(path: string, readFile: (path: string) => Pr
 	if (giIconsLoaded) return;
 	try {
 		const json = await readFile(path);
-		giIcons = JSON.parse(json) as Record<string, IconEntry>;
+		const parsed = parseIconMap(json);
+		if (Object.keys(parsed).length === 0) {
+			// Leave giIconsLoaded false so callers can retry via the extract-embedded path.
+			console.warn('[ttrpg-maps] Game Icons cache contained no valid entries at', path);
+			return;
+		}
+		giIcons = parsed;
 		giIconsLoaded = true;
 	} catch (e) {
 		console.warn('[ttrpg-maps] Failed to load Game Icons from', path, e);
@@ -59,7 +81,12 @@ export async function extractAndLoadGameIcons(
 		}
 		const json = new TextDecoder().decode(merged);
 		await writeFile(destPath, json);
-		giIcons = JSON.parse(json) as Record<string, IconEntry>;
+		const parsed = parseIconMap(json);
+		if (Object.keys(parsed).length === 0) {
+			console.warn('[ttrpg-maps] Embedded Game Icons contained no valid entries');
+			return;
+		}
+		giIcons = parsed;
 		giIconsLoaded = true;
 	} catch (e) {
 		console.warn('[ttrpg-maps] Failed to extract embedded Game Icons', e);

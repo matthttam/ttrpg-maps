@@ -97,13 +97,25 @@ export function importMap(
 	input.click();
 }
 
-/** Validate that a parsed manifest has the required fields */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	return v != null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** Validate that a parsed manifest has the required fields and nested shapes */
 export function validateManifest(data: unknown): data is MapExportManifest {
-	if (data == null || typeof data !== 'object') return false;
-	const obj = data as Record<string, unknown>;
-	return (
-		obj.config != null && obj.state != null && typeof obj.imageFilename === 'string' && obj.imageFilename.length > 0
-	);
+	if (!isPlainObject(data)) return false;
+	if (typeof data.imageFilename !== 'string' || data.imageFilename.length === 0) return false;
+	if (!isPlainObject(data.config)) return false;
+	if (!isPlainObject(data.state)) return false;
+
+	// MapConfig requires an image path; MapState requires a markers array.
+	const config = data.config;
+	if (typeof config.image !== 'string' || config.image.length === 0) return false;
+
+	const state = data.state;
+	if (!Array.isArray(state.markers)) return false;
+
+	return true;
 }
 
 /** Find a unique file path, appending (2), (3), etc. if needed */

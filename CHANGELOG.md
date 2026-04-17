@@ -1,3 +1,9 @@
+## [1.3.3](https://github.com/matthttam/ttrpg-maps/compare/1.3.2...1.3.3) (2026-04-17)
+
+### Bug Fixes
+
+- harden runtime validation of persisted and imported data ([878f24d](https://github.com/matthttam/ttrpg-maps/commit/878f24d596deccbfa37986da01b92115f7652f53))
+
 ## [1.3.2](https://github.com/matthttam/ttrpg-maps/compare/1.3.1...1.3.2) (2026-04-17)
 
 ### Bug Fixes

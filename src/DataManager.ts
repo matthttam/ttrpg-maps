@@ -17,8 +17,8 @@ export class DataManager {
 
 	/** Load plugin-wide settings from data.json */
 	async loadSettings(): Promise<TTRPGMapsSettings> {
-		const data = await this.plugin.loadData();
-		const settings: TTRPGMapsSettings = Object.assign({}, DEFAULT_SETTINGS, data);
+		const data = (await this.plugin.loadData()) as Partial<TTRPGMapsSettings> | null;
+		const settings: TTRPGMapsSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
 		// Ensure each predefined template exists in the list (seed on first load)
 		for (const predefined of DEFAULT_SETTINGS.markerTemplates) {

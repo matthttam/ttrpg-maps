@@ -1,7 +1,15 @@
 import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { MarkerTemplate, MarkerDirection, TextPlacement, MarkerLayer, DEFAULT_LAYER_ID, MarkerFont, getMarkerFontStack } from '../types';
+import {
+	MarkerTemplate,
+	MarkerDirection,
+	TextPlacement,
+	MarkerLayer,
+	DEFAULT_LAYER_ID,
+	MarkerFont,
+	getMarkerFontStack,
+} from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createPinElement } from '../utils/markerPin';
 import { buildMarkerLabel } from '../utils/markerLabel';
@@ -76,7 +84,6 @@ export class MarkerEditModal extends Modal {
 				}),
 		);
 	}
-
 
 	/** Bridge marker's nullable fields into the non-null MarkerFieldState the shared builders expect */
 	private getFieldState(): MarkerFieldState {
@@ -321,16 +328,14 @@ export class MarkerEditModal extends Modal {
 				textArea.inputEl.rows = 3;
 			});
 
-		const fontSetting = new Setting(items)
-			.setName('Label font')
-			.setDesc('Font family for this marker\'s label');
+		const fontSetting = new Setting(items).setName('Label font').setDesc("Font family for this marker's label");
 		buildFontDropdown({
 			setting: fontSetting,
 			value: this.marker.font ?? 'inherit',
 			includeInherit: true,
 			onChange: (value) => {
 				if (value === 'inherit') this.marker.font = null;
-				else this.marker.font = value as MarkerFont;
+				else this.marker.font = value;
 				this.renderPreview(previewContainer);
 			},
 		});
@@ -367,7 +372,9 @@ export class MarkerEditModal extends Modal {
 		const scaleControls = buildScaleSlider({
 			setting: markerScaleSetting,
 			value: this.marker.scale ?? 1.0,
-			onChange: (value) => { this.marker.scale = value; },
+			onChange: (value) => {
+				this.marker.scale = value;
+			},
 			disabled: !hasScaleOverride,
 		});
 
@@ -409,7 +416,9 @@ export class MarkerEditModal extends Modal {
 		const textScaleControls = buildScaleSlider({
 			setting: textScaleSetting,
 			value: this.marker.textScale ?? 1.0,
-			onChange: (value) => { this.marker.textScale = value; },
+			onChange: (value) => {
+				this.marker.textScale = value;
+			},
 			disabled: !hasTextScaleOverride,
 		});
 

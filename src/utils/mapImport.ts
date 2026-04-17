@@ -30,7 +30,7 @@ export function importMap(
 					new Notice('Invalid map export: missing manifest.json.');
 					return;
 				}
-				const raw = JSON.parse(await manifestFile.async('text'));
+				const raw: unknown = JSON.parse(await manifestFile.async('text'));
 				if (!validateManifest(raw)) {
 					new Notice('Invalid map export: manifest is incomplete.');
 					return;

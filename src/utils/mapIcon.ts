@@ -23,7 +23,7 @@ export async function loadGameIcons(path: string, readFile: (path: string) => Pr
 	if (giIconsLoaded) return;
 	try {
 		const json = await readFile(path);
-		giIcons = JSON.parse(json);
+		giIcons = JSON.parse(json) as Record<string, IconEntry>;
 		giIconsLoaded = true;
 	} catch (e) {
 		console.warn('[ttrpg-maps] Failed to load Game Icons from', path, e);
@@ -59,7 +59,7 @@ export async function extractAndLoadGameIcons(
 		}
 		const json = new TextDecoder().decode(merged);
 		await writeFile(destPath, json);
-		giIcons = JSON.parse(json);
+		giIcons = JSON.parse(json) as Record<string, IconEntry>;
 		giIconsLoaded = true;
 	} catch (e) {
 		console.warn('[ttrpg-maps] Failed to extract embedded Game Icons', e);

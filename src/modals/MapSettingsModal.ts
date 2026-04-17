@@ -9,7 +9,6 @@ import {
 	DEFAULT_LAYER_ID,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
-	MarkerFont,
 	getMarkerFontDef,
 } from '../types';
 import { ImageSuggest } from '../suggests/ImageSuggest';
@@ -43,8 +42,8 @@ export class MapSettingsModal extends Modal {
 	) {
 		super(app);
 		this.plugin = plugin;
-		this.config = JSON.parse(JSON.stringify(config));
-		this.state = JSON.parse(JSON.stringify(state));
+		this.config = JSON.parse(JSON.stringify(config)) as MapConfig;
+		this.state = JSON.parse(JSON.stringify(state)) as MapState;
 		this.originalConfig = JSON.stringify(config);
 		this.originalState = JSON.stringify(state);
 		this.highlightSetting = highlightSetting;
@@ -206,16 +205,8 @@ export class MapSettingsModal extends Modal {
 					.setCta()
 					.onClick(() => executeIdChange('migrate')),
 			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Copy')
-					.onClick(() => executeIdChange('copy')),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Orphan')
-					.onClick(() => executeIdChange('orphan')),
-			)
+			.addButton((btn) => btn.setButtonText('Copy').onClick(() => executeIdChange('copy')))
+			.addButton((btn) => btn.setButtonText('Orphan').onClick(() => executeIdChange('orphan')))
 			.addButton((btn) =>
 				btn
 					.setButtonText('Delete')
@@ -267,7 +258,9 @@ export class MapSettingsModal extends Modal {
 			const chevron = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-folder-chevron');
 			if (chevron) chevron.removeClass('is-collapsed');
 			// Persist expanded state
-			const heading = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-heading span:last-child');
+			const heading = collapsible.parentElement?.querySelector<HTMLElement>(
+				'.ttrpgmap-collapsible-heading span:last-child',
+			);
 			if (heading?.textContent) {
 				const s = sectionExpanded.get(this.app) ?? {};
 				s[heading.textContent] = true;
@@ -278,9 +271,13 @@ export class MapSettingsModal extends Modal {
 		activeWindow.setTimeout(() => {
 			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			target.addClass('ttrpgmap-setting-highlight');
-			target.addEventListener('animationend', () => {
-				target.removeClass('ttrpgmap-setting-highlight');
-			}, { once: true });
+			target.addEventListener(
+				'animationend',
+				() => {
+					target.removeClass('ttrpgmap-setting-highlight');
+				},
+				{ once: true },
+			);
 		}, 50);
 	}
 
@@ -316,7 +313,10 @@ export class MapSettingsModal extends Modal {
 			this._idTextEl = text.inputEl;
 		});
 		idSetting.addExtraButton((btn) => {
-			btn.setIcon('pencil').setTooltip('Change map ID').onClick(() => this.openChangeIdModal());
+			btn
+				.setIcon('pencil')
+				.setTooltip('Change map ID')
+				.onClick(() => this.openChangeIdModal());
 		});
 
 		// Map size
@@ -327,15 +327,25 @@ export class MapSettingsModal extends Modal {
 		sizeControl.addClass('ttrpgmap-size-control');
 		sizeControl.createSpan({ text: 'Height:', cls: 'ttrpgmap-size-label' });
 		const heightInput = sizeControl.createEl('input', {
-			type: 'text', cls: 'ttrpgmap-size-input', value: this.config.height ?? '', attr: { placeholder: '500' },
+			type: 'text',
+			cls: 'ttrpgmap-size-input',
+			value: this.config.height ?? '',
+			attr: { placeholder: '500' },
 		});
-		heightInput.addEventListener('input', () => { this.config.height = heightInput.value || null; });
+		heightInput.addEventListener('input', () => {
+			this.config.height = heightInput.value || null;
+		});
 		sizeControl.createSpan({ text: '\u00d7', cls: 'ttrpgmap-size-separator' });
 		sizeControl.createSpan({ text: 'Width:', cls: 'ttrpgmap-size-label' });
 		const widthInput = sizeControl.createEl('input', {
-			type: 'text', cls: 'ttrpgmap-size-input', value: this.config.width ?? '', attr: { placeholder: '800' },
+			type: 'text',
+			cls: 'ttrpgmap-size-input',
+			value: this.config.width ?? '',
+			attr: { placeholder: '800' },
 		});
-		widthInput.addEventListener('input', () => { this.config.width = widthInput.value || null; });
+		widthInput.addEventListener('input', () => {
+			this.config.width = widthInput.value || null;
+		});
 
 		// Zoom range
 		const zoomSetting = new Setting(items)
@@ -344,14 +354,37 @@ export class MapSettingsModal extends Modal {
 		const zoomControl = zoomSetting.controlEl;
 		zoomControl.addClass('ttrpgmap-size-control');
 		const zoomFields: { label: string; value: string; fallback: number; setter: (v: number) => void }[] = [
-			{ label: 'Min:', value: String(this.config.zoomMin), fallback: 50, setter: (v) => { this.config.zoomMin = v; } },
-			{ label: 'Max:', value: String(this.config.zoomMax), fallback: 200, setter: (v) => { this.config.zoomMax = v; } },
-			{ label: 'Step:', value: String(this.config.zoomStep), fallback: 10, setter: (v) => { this.config.zoomStep = v; } },
+			{
+				label: 'Min:',
+				value: String(this.config.zoomMin),
+				fallback: 50,
+				setter: (v) => {
+					this.config.zoomMin = v;
+				},
+			},
+			{
+				label: 'Max:',
+				value: String(this.config.zoomMax),
+				fallback: 200,
+				setter: (v) => {
+					this.config.zoomMax = v;
+				},
+			},
+			{
+				label: 'Step:',
+				value: String(this.config.zoomStep),
+				fallback: 10,
+				setter: (v) => {
+					this.config.zoomStep = v;
+				},
+			},
 		];
 		for (const field of zoomFields) {
 			zoomControl.createSpan({ text: field.label, cls: 'ttrpgmap-size-label' });
 			const input = zoomControl.createEl('input', { type: 'text', cls: 'ttrpgmap-size-input', value: field.value });
-			input.addEventListener('input', () => { field.setter(parseInt(input.value, 10) || field.fallback); });
+			input.addEventListener('input', () => {
+				field.setter(parseInt(input.value, 10) || field.fallback);
+			});
 		}
 
 		// Navigation
@@ -480,17 +513,23 @@ export class MapSettingsModal extends Modal {
 		const items = this.buildCollapsibleGroup(contentEl, 'Markers');
 
 		this.buildScaleOverride(
-			items, 'Marker size',
+			items,
+			'Marker size',
 			this.plugin.settings.defaultMarkerScale ?? DEFAULT_MARKER_SCALE,
 			this.state.markerScale,
-			(v) => { this.state.markerScale = v; },
+			(v) => {
+				this.state.markerScale = v;
+			},
 		);
 
 		this.buildZoomBehaviorDropdown(
-			items, 'Scale markers to zoom',
+			items,
+			'Scale markers to zoom',
 			this.plugin.settings.defaultScaleMarkersToZoom ?? true,
 			this.state.scaleMarkersToZoom,
-			(v) => { this.state.scaleMarkersToZoom = v; },
+			(v) => {
+				this.state.scaleMarkersToZoom = v;
+			},
 		);
 
 		new Setting(items)
@@ -507,17 +546,23 @@ export class MapSettingsModal extends Modal {
 		const items = this.buildCollapsibleGroup(contentEl, 'Text');
 
 		this.buildScaleOverride(
-			items, 'Text size',
+			items,
+			'Text size',
 			this.plugin.settings.defaultMarkerTextScale ?? DEFAULT_MARKER_TEXT_SCALE,
 			this.state.markerTextScale,
-			(v) => { this.state.markerTextScale = v; },
+			(v) => {
+				this.state.markerTextScale = v;
+			},
 		);
 
 		this.buildZoomBehaviorDropdown(
-			items, 'Scale text to zoom',
+			items,
+			'Scale text to zoom',
 			this.plugin.settings.defaultScaleMarkerTextToZoom ?? true,
 			this.state.scaleMarkerTextToZoom,
-			(v) => { this.state.scaleMarkerTextToZoom = v; },
+			(v) => {
+				this.state.scaleMarkerTextToZoom = v;
+			},
 		);
 
 		const globalFont = this.plugin.settings.defaultMarkerFont ?? 'default';
@@ -531,7 +576,7 @@ export class MapSettingsModal extends Modal {
 			includeInherit: true,
 			onChange: (value) => {
 				if (value === 'inherit') this.state.markerFont = undefined;
-				else this.state.markerFont = value as MarkerFont;
+				else this.state.markerFont = value;
 			},
 		});
 	}
@@ -539,12 +584,20 @@ export class MapSettingsModal extends Modal {
 	private buildControlsSection(contentEl: HTMLElement): void {
 		const items = this.buildCollapsibleGroup(contentEl, 'Controls');
 
-		const controlSettings: { name: string; desc: string; field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings' }[] = [
+		const controlSettings: {
+			name: string;
+			desc: string;
+			field: 'showMeasurementTools' | 'showZoomControls' | 'showMarkerList' | 'showLayerList' | 'showMapSettings';
+		}[] = [
 			{ name: 'Measurement tools', desc: 'Distance measurement panel', field: 'showMeasurementTools' },
 			{ name: 'Zoom controls', desc: 'Zoom buttons, center, fit, and locks', field: 'showZoomControls' },
 			{ name: 'Marker list', desc: 'Marker list tab', field: 'showMarkerList' },
 			{ name: 'Layer list', desc: 'Layer list tab', field: 'showLayerList' },
-			{ name: 'Map settings button', desc: 'Gear button (accessible via right-click when hidden)', field: 'showMapSettings' },
+			{
+				name: 'Map settings button',
+				desc: 'Gear button (accessible via right-click when hidden)',
+				field: 'showMapSettings',
+			},
 		];
 
 		for (const ctrl of controlSettings) {
@@ -712,9 +765,10 @@ export class MapSettingsModal extends Modal {
 					btn.onClick(() => {
 						void (async () => {
 							const count = this.state.markers.filter((m) => m.layerId === layer.id).length;
-							const msg = count > 0
-								? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
-								: `Delete "${layer.name}"?`;
+							const msg =
+								count > 0
+									? `Delete "${layer.name}"? ${count} marker${count !== 1 ? 's' : ''} will be moved to the Default Layer.`
+									: `Delete "${layer.name}"?`;
 							const confirmed = await confirmAction(this.app, 'Delete layer', msg, 'Delete');
 							if (!confirmed) return;
 							for (const m of this.state.markers) {

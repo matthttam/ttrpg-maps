@@ -1,3 +1,9 @@
+## [1.3.2](https://github.com/matthttam/ttrpg-maps/compare/1.3.1...1.3.2) (2026-04-17)
+
+### Bug Fixes
+
+- **lint:** wire obsidianmd config properly and resolve findings ([032e119](https://github.com/matthttam/ttrpg-maps/commit/032e119546ad915d46dd61e08667a0a4d8610080))
+
 ## [1.3.1](https://github.com/matthttam/ttrpg-maps/compare/1.3.0...1.3.1) (2026-04-15)
 
 ### Bug Fixes

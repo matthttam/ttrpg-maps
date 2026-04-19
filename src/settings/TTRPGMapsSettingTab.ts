@@ -1,7 +1,13 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MarkerFont, TTRPGMapsSettings } from '../types';
+import {
+	DEFAULT_MARKER_SCALE,
+	DEFAULT_MARKER_TEXT_SCALE,
+	MarkerFont,
+	TextVisibility,
+	TTRPGMapsSettings,
+} from '../types';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from '../modals/sharedFields';
 import { renderTemplateManager } from './renderTemplateManager';
 
@@ -88,8 +94,8 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 			.setDesc('Maximum number of markers rendered at once. Reduces lag on maps with many markers.')
 			.addText((text) => {
 				text
-					.setValue(String(this.plugin.settings.maxRenderedMarkers ?? 500))
-					.setPlaceholder('500')
+					.setValue(String(this.plugin.settings.maxRenderedMarkers ?? 200))
+					.setPlaceholder('200')
 					.onChange((value) => {
 						const num = parseInt(value, 10);
 						if (!isNaN(num) && num > 0) {
@@ -145,6 +151,21 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 				this.save(true);
 			},
 		});
+
+		new Setting(containerEl)
+			.setName('Default text visibility')
+			.setDesc('Control whether marker labels are shown on all maps')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.plugin.settings.defaultTextVisibility ?? 'visible')
+					.onChange((value) => {
+						this.plugin.settings.defaultTextVisibility = value === 'visible' ? undefined : (value as TextVisibility);
+						this.save(true);
+					});
+			});
 	}
 
 	private buildNavigationSection(containerEl: HTMLElement): void {

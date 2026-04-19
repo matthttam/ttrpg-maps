@@ -84,26 +84,23 @@ export class ConfigureMapModal extends Modal {
 			.setName('Zoom step %')
 			.addText((text) => text.setValue(String(this.zoomStep)).onChange((v) => (this.zoomStep = parseInt(v, 10) || 10)));
 
-		new Setting(contentEl).addButton((btn) =>
-			btn
-				.setButtonText('Create map')
-				.setCta()
-				.onClick(() => {
-					if (!this.imagePath) {
-						new Notice('Please select an image first.');
-						return;
-					}
-					this.onSave({
-						image: this.imagePath,
-						height: this.height,
-						width: this.width,
-						zoomMin: this.zoomMin,
-						zoomMax: this.zoomMax,
-						zoomStep: this.zoomStep,
-					});
-					this.close();
-				}),
-		);
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const createBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Create map' });
+		createBtn.addEventListener('click', () => {
+			if (!this.imagePath) {
+				new Notice('Please select an image first.');
+				return;
+			}
+			this.onSave({
+				image: this.imagePath,
+				height: this.height,
+				width: this.width,
+				zoomMin: this.zoomMin,
+				zoomMax: this.zoomMax,
+				zoomStep: this.zoomStep,
+			});
+			this.close();
+		});
 	}
 
 	onClose(): void {

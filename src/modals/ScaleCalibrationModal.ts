@@ -57,27 +57,22 @@ export class ScaleCalibrationModal extends Modal {
 		this.rebuildUnitRow(unitRow, customLabelRow);
 
 		// Buttons
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => {
-					this.saved = false;
-					this.close();
-				}),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save scale')
-					.setCta()
-					.onClick(() => {
-						if (this.units <= 0) {
-							new Notice('Please enter a positive distance.');
-							return;
-						}
-						this.saved = true;
-						this.onSave(this.units, this.unitLabel, this.unitSystem, this.unit);
-						this.close();
-					}),
-			);
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => {
+			this.saved = false;
+			this.close();
+		});
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save scale' });
+		saveBtn.addEventListener('click', () => {
+			if (this.units <= 0) {
+				new Notice('Please enter a positive distance.');
+				return;
+			}
+			this.saved = true;
+			this.onSave(this.units, this.unitLabel, this.unitSystem, this.unit);
+			this.close();
+		});
 	}
 
 	private rebuildUnitRow(unitRow: Setting, customLabelRow: Setting): void {

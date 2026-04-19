@@ -341,6 +341,22 @@ export class MarkerEditModal extends Modal {
 				this.renderPreview(previewContainer);
 			},
 		});
+
+		new Setting(items)
+			.setName('Text visibility')
+			.setDesc('Control whether the marker label is shown')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('inherit', 'Inherit')
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.marker.textVisibility ?? 'inherit')
+					.onChange((value) => {
+						this.marker.textVisibility = value === 'inherit' ? null : (value as TextVisibility);
+						this.renderPreview(previewContainer);
+					});
+			});
 	}
 
 	private buildSizeOverrides(contentEl: HTMLElement, previewContainer: HTMLElement): void {
@@ -453,72 +469,51 @@ export class MarkerEditModal extends Modal {
 						else this.marker.textScaleToZoom = false;
 					});
 			});
-
-		new Setting(items)
-			.setName('Text visibility')
-			.setDesc('Control whether the marker label is shown')
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption('visible', 'Always visible')
-					.addOption('hover', 'Mouseover only')
-					.addOption('hidden', 'Hidden')
-					.setValue(this.marker.textVisibility ?? 'visible')
-					.onChange((value) => {
-						this.marker.textVisibility = value === 'visible' ? null : (value as TextVisibility);
-						this.renderPreview(previewContainer);
-					});
-			});
 	}
 
 	private buildFooter(contentEl: HTMLElement, template: MarkerTemplate | undefined): void {
 		const hasTemplate = !!template;
-		new Setting(contentEl)
-			.addButton((btn) => {
-				btn
-					.setButtonText('Reset to template')
-					.setDisabled(!hasTemplate)
-					.onClick(() => {
-						const tpl = this.getTemplate();
-						if (!tpl) return;
-						void confirmAction(
-							this.app,
-							'Reset to template',
-							`This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
-							'Reset',
-						).then((confirmed) => {
-							if (!confirmed) return;
-							this.marker.direction = tpl.direction;
-							this.marker.textPlacement = tpl.textPlacement;
-							this.marker.color = tpl.color;
-							this.marker.icon = tpl.icon;
-							this.marker.iconColor = tpl.iconColor;
-							this.marker.iconRotation = tpl.iconRotation;
-							this.marker.useBaseMarker = tpl.useBaseMarker;
-							this.marker.shape = tpl.shape;
-							this.marker.scale = null;
-							this.marker.scaleToZoom = null;
-							this.marker.textScale = null;
-							this.marker.textScaleToZoom = null;
-							this.onOpen();
-						});
-					});
-				if (!hasTemplate) btn.setTooltip('Template not found');
-			})
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => {
-						const usePin = this.marker.useBaseMarker ?? true;
-						if (!usePin && !this.marker.icon) {
-							new Notice('A marker must have either a pin shape or an icon.');
-							return;
-						}
-						this.onSave(this.marker);
-						this.close();
-					}),
-			)
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.close()));
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const resetBtn = footer.createEl('button', { text: 'Reset to template' });
+		resetBtn.disabled = !hasTemplate;
+		if (!hasTemplate) resetBtn.title = 'Template not found';
+		resetBtn.addEventListener('click', () => {
+			const tpl = this.getTemplate();
+			if (!tpl) return;
+			void confirmAction(
+				this.app,
+				'Reset to template',
+				`This will reset all visual properties to match the "${tpl.name}" template. You can review the changes before saving.`,
+				'Reset',
+			).then((confirmed) => {
+				if (!confirmed) return;
+				this.marker.direction = tpl.direction;
+				this.marker.textPlacement = tpl.textPlacement;
+				this.marker.color = tpl.color;
+				this.marker.icon = tpl.icon;
+				this.marker.iconColor = tpl.iconColor;
+				this.marker.iconRotation = tpl.iconRotation;
+				this.marker.useBaseMarker = tpl.useBaseMarker;
+				this.marker.shape = tpl.shape;
+				this.marker.scale = null;
+				this.marker.scaleToZoom = null;
+				this.marker.textScale = null;
+				this.marker.textScaleToZoom = null;
+				this.onOpen();
+			});
+		});
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.close());
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => {
+			const usePin = this.marker.useBaseMarker ?? true;
+			if (!usePin && !this.marker.icon) {
+				new Notice('A marker must have either a pin shape or an icon.');
+				return;
+			}
+			this.onSave(this.marker);
+			this.close();
+		});
 	}
 
 	onClose(): void {

@@ -123,31 +123,20 @@ export class MapSettingsModal extends Modal {
 		const confirmModal = new Modal(this.app);
 		confirmModal.titleEl.setText('Unsaved changes');
 		confirmModal.contentEl.createEl('p', { text: 'You have unsaved changes. What would you like to do?' });
-		new Setting(confirmModal.contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => {
-					confirmModal.close();
-				}),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Discard')
-					.setWarning()
-					.onClick(() => {
-						confirmModal.close();
-						this.saved = true;
-						this.close();
-					}),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => {
-						confirmModal.close();
-						this.doSave();
-					}),
-			);
+		const footer = confirmModal.contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => confirmModal.close());
+		const discardBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Discard' });
+		discardBtn.addEventListener('click', () => {
+			confirmModal.close();
+			this.saved = true;
+			this.close();
+		});
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => {
+			confirmModal.close();
+			this.doSave();
+		});
 		confirmModal.open();
 	}
 
@@ -201,22 +190,17 @@ export class MapSettingsModal extends Modal {
 			modal.close();
 		};
 
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Migrate')
-					.setCta()
-					.onClick(() => executeIdChange('migrate')),
-			)
-			.addButton((btn) => btn.setButtonText('Copy').onClick(() => executeIdChange('copy')))
-			.addButton((btn) => btn.setButtonText('Orphan').onClick(() => executeIdChange('orphan')))
-			.addButton((btn) =>
-				btn
-					.setButtonText('Delete')
-					.setWarning()
-					.onClick(() => executeIdChange('delete')),
-			)
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => modal.close()));
+		const idFooter = contentEl.createDiv({ cls: 'modal-button-container' });
+		const migrateBtn = idFooter.createEl('button', { cls: 'mod-cta', text: 'Migrate' });
+		migrateBtn.addEventListener('click', () => executeIdChange('migrate'));
+		const copyBtn = idFooter.createEl('button', { text: 'Copy' });
+		copyBtn.addEventListener('click', () => executeIdChange('copy'));
+		const orphanBtn = idFooter.createEl('button', { text: 'Orphan' });
+		orphanBtn.addEventListener('click', () => executeIdChange('orphan'));
+		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning', text: 'Delete' });
+		deleteBtn.addEventListener('click', () => executeIdChange('delete'));
+		const idCancelBtn = idFooter.createEl('button', { text: 'Cancel' });
+		idCancelBtn.addEventListener('click', () => modal.close());
 
 		modal.open();
 	}
@@ -238,7 +222,10 @@ export class MapSettingsModal extends Modal {
 		// Prevent auto-focus on the first input, then highlight the target setting if requested
 		activeWindow.setTimeout(() => {
 			(activeWindow.document.activeElement as HTMLElement)?.blur();
-			if (this.highlightSetting) this.scrollToSetting(contentEl, this.highlightSetting);
+			if (this.highlightSetting) {
+				this.scrollToSetting(contentEl, this.highlightSetting);
+				this.highlightSetting = undefined;
+			}
 		}, 0);
 	}
 
@@ -261,7 +248,23 @@ export class MapSettingsModal extends Modal {
 			target.closest<HTMLElement>('.ttrpgmap-collapsible-content') ??
 			target.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-content') ??
 			null;
+		// If the target is a section heading, flash the collapsible content instead
+		const highlightEl = collapsible ?? target;
+
+		const scrollAndHighlight = () => {
+			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightEl.addClass('ttrpgmap-setting-highlight');
+			highlightEl.addEventListener(
+				'animationend',
+				() => {
+					highlightEl.removeClass('ttrpgmap-setting-highlight');
+				},
+				{ once: true },
+			);
+		};
+
 		if (collapsible && collapsible.hasClass('is-collapsed')) {
+			collapsible.addEventListener('transitionend', scrollAndHighlight, { once: true });
 			collapsible.removeClass('is-collapsed');
 			const chevron = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-folder-chevron');
 			if (chevron) chevron.removeClass('is-collapsed');
@@ -274,22 +277,9 @@ export class MapSettingsModal extends Modal {
 				s[heading.textContent] = true;
 				sectionExpanded.set(this.app, s);
 			}
+		} else {
+			scrollAndHighlight();
 		}
-
-		// If the target is a section heading, flash the collapsible content instead
-		const highlightEl = collapsible ?? target;
-
-		activeWindow.setTimeout(() => {
-			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			highlightEl.addClass('ttrpgmap-setting-highlight');
-			highlightEl.addEventListener(
-				'animationend',
-				() => {
-					highlightEl.removeClass('ttrpgmap-setting-highlight');
-				},
-				{ once: true },
-			);
-		}, 50);
 	}
 
 	private buildGeneralSection(contentEl: HTMLElement): void {
@@ -553,7 +543,7 @@ export class MapSettingsModal extends Modal {
 			});
 
 		// Max rendered markers
-		const globalMax = this.plugin.settings.maxRenderedMarkers ?? 500;
+		const globalMax = this.plugin.settings.maxRenderedMarkers ?? 200;
 		const hasMaxOverride = this.state.maxRenderedMarkers != null;
 		const effectiveMax = this.state.maxRenderedMarkers ?? globalMax;
 
@@ -636,6 +626,24 @@ export class MapSettingsModal extends Modal {
 				else this.state.markerFont = value;
 			},
 		});
+
+		const globalVis = this.plugin.settings.defaultTextVisibility ?? 'visible';
+		const globalVisLabel =
+			globalVis === 'visible' ? 'Always visible' : globalVis === 'hover' ? 'Mouseover only' : 'Hidden';
+		new Setting(items)
+			.setName('Text visibility')
+			.setDesc(`Inherit uses the global default (currently ${globalVisLabel})`)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('inherit', 'Inherit')
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.state.textVisibility ?? 'inherit')
+					.onChange((value) => {
+						(this.state as unknown as Record<string, unknown>).textVisibility = value === 'inherit' ? undefined : value;
+					});
+			});
 	}
 
 	private buildMeasurementSection(contentEl: HTMLElement): void {
@@ -645,9 +653,7 @@ export class MapSettingsModal extends Modal {
 		if (!scale) {
 			new Setting(items)
 				.setName('No scale set')
-				.setDesc(
-					'Set a distance scale on the map first by clicking the ruler icon and measuring a reference distance.',
-				);
+				.setDesc('Set a distance scale on the map first by clicking the ruler icon and measuring a reference distance');
 			return;
 		}
 
@@ -665,14 +671,12 @@ export class MapSettingsModal extends Modal {
 		const conversionUnitsHeading = new Setting(items)
 			.setName('Conversion units')
 			.setDesc('Units available for auto-conversion');
-		const conversionUnitSettings: Setting[] = [];
+		let unitListEl: HTMLElement | null = null;
 
 		const updateConversionVisibility = (mode: string) => {
 			displayUnitSetting.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'fixed');
 			conversionUnitsHeading.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'auto');
-			for (const s of conversionUnitSettings) {
-				s.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'auto');
-			}
+			unitListEl?.toggleClass('ttrpgmap-hidden', mode !== 'auto');
 		};
 
 		if (hasStructuredUnits) {
@@ -701,22 +705,20 @@ export class MapSettingsModal extends Modal {
 				});
 			});
 
-			// Conversion unit toggles (one per unit, each with a label)
+			// Conversion unit toggles (one per unit, wrapped in a layer-list container)
 			const excluded = new Set(this.state.excludedUnits ?? []);
+			unitListEl = items.createDiv({ cls: 'ttrpgmap-layer-list' });
 			for (const u of largerUnits) {
-				const unitSetting = new Setting(items)
-					.setName(u.label.charAt(0).toUpperCase() + u.label.slice(1))
-					.addToggle((toggle) => {
-						toggle.setValue(!excluded.has(u.id)).onChange((enabled) => {
-							if (!this.state.excludedUnits) this.state.excludedUnits = [];
-							if (enabled) {
-								this.state.excludedUnits = this.state.excludedUnits.filter((id) => id !== u.id);
-							} else {
-								this.state.excludedUnits.push(u.id);
-							}
-						});
+				new Setting(unitListEl).setName(u.label.charAt(0).toUpperCase() + u.label.slice(1)).addToggle((toggle) => {
+					toggle.setValue(!excluded.has(u.id)).onChange((enabled) => {
+						if (!this.state.excludedUnits) this.state.excludedUnits = [];
+						if (enabled) {
+							this.state.excludedUnits = this.state.excludedUnits.filter((id) => id !== u.id);
+						} else {
+							this.state.excludedUnits.push(u.id);
+						}
 					});
-				conversionUnitSettings.push(unitSetting);
+				});
 			}
 
 			updateConversionVisibility(currentConversion);
@@ -888,20 +890,15 @@ export class MapSettingsModal extends Modal {
 	}
 
 	private buildFooter(contentEl: HTMLElement): void {
-		new Setting(contentEl)
-			.addButton((btn) => {
-				btn.setButtonText('Export map');
-				btn.onClick(() => {
-					void exportMap(this.app, this.plugin, this.config, this.state);
-				});
-			})
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.doCancel()))
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => this.doSave()),
-			);
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const exportBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Export map' });
+		exportBtn.addEventListener('click', () => {
+			void exportMap(this.app, this.plugin, this.config, this.state);
+		});
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.doCancel());
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => this.doSave());
 	}
 
 	private formatZoomRange(layer: MarkerLayer): string {

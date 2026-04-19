@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal } from 'obsidian';
 
 /**
  * Show a confirmation modal and return a promise that resolves to true (confirmed) or false (cancelled).
@@ -14,20 +14,17 @@ export function confirmAction(
 		const modal = new Modal(app);
 		modal.titleEl.setText(title);
 		modal.contentEl.createEl('p', { text: message });
-		new Setting(modal.contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => {
-					resolve(false);
-					modal.close();
-				}),
-			)
-			.addButton((btn) => {
-				btn.setButtonText(actionText).onClick(() => {
-					resolve(true);
-					modal.close();
-				});
-				if (warning) btn.setWarning();
-			});
+		const footer = modal.contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => {
+			resolve(false);
+			modal.close();
+		});
+		const actionBtn = footer.createEl('button', { cls: warning ? 'mod-warning' : 'mod-cta', text: actionText });
+		actionBtn.addEventListener('click', () => {
+			resolve(true);
+			modal.close();
+		});
 		modal.open();
 	});
 }

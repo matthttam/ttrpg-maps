@@ -221,6 +221,7 @@ export interface MapState {
 	markerTextScale?: number;
 	scaleMarkerTextToZoom?: boolean;
 	markerFont?: MarkerFont;
+	textVisibility?: TextVisibility;
 	controlOpacity?: number;
 	openLinksInNewTab?: boolean;
 	showHoverPreview?: boolean;
@@ -252,6 +253,7 @@ export interface TTRPGMapsSettings {
 	defaultMarkerTextScale?: number;
 	defaultScaleMarkerTextToZoom?: boolean;
 	defaultMarkerFont?: MarkerFont;
+	defaultTextVisibility?: TextVisibility;
 	defaultControlOpacity?: number;
 	openLinksInNewTab?: boolean;
 	showHoverPreview?: boolean;

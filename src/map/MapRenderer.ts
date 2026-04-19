@@ -22,6 +22,7 @@ import { buildMarkerLabel, linkPath, displayTitle } from '../utils/markerLabel';
 import { generateMarkerId } from '../utils/mapId';
 import { NO_ZOOM_SVG, NO_PAN_SVG } from '../icons/lockIcons';
 import { MeasurementController, MeasurementContext } from './MeasurementController';
+import { InteractionManager } from './InteractionManager';
 
 const RESIZE_SCALE_SENSITIVITY = 0.005;
 const MIN_MARKER_SCALE = 0.1;
@@ -30,7 +31,7 @@ const MIN_MARKER_TEXT_SCALE = 0.1;
 const MAX_MARKER_TEXT_SCALE = 10.0;
 const SCROLL_SCALE_STEP = 0.05;
 const RESIZE_SAVE_DEBOUNCE_MS = 300;
-const DEFAULT_MAX_RENDERED_MARKERS = 500;
+const DEFAULT_MAX_RENDERED_MARKERS = 200;
 
 export class MapRenderer extends MarkdownRenderChild {
 	private plugin: TTRPGMapsPlugin;
@@ -48,11 +49,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	private markerListScroll: HTMLElement | null = null;
 	private markerCullBanner: HTMLElement | null = null;
 
+	// Interaction state
+	private interaction!: InteractionManager;
+
 	// Pan/zoom state
 	private zoom = 100;
 	private panX = 0;
 	private panY = 0;
-	private isPanning = false;
 	private panStartX = 0;
 	private panStartY = 0;
 	private zoomLocked = false;
@@ -89,7 +92,6 @@ export class MapRenderer extends MarkdownRenderChild {
 	private resizeStartScale = 1;
 	private resizeTarget: 'marker' | 'text' = 'marker';
 	private resizeHandleSide: 'left' | 'right' = 'right';
-	private isDraggingHandle = false;
 	private _resizeSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Copy-marker state
@@ -197,6 +199,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		el.addClass('ttrpgmap-root');
 
 		this.wrapper = el.createDiv({ cls: 'ttrpgmap-wrapper' });
+		this.interaction = new InteractionManager(() => this.updateCursor());
 		this.applyWrapperSize();
 
 		this.mapContainer = this.wrapper.createDiv({ cls: 'ttrpgmap-container' });
@@ -424,7 +427,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				}
 			},
 			openSettings: () => this.openSettings('Measurement'),
-			updateCursor: () => this.updateCursor(),
+			interaction: this.interaction,
 		};
 	}
 
@@ -853,7 +856,11 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.wrapper.addEventListener(
 			'click',
 			(e) => {
-				if (this.measurement.mode !== 'pan' && !this.mapContainer.contains(e.target as Node)) {
+				if (
+					this.measurement.mode !== 'pan' &&
+					!this.mapContainer.contains(e.target as Node) &&
+					!this.markerOverlay.contains(e.target as Node)
+				) {
 					this.measurement.cancelDrawing();
 				}
 			},
@@ -922,21 +929,54 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.edgeResizeStartSize = axis === 'width' ? rect.width : rect.height;
 		const ratio = this.imageEl ? this.imageEl.naturalWidth / this.imageEl.naturalHeight : 0;
 
+		// Force fill mode during drag so the image matches our explicit dimensions
+		const sizeClasses = ['ttrpgmap-size-fill', 'ttrpgmap-size-auto-width', 'ttrpgmap-size-auto-height'];
+		sizeClasses.forEach((cls) => this.imageEl?.removeClass(cls));
+		this.wrapper.removeClass('ttrpgmap-size-auto-height');
+		this.imageEl?.addClass('ttrpgmap-size-fill');
+
+		let prevWidth = rect.width;
+		let prevHeight = rect.height;
+		let resizeSyncTimeout: ReturnType<typeof setTimeout> | null = null;
 		const onMove = (ev: MouseEvent) => {
 			const delta = axis === 'width' ? ev.clientX - this.edgeResizeStartPos : ev.clientY - this.edgeResizeStartPos;
 			const newSize = Math.max(50, Math.round(this.edgeResizeStartSize + delta));
+			let newW: number;
+			let newH: number;
 			if (axis === 'width') {
-				this.wrapper.style.width = `${newSize}px`;
-				this.wrapper.style.height = ratio ? `${Math.round(newSize / ratio)}px` : 'auto';
+				newW = newSize;
+				newH = ratio ? Math.round(newSize / ratio) : prevHeight;
 			} else {
-				this.wrapper.style.height = `${newSize}px`;
-				this.wrapper.style.width = ratio ? `${Math.round(newSize * ratio)}px` : 'auto';
+				newH = newSize;
+				newW = ratio ? Math.round(newSize * ratio) : prevWidth;
+			}
+			this.wrapper.style.width = `${newW}px`;
+			this.wrapper.style.height = `${newH}px`;
+
+			// Adjust pan to keep the viewport center stable
+			this.panX += (newW - prevWidth) / 2;
+			this.panY += (newH - prevHeight) / 2;
+			this.applyTransform();
+			prevWidth = newW;
+			prevHeight = newH;
+
+			// Throttled marker sync during drag (every 100ms)
+			if (!resizeSyncTimeout) {
+				resizeSyncTimeout = setTimeout(() => {
+					resizeSyncTimeout = null;
+					this.updateImageScaleCache();
+					this.syncViewportMarkers(true);
+				}, 100);
 			}
 		};
 
 		const onUp = () => {
 			activeWindow.removeEventListener('mousemove', onMove);
 			activeWindow.removeEventListener('mouseup', onUp);
+			if (resizeSyncTimeout) {
+				clearTimeout(resizeSyncTimeout);
+				resizeSyncTimeout = null;
+			}
 			const finalRect = this.wrapper.getBoundingClientRect();
 			if (axis === 'width') {
 				this.config.width = `${Math.round(finalRect.width)}`;
@@ -948,10 +988,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.edgeResizeAxis = null;
 			this.edgeHoverAxis = null;
 			this.updateCursor();
-			this.applyWrapperSize();
 			this.updateImageScaleCache();
 			this.syncViewportMarkers(true);
-			this.renderMarkers();
 			// Persist current zoom/pan before writing config, since the code block
 			// rewrite triggers a full re-render that loads state from disk
 			if (this.state) {
@@ -1033,15 +1071,17 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Evaluate all state and apply the single correct cursor class */
 	private updateCursor(): void {
 		let cls: string;
-		if (this.edgeResizeAxis === 'width' || this.edgeHoverAxis === 'width') {
-			cls = 'ttrpgmap-cursor-ew-resize';
-		} else if (this.edgeResizeAxis === 'height' || this.edgeHoverAxis === 'height') {
-			cls = 'ttrpgmap-cursor-ns-resize';
-		} else if (this.measurement.mode !== 'pan') {
+		const mode = this.interaction.current;
+		if (mode === 'edge-resize' || this.edgeHoverAxis) {
+			cls =
+				(this.edgeResizeAxis ?? this.edgeHoverAxis) === 'width'
+					? 'ttrpgmap-cursor-ew-resize'
+					: 'ttrpgmap-cursor-ns-resize';
+		} else if (this.interaction.isMeasuring) {
 			cls = 'ttrpgmap-cursor-crosshair';
-		} else if (this.pendingCopy) {
+		} else if (mode === 'copying') {
 			cls = 'ttrpgmap-cursor-copy';
-		} else if (this.panLocked) {
+		} else if (this.panLocked && mode === 'idle') {
 			cls = '';
 		} else {
 			cls = 'ttrpgmap-cursor-grab';
@@ -1062,29 +1102,36 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.mapContainer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${scale})`;
 
 		if (this.zoom === this._lastSettledZoom) {
-			// Pan only: translate the overlay without scale
-			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
-			// Debounced viewport sync during pan (add/remove markers entering/leaving)
-			if (this._cullTimeout) clearTimeout(this._cullTimeout);
-			this._cullTimeout = setTimeout(() => {
-				this._cullTimeout = null;
-				this.syncViewportMarkers();
-			}, 100);
+			// Pan only: hide markers for smooth panning, rebuild when paused
+			const isPanning = this.interaction.current === 'panning';
+			if (isPanning) {
+				this.markerOverlay.addClass('ttrpgmap-visibility-hidden');
+			}
+			if (isPanning) {
+				if (this._cullTimeout) clearTimeout(this._cullTimeout);
+				this._cullTimeout = setTimeout(() => {
+					this._cullTimeout = null;
+					this.syncViewportMarkers(true);
+					this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
+					this.markerOverlay.removeClass('ttrpgmap-visibility-hidden');
+				}, 200);
+			} else {
+				this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
+			}
 			return;
 		}
 
-		// Zoom changed: scale the overlay for instant feedback (may blur slightly)
-		const relativeScale = this.zoom / this._lastSettledZoom;
-		this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${relativeScale})`;
+		// Zoom changed: hide markers during interactive zoom, rebuild when settled
+		this.markerOverlay.addClass('ttrpgmap-visibility-hidden');
 
-		// After zoom settles, re-rasterize at native resolution
 		if (this._zoomSettleTimeout) clearTimeout(this._zoomSettleTimeout);
 		this._zoomSettleTimeout = setTimeout(() => {
 			this._zoomSettleTimeout = null;
 			this._lastSettledZoom = this.zoom;
 			this.markerOverlay.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
 			this.syncViewportMarkers(true);
-		}, 150);
+			this.markerOverlay.removeClass('ttrpgmap-visibility-hidden');
+		}, 500);
 	}
 
 	private _cachedImageScale: { sx: number; sy: number } = { sx: 1, sy: 1 };
@@ -1110,6 +1157,17 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 		const newZoom = Math.max(this.config.zoomMin, Math.min(this.config.zoomMax, this.zoom + delta));
 		if (newZoom === this.zoom) return;
+
+		const oldScale = this.zoom / 100;
+		const newScale = newZoom / 100;
+		const rect = this.wrapper.getBoundingClientRect();
+		const centerX = rect.width / 2;
+		const centerY = rect.height / 2;
+		const mapX = (centerX - this.panX) / oldScale;
+		const mapY = (centerY - this.panY) / oldScale;
+		this.panX = centerX - mapX * newScale;
+		this.panY = centerY - mapY * newScale;
+
 		this.zoom = newZoom;
 		this.applyTransform();
 		const label = this.wrapper.querySelector('.ttrpgmap-zoom-label');
@@ -1163,7 +1221,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (handle) {
 				e.preventDefault();
 				e.stopPropagation();
-				this.isDraggingHandle = true;
+				this.interaction.tryEnter('dragging-handle');
 				this.resizeStartX = e.clientX;
 				this.resizeStartScale =
 					this.resizeTarget === 'marker' ? this.resizingMarker.scale! : this.resizingMarker.textScale!;
@@ -1199,7 +1257,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.showLockWarning('Pan is locked', 'Lock pan');
 			return;
 		}
-		this.isPanning = true;
+		if (!this.interaction.tryEnter('panning')) return;
 		this.panStartX = e.clientX - this.panX;
 		this.panStartY = e.clientY - this.panY;
 		this.wrapper.addClass('ttrpgmap-panning');
@@ -1210,7 +1268,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (
 			!this.edgeResizeAxis &&
 			e.altKey &&
-			!this.isPanning &&
+			this.interaction.current !== 'panning' &&
 			!this.draggingMarker &&
 			this.measurement.mode === 'pan' &&
 			!this.pendingCopy
@@ -1232,7 +1290,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 
 		// Resize drag (only when actively dragging the handle)
-		if (this.isDraggingHandle && this.resizingMarker && this.resizeMarkerEl) {
+		if (this.interaction.current === 'dragging-handle' && this.resizingMarker && this.resizeMarkerEl) {
 			const rawDx = e.clientX - this.resizeStartX;
 			// Dragging away from the marker = bigger (invert when handle is on the left)
 			const dx = this.resizeHandleSide === 'left' ? -rawDx : rawDx;
@@ -1278,7 +1336,7 @@ export class MapRenderer extends MarkdownRenderChild {
 				this.dragMarkerEl = null;
 				this.hasDragged = true;
 				if (!this.panLocked) {
-					this.isPanning = true;
+					this.interaction.tryEnter('panning');
 					this.panStartX = e.clientX - this.panX;
 					this.panStartY = e.clientY - this.panY;
 					this.wrapper.addClass('ttrpgmap-panning');
@@ -1295,7 +1353,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.dragMarkerEl.style.top = `${this.draggingMarker.y * sy * scale}px`;
 			return;
 		}
-		if (!this.isPanning) return;
+		if (this.interaction.current !== 'panning') return;
 		this.panX = e.clientX - this.panStartX;
 		this.panY = e.clientY - this.panStartY;
 		this.applyTransform();
@@ -1304,16 +1362,16 @@ export class MapRenderer extends MarkdownRenderChild {
 	private onWrapperLeave(): void {
 		// Only end panning on wrapper leave, not marker dragging or other operations.
 		// Marker dragging should survive the cursor leaving the wrapper (e.g., popover overlay).
-		if (this.isPanning) {
-			this.isPanning = false;
+		if (this.interaction.current === 'panning') {
+			this.interaction.exit();
 			this.wrapper.removeClass('ttrpgmap-panning');
 		}
 	}
 
 	private onMouseUp(): void {
 		// Resize: end handle drag (but stay in resize mode)
-		if (this.isDraggingHandle) {
-			this.isDraggingHandle = false;
+		if (this.interaction.current === 'dragging-handle') {
+			this.interaction.exit();
 			// Suppress the click event that fires after mouseup so it doesn't navigate
 			this.hasDragged = true;
 			return;
@@ -1330,10 +1388,13 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (this.hasDragged && this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			this.draggingMarker = null;
 			this.dragMarkerEl = null;
+			this.interaction.exit();
 			return;
 		}
-		this.isPanning = false;
-		this.wrapper.removeClass('ttrpgmap-panning');
+		if (this.interaction.current === 'panning') {
+			this.interaction.exit();
+			this.wrapper.removeClass('ttrpgmap-panning');
+		}
 	}
 
 	/** Alt+scroll over a marker: resize per-marker or map-level scale. Returns true if handled. */
@@ -1594,7 +1655,11 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Viewport bounds in display-space coordinates */
 	private getViewportBounds(): { left: number; top: number; right: number; bottom: number } {
 		const rect = this.wrapper.getBoundingClientRect();
-		const pad = 400; // generous buffer so markers fade in before reaching the edge
+		// When layout dimensions are unavailable, treat entire space as visible
+		if (rect.width === 0 && rect.height === 0) {
+			return { left: -Infinity, top: -Infinity, right: Infinity, bottom: Infinity };
+		}
+		const pad = 50;
 		return {
 			left: -this.panX - pad,
 			top: -this.panY - pad,
@@ -1626,29 +1691,33 @@ export class MapRenderer extends MarkdownRenderChild {
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 
-		// Collect all viewport-visible markers
-		const vpCenterX = (vp.left + vp.right) / 2;
-		const vpCenterY = (vp.top + vp.bottom) / 2;
-		const candidates: Array<{ id: string; dist: number }> = [];
+		// Collect all viewport-visible marker IDs
+		const visibleIds = new Set<string>();
 		for (const marker of this.state.markers) {
 			if (this.isMarkerVisible(marker) && this.isInViewport(marker, sx, sy, scale, vp)) {
-				const px = marker.x * sx * scale;
-				const py = marker.y * sy * scale;
-				const dx = px - vpCenterX;
-				const dy = py - vpCenterY;
-				candidates.push({ id: marker.id, dist: dx * dx + dy * dy });
+				visibleIds.add(marker.id);
 			}
 		}
 
 		// Cap to max rendered markers, keeping center-most
 		const maxMarkers = this.maxRenderedMarkers;
-		const totalVisible = candidates.length;
-		if (candidates.length > maxMarkers) {
-			candidates.sort((a, b) => a.dist - b.dist);
-			candidates.length = maxMarkers;
+		const totalVisible = visibleIds.size;
+		if (totalVisible > maxMarkers) {
+			const vpCenterX = (vp.left + vp.right) / 2;
+			const vpCenterY = (vp.top + vp.bottom) / 2;
+			const ranked: Array<{ id: string; dist: number }> = [];
+			for (const marker of this.state.markers) {
+				if (!visibleIds.has(marker.id)) continue;
+				const px = marker.x * sx * scale;
+				const py = marker.y * sy * scale;
+				const dx = px - vpCenterX;
+				const dy = py - vpCenterY;
+				ranked.push({ id: marker.id, dist: dx * dx + dy * dy });
+			}
+			ranked.sort((a, b) => a.dist - b.dist);
+			visibleIds.clear();
+			for (let i = 0; i < maxMarkers; i++) visibleIds.add(ranked[i].id);
 		}
-
-		const visibleIds = new Set(candidates.map((c) => c.id));
 
 		// Update cull banner
 		if (this.markerCullBanner) {
@@ -1693,7 +1762,6 @@ export class MapRenderer extends MarkdownRenderChild {
 				if (!visibleIds.has(marker.id)) continue;
 				const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
 				if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
-				markerEl.addClass('ttrpgmap-marker-fade-in');
 			}
 			this.markerOverlay.appendChild(fragment);
 		}
@@ -1703,7 +1771,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (!this.state) return;
 		this.markerZCounter = 0;
 		this.resizeHandleEl = null;
-		this.isDraggingHandle = false;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
 
 		const { sx, sy } = this.getImageScale();
@@ -1713,28 +1780,31 @@ export class MapRenderer extends MarkdownRenderChild {
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 		const isMeasuring = this.measurement.mode !== 'pan';
 
-		// Collect visible markers and cap to MAX_RENDERED_MARKERS (center-most)
-		const vpCenterX = (vp.left + vp.right) / 2;
-		const vpCenterY = (vp.top + vp.bottom) / 2;
-		const candidates: Array<{ marker: MapMarker; dist: number }> = [];
+		// Collect visible markers
+		const maxMarkers = this.maxRenderedMarkers;
+		const visibleMarkers: MapMarker[] = [];
 		for (const marker of this.state.markers) {
 			if (!this.isMarkerVisible(marker) || !this.isInViewport(marker, sx, sy, scale, vp)) continue;
-			const px = marker.x * sx * scale;
-			const py = marker.y * sy * scale;
-			const dx = px - vpCenterX;
-			const dy = py - vpCenterY;
-			candidates.push({ marker, dist: dx * dx + dy * dy });
+			visibleMarkers.push(marker);
 		}
 
-		const maxMarkers = this.maxRenderedMarkers;
-		const totalVisible = candidates.length;
-		if (candidates.length > maxMarkers) {
-			candidates.sort((a, b) => a.dist - b.dist);
-			candidates.length = maxMarkers;
+		// Cap to max rendered markers, keeping center-most
+		const totalVisible = visibleMarkers.length;
+		if (totalVisible > maxMarkers) {
+			const vpCenterX = (vp.left + vp.right) / 2;
+			const vpCenterY = (vp.top + vp.bottom) / 2;
+			visibleMarkers.sort((a, b) => {
+				const ax = a.x * sx * scale - vpCenterX;
+				const ay = a.y * sy * scale - vpCenterY;
+				const bx = b.x * sx * scale - vpCenterX;
+				const by = b.y * sy * scale - vpCenterY;
+				return ax * ax + ay * ay - (bx * bx + by * by);
+			});
+			visibleMarkers.length = maxMarkers;
 		}
 
 		const fragment = document.createDocumentFragment();
-		for (const { marker } of candidates) {
+		for (const marker of visibleMarkers) {
 			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
 			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
 		}
@@ -1819,7 +1889,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			shape: marker.shape ?? 'pin',
 		});
 
-		const textVis = marker.textVisibility ?? 'visible';
+		const textVis =
+			marker.textVisibility ?? this.state?.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible';
 		if (textVis !== 'hidden') {
 			buildMarkerLabel(markerEl, marker.note, marker.alias, marker.description, 'ttrpgmap-marker-label');
 		}
@@ -1886,11 +1957,17 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		markerEl.addEventListener('mouseenter', (e) => {
 			// Promote this marker above all previously hovered markers
+			if (this.markerZCounter >= 2_000_000_000) {
+				this.markerZCounter = 0;
+				this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+					el.setCssStyles({ zIndex: '' });
+				});
+			}
 			this.markerZCounter++;
 			markerEl.setCssStyles({ zIndex: String(this.markerZCounter) });
-			if (!this.draggingMarker && !this.isPanning) hoverSuppressed = false;
+			if (!this.draggingMarker && this.interaction.current !== 'panning') hoverSuppressed = false;
 			this.dismissActiveHover = dismissPopover;
-			if (this.draggingMarker || this.isPanning || e.altKey || !this.showHoverPreview) return;
+			if (this.draggingMarker || this.interaction.current === 'panning' || e.altKey || !this.showHoverPreview) return;
 
 			let previewPath: string | null = null;
 			if (marker.previewNote) {
@@ -1905,7 +1982,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 			hoverTimeout = setTimeout(() => {
 				hoverTimeout = null;
-				if (this.draggingMarker || this.isPanning || hoverSuppressed) return;
+				if (this.draggingMarker || this.interaction.current === 'panning' || hoverSuppressed) return;
 				hoverParent.hoverPopover = null;
 				this.plugin.app.workspace.trigger('hover-link', {
 					event: e,
@@ -2055,8 +2132,8 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private startCopyMarker(source: MapMarker): void {
+		if (!this.interaction.tryEnter('copying')) return;
 		this.pendingCopy = source;
-		this.updateCursor();
 		this.wrapper.addClass('ttrpgmap-copy-mode');
 
 		// Create ghost preview fixed to the viewport
@@ -2099,7 +2176,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		const cancel = () => {
 			this.pendingCopy = null;
-			this.updateCursor();
+			this.interaction.exit();
 			this.wrapper.removeClass('ttrpgmap-copy-mode');
 			ghost.remove();
 			this.wrapper.removeEventListener('mousemove', onMove);
@@ -2158,6 +2235,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private enterResizeMode(marker: MapMarker, markerEl: HTMLElement, target: 'marker' | 'text'): void {
 		// Ensure only one resize handle exists at a time
 		if (this.resizingMarker) this.commitResize();
+		if (!this.interaction.tryEnter('resizing-marker')) return;
 		// Materialize inherited scale so we have a concrete value to adjust
 		if (target === 'marker') {
 			if (marker.scale === null) marker.scale = this.getMarkerBaseScale(marker);
@@ -2200,7 +2278,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		// Remove all resize handles in the overlay (defensive: ensures singleton)
 		this.markerOverlay?.querySelectorAll('.ttrpgmap-resize-handle').forEach((el) => el.remove());
 		this.resizeHandleEl = null;
-		this.isDraggingHandle = false;
 		if (this.resizeMarkerEl) {
 			this.resizeMarkerEl.removeClass('ttrpgmap-marker-resizing');
 		}
@@ -2211,6 +2288,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
 		this.resizingMarker = null;
 		this.resizeMarkerEl = null;
+		this.interaction.exit();
 	}
 
 	private cancelResize(): void {
@@ -2237,6 +2315,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.cleanupResizeHandle();
 		this.resizingMarker = null;
 		this.resizeMarkerEl = null;
+		this.interaction.exit();
 	}
 
 	// ──────────────────── Context Menu ────────────────────
@@ -2244,6 +2323,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private onContextMenu(e: MouseEvent): void {
 		e.preventDefault();
 
+		this.measurement.cancelDrawing();
 		// Close any active resize handle when opening map context menu
 		if (this.resizingMarker) this.commitResize();
 
@@ -2297,6 +2377,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private openSettings(highlightSetting?: string): void {
 		if (!this.state) return;
+		this.measurement.cancelDrawing();
 		new MapSettingsModal(
 			this.plugin.app,
 			this.plugin,

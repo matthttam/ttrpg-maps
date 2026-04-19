@@ -3,10 +3,16 @@ import { MapPoint, MapState } from '../types';
 import { ScaleCalibrationModal } from '../modals/ScaleCalibrationModal';
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from '../distance';
 import { roundingToBaseUnits, convertForDisplay, formatDisplayParts } from '../units';
-
-type InteractionMode = 'pan' | 'calibrate' | 'measure' | 'freehand';
+import type { InteractionManager, Interaction } from './InteractionManager';
 
 const FREEHAND_MIN_DISTANCE = 5;
+
+/** Measurement modes mapped to interaction manager modes */
+const MODE_MAP: Record<string, Interaction> = {
+	calibrate: 'calibrating',
+	measure: 'measuring',
+	freehand: 'freehand',
+};
 
 /** Context interface the measurement controller needs from the renderer */
 export interface MeasurementContext {
@@ -21,15 +27,24 @@ export interface MeasurementContext {
 	renderMarkers: () => void;
 	cancelCopy: () => void;
 	openSettings: () => void;
-	updateCursor: () => void;
+	interaction: InteractionManager;
 }
 
 /**
  * Manages all measurement and drawing interactions: calibration, point-to-point,
  * freehand measurement, and the SVG overlays they produce.
  */
+type MeasurementMode = 'pan' | 'calibrate' | 'measure' | 'freehand';
+
 export class MeasurementController {
-	mode: InteractionMode = 'pan';
+	/** Derived from the interaction manager. 'pan' when not in a measurement mode. */
+	get mode(): MeasurementMode {
+		const cur = this.ctx.interaction.current;
+		if (cur === 'calibrating') return 'calibrate';
+		if (cur === 'measuring') return 'measure';
+		if (cur === 'freehand' || cur === 'drawing-freehand') return 'freehand';
+		return 'pan';
+	}
 
 	// Drawing state
 	private drawingPoints: MapPoint[] = [];
@@ -104,7 +119,6 @@ export class MeasurementController {
 		setIcon(this.settingsBtn, 'settings');
 		this.settingsBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
-			if (this.mode !== 'pan') this.cancelDrawing();
 			this.ctx.openSettings();
 		});
 
@@ -123,8 +137,7 @@ export class MeasurementController {
 		this.settingsBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
 	}
 
-	setMode(mode: InteractionMode): void {
-		this.ctx.cancelCopy();
+	setMode(mode: MeasurementMode): void {
 		if (this.mode === mode) {
 			this.cancelDrawing();
 			return;
@@ -133,18 +146,18 @@ export class MeasurementController {
 			new Notice('Set a distance scale first before measuring.');
 			return;
 		}
-		this.mode = mode;
+		const interaction = MODE_MAP[mode];
+		if (!interaction || !this.ctx.interaction.tryEnter(interaction)) return;
 		this.drawingPoints = [];
 		this.freehandStrokes = [];
 		this.clearActiveSvg();
 		this.updateToolbarState();
 		this.updateToolbarLayout();
 		this.updateMeasureMode();
-		this.ctx.updateCursor();
 	}
 
 	cancelDrawing(): void {
-		this.mode = 'pan';
+		this.ctx.interaction.reset();
 		this.drawingPoints = [];
 		this.freehandStrokes = [];
 		this.isDrawingFreehand = false;
@@ -156,7 +169,6 @@ export class MeasurementController {
 		this.updateMeasureMode();
 		this.hideTotalDisplay();
 		this.ctx.wrapper.removeClass('ttrpgmap-panning');
-		this.ctx.updateCursor();
 	}
 
 	/** Get total point count across measure mode and freehand strokes */
@@ -253,6 +265,7 @@ export class MeasurementController {
 
 		e.preventDefault();
 		e.stopPropagation();
+		this.ctx.interaction.tryEnter('drawing-freehand');
 		this.isDrawingFreehand = true;
 
 		const point = this.screenToMap(e);
@@ -291,6 +304,7 @@ export class MeasurementController {
 
 	endFreehand(): void {
 		this.isDrawingFreehand = false;
+		this.ctx.interaction.exit();
 
 		const currentStroke = this.freehandStrokes[this.freehandStrokes.length - 1];
 		if (currentStroke && currentStroke.length > 0) {

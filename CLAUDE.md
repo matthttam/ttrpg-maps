@@ -94,6 +94,17 @@ Don't declare `onload()`, `onOpen()`, etc. as `async`. Wrap the async body in `v
 
 Use proper types. For undocumented Obsidian APIs (e.g., `setSubmenu()`, `app.setting`), use `// eslint-disable-next-line @typescript-eslint/no-explicit-any`. In test/mock files, eslint-disable comments are acceptable for mock objects.
 
+## Pre-push checklist
+
+Before running `git push`, complete ALL of the following:
+
+1. **Update CLAUDE.md** -- Add or update any sections that reflect new features, architectural changes, new files, or changed conventions from this branch. Future sessions must have accurate context.
+2. **Update README.md** -- Add new features to the feature list, update usage instructions, and document any new settings or controls.
+3. **Update docs/features.md** -- Update the comprehensive feature list with all new capabilities.
+4. **Notify about screenshots** -- Tell the user which screenshots or images in the docs may need updating based on UI changes in this branch (e.g., new toolbar buttons, changed settings modals, new panels).
+
+Do NOT push until all four steps are done. If the user explicitly asks to skip any step, that is acceptable.
+
 ## Key conventions
 
 - The Obsidian `setIcon()` API (Lucide icons) is only used for Obsidian UI elements (toolbar buttons, settings icons). All marker/map icons use the Font Awesome system via `setFAIcon()` / `createPinElement()`.

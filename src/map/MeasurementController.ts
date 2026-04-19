@@ -2,6 +2,7 @@ import { Notice, setIcon } from 'obsidian';
 import { MapPoint, MapState } from '../types';
 import { ScaleCalibrationModal } from '../modals/ScaleCalibrationModal';
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from '../distance';
+import { roundingToBaseUnits, convertForDisplay, formatDisplayParts } from '../units';
 
 type InteractionMode = 'pan' | 'calibrate' | 'measure' | 'freehand';
 
@@ -20,6 +21,7 @@ export interface MeasurementContext {
 	renderMarkers: () => void;
 	cancelCopy: () => void;
 	openSettings: () => void;
+	updateCursor: () => void;
 }
 
 /**
@@ -72,9 +74,12 @@ export class MeasurementController {
 
 		// Calibrate button
 		const calibrateBtn = panel.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': 'Set distance scale' } });
-		setIcon(calibrateBtn, 'scaling');
+		setIcon(calibrateBtn, 'ruler');
 		calibrateBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
+			if (!this.state?.distanceScale) {
+				new Notice('Click two points on the map to set the distance scale.');
+			}
 			this.setMode('calibrate');
 		});
 
@@ -99,6 +104,7 @@ export class MeasurementController {
 		setIcon(this.settingsBtn, 'settings');
 		this.settingsBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
+			if (this.mode !== 'pan') this.cancelDrawing();
 			this.ctx.openSettings();
 		});
 
@@ -109,13 +115,12 @@ export class MeasurementController {
 		this.totalDisplay.addClass('ttrpgmap-hidden');
 	}
 
-	/** Show/hide toolbar buttons based on scale state and drawing mode */
+	/** Show/hide toolbar buttons based on scale state */
 	updateToolbarLayout(): void {
 		const hasScale = !!this.state?.distanceScale;
-		const isDrawing = this.mode !== 'pan';
 		this.measureBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
 		this.freehandBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
-		this.settingsBtn?.toggleClass('ttrpgmap-hidden', !hasScale || isDrawing);
+		this.settingsBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
 	}
 
 	setMode(mode: InteractionMode): void {
@@ -135,10 +140,7 @@ export class MeasurementController {
 		this.updateToolbarState();
 		this.updateToolbarLayout();
 		this.updateMeasureMode();
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-grab');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-copy');
-		this.ctx.wrapper.addClass(this.mode === 'pan' ? 'ttrpgmap-cursor-grab' : 'ttrpgmap-cursor-crosshair');
+		this.ctx.updateCursor();
 	}
 
 	cancelDrawing(): void {
@@ -153,10 +155,8 @@ export class MeasurementController {
 		this.updateToolbarLayout();
 		this.updateMeasureMode();
 		this.hideTotalDisplay();
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-copy');
-		this.ctx.wrapper.addClass('ttrpgmap-cursor-grab');
 		this.ctx.wrapper.removeClass('ttrpgmap-panning');
+		this.ctx.updateCursor();
 	}
 
 	/** Get total point count across measure mode and freehand strokes */
@@ -358,9 +358,9 @@ export class MeasurementController {
 
 		new ScaleCalibrationModal(
 			this.ctx.plugin.app as import('obsidian').App,
-			(units, unitLabel) => {
+			(units, unitLabel, unitSystem, unit) => {
 				if (!this.state) return;
-				this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel };
+				this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel, unitSystem, unit };
 				this.ctx.plugin.dataManager.saveMapState(this.ctx.config.id, this.state);
 				new Notice(`Scale set: ${units} ${unitLabel}`);
 				this.cancelDrawing();
@@ -410,7 +410,11 @@ export class MeasurementController {
 	private roundDistance(value: number): number {
 		const mode = this.state?.roundingMode ?? 'none';
 		const multiple = this.state?.roundingMultiple ?? 5;
-		return applyRounding(value, mode, multiple);
+		const baseUnit = this.state?.distanceScale?.unit;
+		const roundingUnit = this.state?.roundingUnit;
+		const effectiveMultiple =
+			baseUnit && roundingUnit ? roundingToBaseUnits(multiple, roundingUnit, baseUnit) : multiple;
+		return applyRounding(value, mode, effectiveMultiple);
 	}
 
 	private formatNumber(value: number): string {
@@ -420,14 +424,36 @@ export class MeasurementController {
 
 	formatDistance(value: number): string {
 		const rounded = this.roundDistance(value);
-		const label = this.state?.distanceScale?.unitLabel ?? '';
-		const display = this.formatNumber(rounded);
+		const scale = this.state?.distanceScale;
+		const baseUnit = scale?.unit;
+		const system = scale?.unitSystem;
 		const isRounding = (this.state?.roundingMode ?? 'none') !== 'none' && (this.state?.roundingMultiple ?? 0) > 0;
-		if (isRounding && this.state?.showRawDistance) {
-			const rawDisplay = this.formatNumber(value);
-			return `${display} (${rawDisplay}) ${label}`;
+
+		// Custom or legacy: existing flat-number behavior
+		if (!system || system === 'custom' || !baseUnit) {
+			const label = scale?.unitLabel ?? '';
+			const display = this.formatNumber(rounded);
+			if (isRounding && this.state?.showRawDistance) {
+				const rawDisplay = this.formatNumber(value);
+				return `${display} (${rawDisplay}) ${label}`;
+			}
+			return `${display} ${label}`;
 		}
-		return `${display} ${label}`;
+
+		// Imperial / metric: use unit conversion system
+		const mode = this.state?.conversionMode ?? 'auto';
+		const fixedUnit = this.state?.displayUnit;
+		const excluded = this.state?.excludedUnits;
+		const decimals = this.state?.distanceDecimals ?? 0;
+		const parts = convertForDisplay(rounded, baseUnit, mode, fixedUnit, excluded);
+		const formatted = formatDisplayParts(parts, decimals);
+
+		if (isRounding && this.state?.showRawDistance) {
+			const rawParts = convertForDisplay(value, baseUnit, mode, fixedUnit, excluded);
+			const rawFormatted = formatDisplayParts(rawParts, decimals);
+			return `${formatted} (${rawFormatted})`;
+		}
+		return formatted;
 	}
 
 	private updateTotalDisplay(): void {

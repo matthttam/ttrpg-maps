@@ -16,6 +16,8 @@ import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
+import type { MeasurementUnit, ConversionMode } from '../units';
+import { getUnitsForSystem } from '../units';
 
 /** Persists collapsed/expanded state for each section across modal opens */
 const sectionExpanded = new WeakMap<App, Record<string, boolean>>();
@@ -253,8 +255,12 @@ export class MapSettingsModal extends Modal {
 		}
 		if (!target) return;
 
-		// Expand the collapsible section if the target is inside one
-		const collapsible = target.closest<HTMLElement>('.ttrpgmap-collapsible-content');
+		// Expand the collapsible section: target may be inside it (regular setting)
+		// or a sibling heading (section name match)
+		const collapsible =
+			target.closest<HTMLElement>('.ttrpgmap-collapsible-content') ??
+			target.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-content') ??
+			null;
 		if (collapsible && collapsible.hasClass('is-collapsed')) {
 			collapsible.removeClass('is-collapsed');
 			const chevron = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-folder-chevron');
@@ -270,13 +276,16 @@ export class MapSettingsModal extends Modal {
 			}
 		}
 
+		// If the target is a section heading, flash the collapsible content instead
+		const highlightEl = collapsible ?? target;
+
 		activeWindow.setTimeout(() => {
-			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			target.addClass('ttrpgmap-setting-highlight');
-			target.addEventListener(
+			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightEl.addClass('ttrpgmap-setting-highlight');
+			highlightEl.addEventListener(
 				'animationend',
 				() => {
-					target.removeClass('ttrpgmap-setting-highlight');
+					highlightEl.removeClass('ttrpgmap-setting-highlight');
 				},
 				{ once: true },
 			);
@@ -542,6 +551,52 @@ export class MapSettingsModal extends Modal {
 					this.state.markersLocked = value || undefined;
 				});
 			});
+
+		// Max rendered markers
+		const globalMax = this.plugin.settings.maxRenderedMarkers ?? 500;
+		const hasMaxOverride = this.state.maxRenderedMarkers != null;
+		const effectiveMax = this.state.maxRenderedMarkers ?? globalMax;
+
+		const maxSetting = new Setting(items).setName('Max rendered markers');
+		let maxTextRef: { setValue: (v: string) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
+
+		maxSetting.addText((text) => {
+			maxTextRef = text;
+			text.inputEl.type = 'number';
+			text.inputEl.min = '1';
+			text.inputEl.step = '1';
+			text.setValue(String(effectiveMax)).onChange((value) => {
+				const num = parseInt(value, 10);
+				if (!isNaN(num) && num > 0) this.state.maxRenderedMarkers = num;
+			});
+			if (!hasMaxOverride) text.setDisabled(true);
+		});
+
+		maxSetting.addToggle((toggle) => {
+			toggle.setValue(hasMaxOverride).onChange((enabled) => {
+				if (enabled) {
+					if (maxTextRef) {
+						maxTextRef.setDisabled(false);
+						maxTextRef.setValue(String(globalMax));
+					}
+					this.state.maxRenderedMarkers = globalMax;
+					maxSetting.setDesc(`Map override: ${globalMax} (global default: ${globalMax})`);
+				} else {
+					if (maxTextRef) {
+						maxTextRef.setDisabled(true);
+						maxTextRef.setValue(String(globalMax));
+					}
+					this.state.maxRenderedMarkers = undefined;
+					maxSetting.setDesc(`Using global default: ${globalMax}`);
+				}
+			});
+		});
+
+		maxSetting.setDesc(
+			hasMaxOverride
+				? `Map override: ${effectiveMax} (global default: ${globalMax})`
+				: `Using global default: ${globalMax}`,
+		);
 	}
 
 	private buildTextSection(contentEl: HTMLElement): void {
@@ -585,40 +640,111 @@ export class MapSettingsModal extends Modal {
 
 	private buildMeasurementSection(contentEl: HTMLElement): void {
 		const items = this.buildCollapsibleGroup(contentEl, 'Measurement');
+		const scale = this.state.distanceScale;
 
-		const currentMode = this.state.roundingMode ?? 'none';
+		if (!scale) {
+			new Setting(items)
+				.setName('No scale set')
+				.setDesc(
+					'Set a distance scale on the map first by clicking the ruler icon and measuring a reference distance.',
+				);
+			return;
+		}
 
-		// Rounding mode
-		const roundingSetting = new Setting(items).setName('Rounding mode').setDesc('How measured distances are rounded');
+		const system = scale.unitSystem;
+		const hasStructuredUnits = system === 'imperial' || system === 'metric';
+		const systemUnits = hasStructuredUnits ? getUnitsForSystem(system) : [];
 
-		// Rounding multiple (conditionally visible)
-		const multipleSetting = new Setting(items)
-			.setName('Rounding multiple')
-			.setDesc('Round distances to the nearest multiple of this value');
+		// ── Conversion mode (imperial/metric only) ──
+		const conversionSetting = new Setting(items)
+			.setName('Unit conversion')
+			.setDesc('How distances are converted for display');
 
-		// Show raw distance (conditionally visible)
-		const rawSetting = new Setting(items)
-			.setName('Show raw distance')
-			.setDesc('Display the unrounded distance alongside the rounded value');
+		const displayUnitSetting = new Setting(items).setName('Display unit');
 
-		const updateConditionalVisibility = (mode: string) => {
-			const isNone = mode === 'none';
-			multipleSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
-			rawSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+		const conversionUnitsHeading = new Setting(items)
+			.setName('Conversion units')
+			.setDesc('Units available for auto-conversion');
+		const conversionUnitSettings: Setting[] = [];
+
+		const updateConversionVisibility = (mode: string) => {
+			displayUnitSetting.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'fixed');
+			conversionUnitsHeading.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'auto');
+			for (const s of conversionUnitSettings) {
+				s.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'auto');
+			}
 		};
 
+		if (hasStructuredUnits) {
+			const currentConversion = this.state.conversionMode ?? 'auto';
+			const baseIdx = systemUnits.findIndex((u) => u.id === scale?.unit);
+			const largerUnits = systemUnits.filter((_, i) => i > baseIdx);
+
+			conversionSetting.addDropdown((dropdown) => {
+				dropdown
+					.addOption('none', 'No conversion')
+					.addOption('auto', 'Auto-convert')
+					.addOption('fixed', 'Always show as...')
+					.setValue(currentConversion)
+					.onChange((value) => {
+						this.state.conversionMode = value as ConversionMode;
+						updateConversionVisibility(value);
+					});
+			});
+
+			displayUnitSetting.addDropdown((dropdown) => {
+				for (const u of systemUnits) {
+					dropdown.addOption(u.id, u.label.charAt(0).toUpperCase() + u.label.slice(1));
+				}
+				dropdown.setValue(this.state.displayUnit ?? scale?.unit ?? systemUnits[0]?.id ?? '').onChange((value) => {
+					this.state.displayUnit = value as MeasurementUnit;
+				});
+			});
+
+			// Conversion unit toggles (one per unit, each with a label)
+			const excluded = new Set(this.state.excludedUnits ?? []);
+			for (const u of largerUnits) {
+				const unitSetting = new Setting(items)
+					.setName(u.label.charAt(0).toUpperCase() + u.label.slice(1))
+					.addToggle((toggle) => {
+						toggle.setValue(!excluded.has(u.id)).onChange((enabled) => {
+							if (!this.state.excludedUnits) this.state.excludedUnits = [];
+							if (enabled) {
+								this.state.excludedUnits = this.state.excludedUnits.filter((id) => id !== u.id);
+							} else {
+								this.state.excludedUnits.push(u.id);
+							}
+						});
+					});
+				conversionUnitSettings.push(unitSetting);
+			}
+
+			updateConversionVisibility(currentConversion);
+		} else {
+			conversionSetting.settingEl.addClass('ttrpgmap-hidden');
+			displayUnitSetting.settingEl.addClass('ttrpgmap-hidden');
+			conversionUnitsHeading.settingEl.addClass('ttrpgmap-hidden');
+		}
+
+		// ── Rounding mode ──
+		const currentRoundingMode = this.state.roundingMode ?? 'none';
+
+		const roundingSetting = new Setting(items).setName('Rounding mode').setDesc('How measured distances are rounded');
 		roundingSetting.addDropdown((dropdown) => {
 			dropdown
 				.addOption('none', 'None')
 				.addOption('closest', 'Closest')
 				.addOption('up', 'Up to')
 				.addOption('down', 'Down to')
-				.setValue(currentMode)
+				.setValue(currentRoundingMode)
 				.onChange((value) => {
 					this.state.roundingMode = value as RoundingMode;
-					updateConditionalVisibility(value);
+					updateRoundingVisibility(value);
 				});
 		});
+
+		// ── Rounding multiple + unit ──
+		const multipleSetting = new Setting(items).setName('Round to nearest');
 
 		multipleSetting.addText((text) => {
 			text
@@ -633,15 +759,35 @@ export class MapSettingsModal extends Modal {
 			text.inputEl.step = 'any';
 		});
 
+		if (hasStructuredUnits) {
+			multipleSetting.addDropdown((dropdown) => {
+				for (const u of systemUnits) {
+					dropdown.addOption(u.id, u.label.charAt(0).toUpperCase() + u.label.slice(1));
+				}
+				dropdown.setValue(this.state.roundingUnit ?? scale?.unit ?? systemUnits[0]?.id ?? '').onChange((value) => {
+					this.state.roundingUnit = value as MeasurementUnit;
+				});
+			});
+		}
+
+		// ── Show raw distance ──
+		const rawSetting = new Setting(items)
+			.setName('Show raw distance')
+			.setDesc('Display the unrounded distance alongside the rounded value');
 		rawSetting.addToggle((toggle) => {
 			toggle.setValue(this.state.showRawDistance ?? false).onChange((value) => {
 				this.state.showRawDistance = value;
 			});
 		});
 
-		updateConditionalVisibility(currentMode);
+		const updateRoundingVisibility = (mode: string) => {
+			const isNone = mode === 'none';
+			multipleSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+			rawSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+		};
+		updateRoundingVisibility(currentRoundingMode);
 
-		// Decimal places
+		// ── Decimal places ──
 		new Setting(items)
 			.setName('Decimal places')
 			.setDesc('Number of decimal places shown in distance values')

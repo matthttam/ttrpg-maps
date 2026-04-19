@@ -5,6 +5,7 @@ import {
 	MarkerTemplate,
 	MarkerDirection,
 	TextPlacement,
+	TextVisibility,
 	MarkerLayer,
 	DEFAULT_LAYER_ID,
 	MarkerFont,
@@ -48,6 +49,7 @@ export class MarkerEditModal extends Modal {
 		textScale: number | null;
 		textScaleToZoom: boolean | null;
 		font: MarkerFont | null;
+		textVisibility: TextVisibility | null;
 	};
 	private onSave: (marker: typeof this.marker) => void;
 
@@ -169,7 +171,7 @@ export class MarkerEditModal extends Modal {
 		const infoItems = mainCol.createDiv({ cls: 'setting-items' });
 		this.buildMainFields(infoItems, template, previewContainer);
 		this.buildAdditionalOptions(contentEl, previewContainer);
-		this.buildSizeOverrides(contentEl);
+		this.buildSizeOverrides(contentEl, previewContainer);
 		this.buildFooter(contentEl, template);
 	}
 
@@ -341,7 +343,7 @@ export class MarkerEditModal extends Modal {
 		});
 	}
 
-	private buildSizeOverrides(contentEl: HTMLElement): void {
+	private buildSizeOverrides(contentEl: HTMLElement, previewContainer: HTMLElement): void {
 		const group = contentEl.createDiv({ cls: 'setting-group' });
 		const expanded = sizeOverridesExpanded.get(this.app) ?? false;
 
@@ -449,6 +451,21 @@ export class MarkerEditModal extends Modal {
 						if (value === 'inherit') this.marker.textScaleToZoom = null;
 						else if (value === 'screen') this.marker.textScaleToZoom = true;
 						else this.marker.textScaleToZoom = false;
+					});
+			});
+
+		new Setting(items)
+			.setName('Text visibility')
+			.setDesc('Control whether the marker label is shown')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.marker.textVisibility ?? 'visible')
+					.onChange((value) => {
+						this.marker.textVisibility = value === 'visible' ? null : (value as TextVisibility);
+						this.renderPreview(previewContainer);
 					});
 			});
 	}

@@ -72,6 +72,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
 		textScale: null,
 		textScaleToZoom: null,
 		font: null,
+		textVisibility: null,
 		...overrides,
 	};
 }
@@ -685,7 +686,7 @@ describe('MapRenderer Alt+Scroll resize', () => {
 	});
 
 	it('scale is clamped to maximum', async () => {
-		const marker = createMarker({ scale: 4.98 });
+		const marker = createMarker({ scale: 9.98 });
 		const plugin = createMockPlugin({ markers: [marker] });
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
 		await renderer.onload();
@@ -693,7 +694,7 @@ describe('MapRenderer Alt+Scroll resize', () => {
 		const pinEl = container.querySelector('.ttrpgmap-marker-pin') as HTMLElement;
 		dispatchWheel(pinEl, { deltaY: -100 }); // scroll up
 
-		expect(marker.scale).toBe(5.0);
+		expect(marker.scale).toBe(10.0);
 	});
 
 	it("map-level Shift+Alt initializes from hovered marker's effective scale", async () => {

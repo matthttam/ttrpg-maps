@@ -25,11 +25,12 @@ import { MeasurementController, MeasurementContext } from './MeasurementControll
 
 const RESIZE_SCALE_SENSITIVITY = 0.005;
 const MIN_MARKER_SCALE = 0.1;
-const MAX_MARKER_SCALE = 5.0;
+const MAX_MARKER_SCALE = 10.0;
 const MIN_MARKER_TEXT_SCALE = 0.1;
-const MAX_MARKER_TEXT_SCALE = 5.0;
+const MAX_MARKER_TEXT_SCALE = 10.0;
 const SCROLL_SCALE_STEP = 0.05;
 const RESIZE_SAVE_DEBOUNCE_MS = 300;
+const DEFAULT_MAX_RENDERED_MARKERS = 500;
 
 export class MapRenderer extends MarkdownRenderChild {
 	private plugin: TTRPGMapsPlugin;
@@ -45,6 +46,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	private imageEl!: HTMLImageElement;
 	private svgOverlay!: SVGSVGElement;
 	private markerListScroll: HTMLElement | null = null;
+	private markerCullBanner: HTMLElement | null = null;
 
 	// Pan/zoom state
 	private zoom = 100;
@@ -56,6 +58,9 @@ export class MapRenderer extends MarkdownRenderChild {
 	private zoomLocked = false;
 	private panLocked = false;
 	private markersLocked = false;
+
+	// Marker focus state (last-hovered stays promoted via incrementing z-index)
+	private markerZCounter = 0;
 
 	// Marker drag state
 	private draggingMarker: MapMarker | null = null;
@@ -69,6 +74,12 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	// Measurement/drawing delegate
 	private measurement!: MeasurementController;
+
+	// Map edge resize state
+	private edgeResizeAxis: 'width' | 'height' | null = null;
+	private edgeHoverAxis: 'width' | 'height' | null = null;
+	private edgeResizeStartPos = 0;
+	private edgeResizeStartSize = 0;
 
 	// Resize mode state
 	private resizingMarker: MapMarker | null = null;
@@ -216,6 +227,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.measurePanelEl = this.measurement.panelEl;
 		this.buildSettingsButton();
 		this.buildMarkerListPanel();
+		this.markerCullBanner = this.wrapper.createDiv({ cls: 'ttrpgmap-cull-banner ttrpgmap-hidden' });
 		this.applyControlVisibility();
 		this.applyControlOpacity();
 		this.bindEvents();
@@ -328,6 +340,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.panLocked = !this.panLocked;
 			panLockBtn.toggleClass('is-active', this.panLocked);
 			this.wrapper.toggleClass('ttrpgmap-pan-locked', this.panLocked);
+			this.updateCursor();
 			if (this.state) {
 				this.state.panLocked = this.panLocked;
 				this.plugin.dataManager.saveMapState(this.config.id, this.state);
@@ -410,7 +423,8 @@ export class MapRenderer extends MarkdownRenderChild {
 					this._cancelCopy = null;
 				}
 			},
-			openSettings: () => this.openSettings(),
+			openSettings: () => this.openSettings('Measurement'),
+			updateCursor: () => this.updateCursor(),
 		};
 	}
 
@@ -836,6 +850,15 @@ export class MapRenderer extends MarkdownRenderChild {
 		activeWindow.addEventListener('mouseup', () => {
 			if (this.draggingMarker) this.onMouseUp();
 		});
+		this.wrapper.addEventListener(
+			'click',
+			(e) => {
+				if (this.measurement.mode !== 'pan' && !this.mapContainer.contains(e.target as Node)) {
+					this.measurement.cancelDrawing();
+				}
+			},
+			true,
+		);
 		this.wrapper.addEventListener('click', (e) => this.measurement.onMapClick(e));
 		this.wrapper.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
 		this.wrapper.addEventListener('contextmenu', this.onContextMenu.bind(this));
@@ -873,6 +896,83 @@ export class MapRenderer extends MarkdownRenderChild {
 		if (!trimmed) return null;
 		if (/[a-z%]/i.test(trimmed)) return trimmed;
 		return `${trimmed}px`;
+	}
+
+	/** Detect if the mouse is near the right or bottom edge of the wrapper (within 10px) */
+	private detectWrapperEdge(e: MouseEvent): 'width' | 'height' | null {
+		const rect = this.wrapper.getBoundingClientRect();
+		const threshold = 10;
+		const nearRight = Math.abs(e.clientX - rect.right) < threshold && e.clientY >= rect.top && e.clientY <= rect.bottom;
+		const nearBottom =
+			Math.abs(e.clientY - rect.bottom) < threshold && e.clientX >= rect.left && e.clientX <= rect.right;
+		// Prefer the closer edge if near a corner
+		if (nearRight && nearBottom) {
+			return Math.abs(e.clientX - rect.right) < Math.abs(e.clientY - rect.bottom) ? 'width' : 'height';
+		}
+		if (nearRight) return 'width';
+		if (nearBottom) return 'height';
+		return null;
+	}
+
+	/** Start an edge resize operation with window-level mouse tracking */
+	private startEdgeResize(axis: 'width' | 'height', e: MouseEvent): void {
+		this.edgeResizeAxis = axis;
+		this.edgeResizeStartPos = axis === 'width' ? e.clientX : e.clientY;
+		const rect = this.wrapper.getBoundingClientRect();
+		this.edgeResizeStartSize = axis === 'width' ? rect.width : rect.height;
+		const ratio = this.imageEl ? this.imageEl.naturalWidth / this.imageEl.naturalHeight : 0;
+
+		const onMove = (ev: MouseEvent) => {
+			const delta = axis === 'width' ? ev.clientX - this.edgeResizeStartPos : ev.clientY - this.edgeResizeStartPos;
+			const newSize = Math.max(50, Math.round(this.edgeResizeStartSize + delta));
+			if (axis === 'width') {
+				this.wrapper.style.width = `${newSize}px`;
+				this.wrapper.style.height = ratio ? `${Math.round(newSize / ratio)}px` : 'auto';
+			} else {
+				this.wrapper.style.height = `${newSize}px`;
+				this.wrapper.style.width = ratio ? `${Math.round(newSize * ratio)}px` : 'auto';
+			}
+		};
+
+		const onUp = () => {
+			activeWindow.removeEventListener('mousemove', onMove);
+			activeWindow.removeEventListener('mouseup', onUp);
+			const finalRect = this.wrapper.getBoundingClientRect();
+			if (axis === 'width') {
+				this.config.width = `${Math.round(finalRect.width)}`;
+				this.config.height = null;
+			} else {
+				this.config.height = `${Math.round(finalRect.height)}`;
+				this.config.width = null;
+			}
+			this.edgeResizeAxis = null;
+			this.edgeHoverAxis = null;
+			this.updateCursor();
+			this.applyWrapperSize();
+			this.updateImageScaleCache();
+			this.syncViewportMarkers(true);
+			this.renderMarkers();
+			// Persist current zoom/pan before writing config, since the code block
+			// rewrite triggers a full re-render that loads state from disk
+			if (this.state) {
+				this.state.savedZoom = this.zoom;
+				this.state.savedPanX = this.panX;
+				this.state.savedPanY = this.panY;
+				this.plugin.dataManager.saveMapState(this.config.id, this.state);
+				this.plugin.dataManager.flushSavesSync();
+			}
+			if (this.sectionInfo) {
+				void writeConfigToCodeBlock(
+					this.plugin.app,
+					this.sourcePath,
+					this.sectionInfo,
+					serializeMapConfig(this.config),
+				);
+			}
+		};
+
+		activeWindow.addEventListener('mousemove', onMove);
+		activeWindow.addEventListener('mouseup', onUp);
 	}
 
 	private applyWrapperSize(): void {
@@ -917,6 +1017,37 @@ export class MapRenderer extends MarkdownRenderChild {
 			if (this.imageEl) {
 				this.imageEl.addClass('ttrpgmap-size-auto-height');
 			}
+		}
+	}
+
+	// ──────────────────── Cursor ────────────────────
+
+	private static readonly CURSOR_CLASSES = [
+		'ttrpgmap-cursor-grab',
+		'ttrpgmap-cursor-crosshair',
+		'ttrpgmap-cursor-copy',
+		'ttrpgmap-cursor-ew-resize',
+		'ttrpgmap-cursor-ns-resize',
+	] as const;
+
+	/** Evaluate all state and apply the single correct cursor class */
+	private updateCursor(): void {
+		let cls: string;
+		if (this.edgeResizeAxis === 'width' || this.edgeHoverAxis === 'width') {
+			cls = 'ttrpgmap-cursor-ew-resize';
+		} else if (this.edgeResizeAxis === 'height' || this.edgeHoverAxis === 'height') {
+			cls = 'ttrpgmap-cursor-ns-resize';
+		} else if (this.measurement.mode !== 'pan') {
+			cls = 'ttrpgmap-cursor-crosshair';
+		} else if (this.pendingCopy) {
+			cls = 'ttrpgmap-cursor-copy';
+		} else if (this.panLocked) {
+			cls = '';
+		} else {
+			cls = 'ttrpgmap-cursor-grab';
+		}
+		for (const c of MapRenderer.CURSOR_CLASSES) {
+			this.wrapper.toggleClass(c, c === cls);
 		}
 	}
 
@@ -1011,6 +1142,18 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private onMouseDown(e: MouseEvent): void {
 		if (e.button !== 0) return;
+
+		// Edge resize: ALT + mousedown near wrapper edge (only when idle)
+		if (e.altKey && !this.edgeResizeAxis && this.measurement.mode === 'pan' && !this.pendingCopy) {
+			const edge = this.detectWrapperEdge(e);
+			if (edge) {
+				e.preventDefault();
+				e.stopPropagation();
+				this.startEdgeResize(edge, e);
+				return;
+			}
+		}
+
 		// Only handle interactions on the map surface, not UI overlays
 		if (!(e.target as HTMLElement).closest('.ttrpgmap-container, .ttrpgmap-marker-overlay')) return;
 
@@ -1063,6 +1206,26 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private onMouseMove(e: MouseEvent): void {
+		// Edge resize cursor: detect ALT + near edge
+		if (
+			!this.edgeResizeAxis &&
+			e.altKey &&
+			!this.isPanning &&
+			!this.draggingMarker &&
+			this.measurement.mode === 'pan' &&
+			!this.pendingCopy
+		) {
+			const edge = this.detectWrapperEdge(e);
+			if (this.edgeHoverAxis !== edge) {
+				this.edgeHoverAxis = edge;
+				this.updateCursor();
+			}
+			if (edge) return;
+		} else if (this.edgeHoverAxis) {
+			this.edgeHoverAxis = null;
+			this.updateCursor();
+		}
+
 		// Measure preview: rubber-band line from last committed point to cursor
 		if (this.measurement.mode === 'measure' && this.measurement.hasDrawingPoints) {
 			this.measurement.updateMeasurePreview(e);
@@ -1294,6 +1457,10 @@ export class MapRenderer extends MarkdownRenderChild {
 		return this.state?.showHoverPreview ?? this.plugin.settings.showHoverPreview ?? false;
 	}
 
+	private get maxRenderedMarkers(): number {
+		return this.state?.maxRenderedMarkers ?? this.plugin.settings.maxRenderedMarkers ?? DEFAULT_MAX_RENDERED_MARKERS;
+	}
+
 	/** Sync lock state from this.state and update button visuals */
 	private applyLockState(): void {
 		this.zoomLocked = this.state?.zoomLocked ?? false;
@@ -1310,6 +1477,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.markerLockBtnEl.empty();
 			setIcon(this.markerLockBtnEl, this.markersLocked ? 'map-pin-off' : 'map-pin');
 		}
+		this.updateCursor();
 	}
 
 	/** Apply control opacity from global + per-map settings */
@@ -1458,11 +1626,37 @@ export class MapRenderer extends MarkdownRenderChild {
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 
-		// Track which marker IDs should be in the DOM (in viewport AND layer-visible)
-		const visibleIds = new Set<string>();
+		// Collect all viewport-visible markers
+		const vpCenterX = (vp.left + vp.right) / 2;
+		const vpCenterY = (vp.top + vp.bottom) / 2;
+		const candidates: Array<{ id: string; dist: number }> = [];
 		for (const marker of this.state.markers) {
 			if (this.isMarkerVisible(marker) && this.isInViewport(marker, sx, sy, scale, vp)) {
-				visibleIds.add(marker.id);
+				const px = marker.x * sx * scale;
+				const py = marker.y * sy * scale;
+				const dx = px - vpCenterX;
+				const dy = py - vpCenterY;
+				candidates.push({ id: marker.id, dist: dx * dx + dy * dy });
+			}
+		}
+
+		// Cap to max rendered markers, keeping center-most
+		const maxMarkers = this.maxRenderedMarkers;
+		const totalVisible = candidates.length;
+		if (candidates.length > maxMarkers) {
+			candidates.sort((a, b) => a.dist - b.dist);
+			candidates.length = maxMarkers;
+		}
+
+		const visibleIds = new Set(candidates.map((c) => c.id));
+
+		// Update cull banner
+		if (this.markerCullBanner) {
+			if (totalVisible > maxMarkers) {
+				this.markerCullBanner.setText(`Showing ${maxMarkers} of ${totalVisible} markers`);
+				this.markerCullBanner.removeClass('ttrpgmap-hidden');
+			} else {
+				this.markerCullBanner.addClass('ttrpgmap-hidden');
 			}
 		}
 
@@ -1507,6 +1701,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private renderMarkers(): void {
 		if (!this.state) return;
+		this.markerZCounter = 0;
 		this.resizeHandleEl = null;
 		this.isDraggingHandle = false;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
@@ -1518,13 +1713,42 @@ export class MapRenderer extends MarkdownRenderChild {
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 		const isMeasuring = this.measurement.mode !== 'pan';
 
-		const fragment = document.createDocumentFragment();
+		// Collect visible markers and cap to MAX_RENDERED_MARKERS (center-most)
+		const vpCenterX = (vp.left + vp.right) / 2;
+		const vpCenterY = (vp.top + vp.bottom) / 2;
+		const candidates: Array<{ marker: MapMarker; dist: number }> = [];
 		for (const marker of this.state.markers) {
 			if (!this.isMarkerVisible(marker) || !this.isInViewport(marker, sx, sy, scale, vp)) continue;
+			const px = marker.x * sx * scale;
+			const py = marker.y * sy * scale;
+			const dx = px - vpCenterX;
+			const dy = py - vpCenterY;
+			candidates.push({ marker, dist: dx * dx + dy * dy });
+		}
+
+		const maxMarkers = this.maxRenderedMarkers;
+		const totalVisible = candidates.length;
+		if (candidates.length > maxMarkers) {
+			candidates.sort((a, b) => a.dist - b.dist);
+			candidates.length = maxMarkers;
+		}
+
+		const fragment = document.createDocumentFragment();
+		for (const { marker } of candidates) {
 			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
 			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
 		}
 		this.markerOverlay.appendChild(fragment);
+
+		// Update cull banner
+		if (this.markerCullBanner) {
+			if (totalVisible > maxMarkers) {
+				this.markerCullBanner.setText(`Showing ${maxMarkers} of ${totalVisible} markers`);
+				this.markerCullBanner.removeClass('ttrpgmap-hidden');
+			} else {
+				this.markerCullBanner.addClass('ttrpgmap-hidden');
+			}
+		}
 
 		this.recoverResizeMode();
 	}
@@ -1595,7 +1819,13 @@ export class MapRenderer extends MarkdownRenderChild {
 			shape: marker.shape ?? 'pin',
 		});
 
-		buildMarkerLabel(markerEl, marker.note, marker.alias, marker.description, 'ttrpgmap-marker-label');
+		const textVis = marker.textVisibility ?? 'visible';
+		if (textVis !== 'hidden') {
+			buildMarkerLabel(markerEl, marker.note, marker.alias, marker.description, 'ttrpgmap-marker-label');
+		}
+		if (textVis === 'hover') {
+			markerEl.dataset.textVisibility = 'hover';
+		}
 
 		return markerEl;
 	}
@@ -1623,7 +1853,21 @@ export class MapRenderer extends MarkdownRenderChild {
 	private attachMarkerHoverPreview(marker: MapMarker, markerEl: HTMLElement): void {
 		let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 		let hoverSuppressed = false;
-		const hoverParent: { hoverPopover: { hide: () => void } | null } = { hoverPopover: null };
+		// Hover parent with intercepted setter: auto-hides popover if suppressed
+		let _popover: { hide: () => void } | null = null;
+		const hoverParent = {
+			get hoverPopover() {
+				return _popover;
+			},
+			set hoverPopover(v: { hide: () => void } | null) {
+				if (v && hoverSuppressed) {
+					v.hide();
+					_popover = null;
+				} else {
+					_popover = v;
+				}
+			},
+		};
 
 		const clearHoverTimeout = () => {
 			if (hoverTimeout) {
@@ -1633,18 +1877,20 @@ export class MapRenderer extends MarkdownRenderChild {
 		};
 		const dismissPopover = () => {
 			clearHoverTimeout();
-			if (hoverParent.hoverPopover) {
-				hoverParent.hoverPopover.hide();
-				hoverParent.hoverPopover = null;
-			}
 			hoverSuppressed = true;
+			if (_popover) {
+				_popover.hide();
+				_popover = null;
+			}
 		};
 
 		markerEl.addEventListener('mouseenter', (e) => {
-			markerEl.setCssStyles({ zIndex: '10' });
-			hoverSuppressed = false;
+			// Promote this marker above all previously hovered markers
+			this.markerZCounter++;
+			markerEl.setCssStyles({ zIndex: String(this.markerZCounter) });
+			if (!this.draggingMarker && !this.isPanning) hoverSuppressed = false;
 			this.dismissActiveHover = dismissPopover;
-			if (this.draggingMarker || e.altKey || !this.showHoverPreview) return;
+			if (this.draggingMarker || this.isPanning || e.altKey || !this.showHoverPreview) return;
 
 			let previewPath: string | null = null;
 			if (marker.previewNote) {
@@ -1659,7 +1905,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 			hoverTimeout = setTimeout(() => {
 				hoverTimeout = null;
-				if (this.draggingMarker || hoverSuppressed) return;
+				if (this.draggingMarker || this.isPanning || hoverSuppressed) return;
 				hoverParent.hoverPopover = null;
 				this.plugin.app.workspace.trigger('hover-link', {
 					event: e,
@@ -1673,7 +1919,6 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 
 		markerEl.addEventListener('mouseleave', () => {
-			markerEl.setCssStyles({ zIndex: '' });
 			clearHoverTimeout();
 		});
 
@@ -1684,6 +1929,10 @@ export class MapRenderer extends MarkdownRenderChild {
 		markerEl.addEventListener('mousedown', (e) => {
 			if (e.button !== 0 || this.resizingMarker || this.pendingCopy) return;
 			e.stopPropagation();
+			if (this.dismissActiveHover) {
+				this.dismissActiveHover();
+				this.dismissActiveHover = null;
+			}
 			this.draggingMarker = marker;
 			this.dragMarkerEl = markerEl;
 			this.dragStartX = e.clientX;
@@ -1774,6 +2023,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 
 		new MarkerEditModal(
@@ -1806,9 +2056,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private startCopyMarker(source: MapMarker): void {
 		this.pendingCopy = source;
-		this.wrapper.removeClass('ttrpgmap-cursor-grab');
-		this.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-		this.wrapper.addClass('ttrpgmap-cursor-copy');
+		this.updateCursor();
 		this.wrapper.addClass('ttrpgmap-copy-mode');
 
 		// Create ghost preview fixed to the viewport
@@ -1851,9 +2099,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		const cancel = () => {
 			this.pendingCopy = null;
-			this.wrapper.removeClass('ttrpgmap-cursor-copy');
-			this.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-			this.wrapper.addClass('ttrpgmap-cursor-grab');
+			this.updateCursor();
 			this.wrapper.removeClass('ttrpgmap-copy-mode');
 			ghost.remove();
 			this.wrapper.removeEventListener('mousemove', onMove);
@@ -2038,13 +2284,11 @@ export class MapRenderer extends MarkdownRenderChild {
 				setting.openTabById(this.plugin.manifest.id);
 			});
 		});
-		if (!this.isControlVisible('showMapSettings') || this.controlOpacity === 0) {
-			menu.addItem((item) => {
-				item.setTitle('Edit map');
-				item.setIcon('settings');
-				item.onClick(() => this.openSettings());
-			});
-		}
+		menu.addItem((item) => {
+			item.setTitle('Edit map');
+			item.setIcon('settings');
+			item.onClick(() => this.openSettings());
+		});
 
 		menu.showAtMouseEvent(e);
 	}
@@ -2063,6 +2307,12 @@ export class MapRenderer extends MarkdownRenderChild {
 			(updatedConfig, updatedState) => {
 				this.config = updatedConfig;
 				this.state = updatedState;
+				// Persist zoom/pan so re-render from code block write restores them
+				updatedState.savedZoom = this.zoom;
+				updatedState.savedPanX = this.panX;
+				updatedState.savedPanY = this.panY;
+				this.plugin.dataManager.saveMapState(this.config.id, updatedState);
+				this.plugin.dataManager.flushSavesSync();
 				this.applyWrapperSize();
 				if (this.sectionInfo) {
 					void writeConfigToCodeBlock(
@@ -2072,7 +2322,6 @@ export class MapRenderer extends MarkdownRenderChild {
 						serializeMapConfig(this.config),
 					);
 				}
-				this.plugin.dataManager.saveMapState(this.config.id, updatedState);
 				this.applyControlVisibility();
 				this.applyControlOpacity();
 				this.applyLockState();

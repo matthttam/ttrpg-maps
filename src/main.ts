@@ -87,5 +87,7 @@ export default class TTRPGMapsPlugin extends Plugin {
 		});
 	}
 
-	onunload(): void {}
+	onunload(): void {
+		this.dataManager.flushSavesSync();
+	}
 }

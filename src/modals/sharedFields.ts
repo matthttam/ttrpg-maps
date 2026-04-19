@@ -321,7 +321,7 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	setting.addSlider((slider) => {
 		sliderRef = slider;
 		slider
-			.setLimits(25, 300, 5)
+			.setLimits(10, 1000, 5)
 			.setValue(Math.round(value * 100))
 			.onChange((v: number) => {
 				if (textRef) textRef.setValue(String(v));
@@ -337,13 +337,13 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	setting.addText((text) => {
 		textRef = text;
 		text.inputEl.type = 'number';
-		text.inputEl.min = '25';
-		text.inputEl.max = '300';
+		text.inputEl.min = '10';
+		text.inputEl.max = '1000';
 		text.inputEl.step = '5';
 		text.inputEl.addClass('ttrpgmap-scale-input');
 		text.setValue(String(Math.round(value * 100))).onChange((v: string) => {
 			const num = parseInt(v, 10);
-			if (!isNaN(num) && num >= 25 && num <= 300) {
+			if (!isNaN(num) && num >= 10 && num <= 1000) {
 				if (sliderRef) sliderRef.setValue(num);
 				onChange(num / 100);
 			}

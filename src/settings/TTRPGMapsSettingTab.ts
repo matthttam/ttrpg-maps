@@ -82,6 +82,25 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 						this.save(true);
 					});
 			});
+
+		new Setting(containerEl)
+			.setName('Max rendered markers')
+			.setDesc('Maximum number of markers rendered at once. Reduces lag on maps with many markers.')
+			.addText((text) => {
+				text
+					.setValue(String(this.plugin.settings.maxRenderedMarkers ?? 500))
+					.setPlaceholder('500')
+					.onChange((value) => {
+						const num = parseInt(value, 10);
+						if (!isNaN(num) && num > 0) {
+							this.plugin.settings.maxRenderedMarkers = num;
+							this.save(true);
+						}
+					});
+				text.inputEl.type = 'number';
+				text.inputEl.min = '1';
+				text.inputEl.step = '1';
+			});
 	}
 
 	private buildTextSection(containerEl: HTMLElement): void {
@@ -122,7 +141,7 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 			setting: fontSetting,
 			value: this.plugin.settings.defaultMarkerFont ?? 'default',
 			onChange: (value) => {
-				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
+				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : (value as MarkerFont);
 				this.save(true);
 			},
 		});
@@ -132,29 +151,64 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Navigation').setHeading();
 
 		this.addToggle(
-			containerEl, 'Open links in new tab',
+			containerEl,
+			'Open links in new tab',
 			'When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.',
-			'openLinksInNewTab', false,
+			'openLinksInNewTab',
+			false,
 		);
 
 		this.addToggle(
-			containerEl, 'Show hover preview',
+			containerEl,
+			'Show hover preview',
 			'Show a page preview when hovering over markers with linked notes.',
-			'showHoverPreview', false,
+			'showHoverPreview',
+			false,
 		);
 	}
 
 	private buildControlsSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Controls').setHeading();
 
-		this.addToggle(containerEl, 'Show measurement tools', 'Show the distance measurement panel on maps', 'showMeasurementTools', true, true);
-		this.addToggle(containerEl, 'Show zoom controls', 'Show zoom buttons, center, fit, and lock toggles on maps', 'showZoomControls', true, true);
-		this.addToggle(containerEl, 'Show marker list', 'Show the marker list tab in the bottom-left panel', 'showMarkerList', true, true);
-		this.addToggle(containerEl, 'Show layer list', 'Show the layer list tab in the bottom-left panel', 'showLayerList', true, true);
 		this.addToggle(
-			containerEl, 'Show map settings button',
+			containerEl,
+			'Show measurement tools',
+			'Show the distance measurement panel on maps',
+			'showMeasurementTools',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show zoom controls',
+			'Show zoom buttons, center, fit, and lock toggles on maps',
+			'showZoomControls',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show marker list',
+			'Show the marker list tab in the bottom-left panel',
+			'showMarkerList',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show layer list',
+			'Show the layer list tab in the bottom-left panel',
+			'showLayerList',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show map settings button',
 			'Show the gear button on maps. When hidden, map settings are accessible from the right-click menu.',
-			'showMapSettings', true, true,
+			'showMapSettings',
+			true,
+			true,
 		);
 
 		const opacitySetting = new Setting(containerEl)

@@ -4,6 +4,9 @@ export type MarkerDirection = 'up' | 'down' | 'left' | 'right';
 /** Where text is placed relative to the marker icon */
 export type TextPlacement = 'above' | 'below' | 'left' | 'right';
 
+/** Controls whether marker text is shown */
+export type TextVisibility = 'visible' | 'hidden' | 'hover';
+
 /** A visibility layer that controls marker show/hide based on zoom level */
 export interface MarkerLayer {
 	id: string;
@@ -69,6 +72,7 @@ export interface MapMarker {
 	textScale: number | null;
 	textScaleToZoom: boolean | null;
 	font: MarkerFont | null;
+	textVisibility: TextVisibility | null;
 }
 
 /** Font ID stored in settings/state. Always a string key from MARKER_FONTS. */
@@ -163,6 +167,8 @@ export function getAvailableMarkerFonts(): MarkerFontDef[] {
 /** How measured distances should be rounded */
 export type RoundingMode = 'none' | 'up' | 'down' | 'closest';
 
+export type { UnitSystem, MeasurementUnit, ConversionMode } from './units';
+
 /** Default marker scale multiplier (1.0 = 100%) */
 export const DEFAULT_MARKER_SCALE = 1.0;
 
@@ -181,6 +187,8 @@ export interface DistanceScale {
 	pointB: MapPoint;
 	units: number;
 	unitLabel: string;
+	unitSystem?: import('./units').UnitSystem;
+	unit?: import('./units').MeasurementUnit;
 }
 
 /** Static config parsed from the ttrpgmap code block (YAML) */
@@ -202,8 +210,12 @@ export interface MapState {
 	distanceScale: DistanceScale | null;
 	roundingMode?: RoundingMode;
 	roundingMultiple?: number;
+	roundingUnit?: import('./units').MeasurementUnit;
 	showRawDistance?: boolean;
 	distanceDecimals?: number;
+	conversionMode?: import('./units').ConversionMode;
+	displayUnit?: import('./units').MeasurementUnit;
+	excludedUnits?: import('./units').MeasurementUnit[];
 	markerScale?: number;
 	scaleMarkersToZoom?: boolean;
 	markerTextScale?: number;
@@ -220,6 +232,7 @@ export interface MapState {
 	showMarkerList?: boolean;
 	showLayerList?: boolean;
 	showMapSettings?: boolean;
+	maxRenderedMarkers?: number;
 	/** Persisted view state (restored on re-render) */
 	savedZoom?: number;
 	savedPanX?: number;
@@ -247,6 +260,7 @@ export interface TTRPGMapsSettings {
 	showMarkerList?: boolean;
 	showLayerList?: boolean;
 	showMapSettings?: boolean;
+	maxRenderedMarkers?: number;
 }
 
 /** IDs of predefined templates that cannot be renamed or deleted */

@@ -517,9 +517,9 @@ The list is sorted alphabetically and scrolls independently from the map (max he
 
 Access map settings via the **gear button** in the bottom-right corner of the map.
 
-Changes are only saved when you click **Save**. Clicking **Cancel** or closing the modal with unsaved changes prompts you to Save, Discard, or go back and continue editing.
+Changes are only saved when you click **Save**. Clicking **Cancel** or closing the modal with unsaved changes prompts you to Save, Discard, or go back and continue editing. An **Export map** button in the footer exports the map as a ZIP bundle (see [Import and Export](#import-and-export)).
 
-The Markers, Text, Controls, and Layers sections are collapsible accordion groups. Their expanded/collapsed state persists across modal opens.
+The Markers, Text, Measurement, Controls, and Layers sections are collapsible accordion groups. Their expanded/collapsed state persists across modal opens.
 
 ### Image
 
@@ -583,9 +583,15 @@ Same controls as marker scale, but for label text.
 - **Mouseover only** - Labels appear on hover
 - **Hidden** - Labels not shown
 
+### Measurement (per-map)
+
+Settings for distance calibration and display. See [Distance Measurement](#distance-measurement) for full details on calibration, unit conversion, rounding, decimal places, and raw distance display. All measurement settings are saved per-map.
+
 ### Controls (per-map override)
 
 Each control can be set to **Inherit** (use the global default), **Show**, or **Hide**. The description shows the current global default for reference. See [Controls section](#controls-section) under Global Settings for the full list.
+
+- **Control opacity** - Toggle to enable a per-map override, slider to set the resting opacity of all map UI controls (0-100%). Controls still go fully opaque on hover
 
 ### Layers
 

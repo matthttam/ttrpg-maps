@@ -180,15 +180,16 @@ export class DataManager {
 	flushSavesSync(): void {
 		if (this.saveTimeouts.size === 0) return;
 		const writes: Array<{ path: string; data: string }> = [];
+		const flushedMapIds: string[] = [];
 		for (const [mapId, timeout] of this.saveTimeouts) {
 			clearTimeout(timeout);
 			const state = this.pendingStates.get(mapId);
 			if (state) {
+				flushedMapIds.push(mapId);
 				writes.push({ path: this.getMapStatePath(mapId), data: JSON.stringify(state, null, 2) });
 			}
 		}
 		this.saveTimeouts.clear();
-		this.pendingStates.clear();
 		if (writes.length === 0) return;
 		// Fire all writes concurrently in a single promise -- minimizes yield points
 		void (async () => {
@@ -197,6 +198,7 @@ export class DataManager {
 				const dir = TTRPGMAP_DIR;
 				if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
 				await Promise.all(writes.map((w) => adapter.write(w.path, w.data)));
+				for (const mapId of flushedMapIds) this.pendingStates.delete(mapId);
 			} catch (e) {
 				console.error('[ttrpg-maps] flushSavesSync write failed:', e);
 			}

@@ -923,6 +923,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	/** Start an edge resize operation with window-level mouse tracking */
 	private startEdgeResize(axis: 'width' | 'height', e: MouseEvent): void {
+		if (!this.interaction.tryEnter('edge-resize')) return;
 		this.edgeResizeAxis = axis;
 		this.edgeResizeStartPos = axis === 'width' ? e.clientX : e.clientY;
 		const rect = this.wrapper.getBoundingClientRect();
@@ -987,6 +988,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 			this.edgeResizeAxis = null;
 			this.edgeHoverAxis = null;
+			this.interaction.exit();
 			this.updateCursor();
 			this.updateImageScaleCache();
 			this.syncViewportMarkers(true);

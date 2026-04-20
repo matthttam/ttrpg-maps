@@ -344,8 +344,10 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 		text.setValue(String(Math.round(value * 100))).onChange((v: string) => {
 			const num = parseInt(v, 10);
 			if (!isNaN(num) && num >= 10 && num <= 1000) {
-				if (sliderRef) sliderRef.setValue(num);
-				onChange(num / 100);
+				const snapped = Math.max(10, Math.min(1000, Math.round(num / 5) * 5));
+				if (sliderRef) sliderRef.setValue(snapped);
+				text.setValue(String(snapped));
+				onChange(snapped / 100);
 			}
 		});
 		if (disabled) text.setDisabled(true);

@@ -111,7 +111,7 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Icon color**              | Color of the icon (independent of pin color)                               |
 | **Pin color**               | Background color of the pin or circle shape                                |
 | **Text placement**          | Where the label appears relative to the marker (above/below/left/right)    |
-| **Text visibility**         | Control whether the marker label is always visible, hover-only, or hidden  |
+| **Text visibility**         | Inherit / Always visible / Mouseover only / Hidden                         |
 | **Marker size**             | Override the map-level marker scale (toggle to enable, slider 10-1000%)    |
 | **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                   |
 | **Text size**               | Override the map-level text scale (toggle to enable, slider 10-1000%)      |

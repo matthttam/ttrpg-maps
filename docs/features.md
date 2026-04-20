@@ -30,6 +30,7 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
   - [Calibration](#calibration)
   - [Point-to-Point Measurement](#point-to-point-measurement)
   - [Freehand Measurement](#freehand-measurement)
+  - [Unit Conversion](#unit-conversion)
   - [Rounding](#rounding)
   - [Decimal Places](#decimal-places)
 - [Visibility Layers](#visibility-layers)
@@ -360,7 +361,7 @@ A **Restore Defaults** button resets all templates and folders to the built-in d
 
 ## Distance Measurement
 
-The measurement panel is accessed via the **ruler icon** button in the top-right area of the map.
+The measurement toolbar is accessed via the **ruler icon** button in the top-right area of the map. It provides inline controls for calibration, measurement mode, and display settings.
 
 <img width="341" height="287" alt="image" src="https://github.com/user-attachments/assets/0fcb9f41-1a94-4b8c-95b8-b0f133016fca" />
 
@@ -368,10 +369,13 @@ The measurement panel is accessed via the **ruler icon** button in the top-right
 
 Calibration sets the distance scale for the map.
 
-1. Click the **Calibrate** button in the measurement panel
+1. Click the **Calibrate** button in the measurement toolbar
 2. The cursor changes to a crosshair
 3. Click two points on the map (a dashed orange line is drawn between them)
-4. A modal asks how many units the line represents and what the unit label is (e.g. "100", "feet")
+4. A modal asks for:
+   - The **distance** the line represents (e.g. "100")
+   - The **measurement system** (Imperial, Metric, or Custom)
+   - The **unit** (e.g. feet, meters) or a free-text label for custom systems
 5. Click **Save Scale**
 
 The scale is saved per-map and persists across sessions. You must calibrate before measuring. A zero-length calibration line (clicking the same point twice) is rejected with a notice. Clicking **Cancel** or closing the calibration modal clears the drawn line and returns to calibration mode.
@@ -380,7 +384,7 @@ The scale is saved per-map and persists across sessions. You must calibrate befo
 
 ### Point-to-Point Measurement
 
-1. Click the **Measure** button in the measurement panel
+1. Click the **Measure** button in the measurement toolbar
 2. Click a point on the map to start
 3. A **preview line** follows the cursor from the last point, showing the distance in real-time
 4. Click to commit the point and start the next segment
@@ -394,7 +398,7 @@ The live preview is useful for finding a specific distance from a point before c
 
 ### Freehand Measurement
 
-1. Click the **Freehand** button in the measurement panel
+1. Click the **Freehand** button in the measurement toolbar
 2. Click and drag to draw a curve on the map
 3. Release to end a stroke (its distance label appears at the midpoint)
 4. Start additional strokes by clicking and dragging again
@@ -403,9 +407,21 @@ The live preview is useful for finding a specific distance from a point before c
 
 ![Measuring Free Hand](https://github.com/user-attachments/assets/abfbd0f7-a0aa-4a60-a444-36f87b373fa6)
 
+### Unit Conversion
+
+When the map is calibrated with Imperial or Metric units, the map settings modal (Measurement section) provides unit conversion controls:
+
+| Setting              | Description                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| **Unit conversion**  | How distances are converted for display: No conversion, Auto-convert, or Always show as...        |
+| **Display unit**     | The target unit when using "Always show as..." mode                                               |
+| **Conversion units** | Toggle individual units on/off for auto-conversion (e.g. disable yards to skip straight to miles) |
+
+In **auto-convert** mode, distances cascade through enabled units from largest to smallest (e.g. "1 mi 2,640 ft"). In **fixed** mode, all distances display in the chosen unit. Custom unit systems show distances with the free-text label and do not support conversion.
+
 ### Rounding
 
-The measurement panel includes rounding controls:
+The measurement toolbar includes rounding controls (also available in the map settings modal):
 
 | Mode        | Behavior                            |
 | ----------- | ----------------------------------- |
@@ -534,7 +550,7 @@ The Markers, Text, Controls, and Layers sections are collapsible accordion group
 ### Marker scale (per-map override)
 
 - **Toggle** to enable a map-level size override (when off, uses the global default)
-- **Slider** to set the scale (25-300%)
+- **Slider** to set the scale (10-1000%)
 - Description shows the effective value and the global default for comparison
 
 ### Scale to zoom (per-map override)
@@ -542,6 +558,11 @@ The Markers, Text, Controls, and Layers sections are collapsible accordion group
 - **Inherit** - Use the global default
 - **Screen-constant** - Markers stay the same screen size at all zoom levels
 - **Fixed to map** - Markers scale proportionally with zoom
+
+### Max rendered markers (per-map override)
+
+- **Toggle** to enable a per-map override (when off, uses the global default)
+- **Input** to set the maximum number of markers rendered at once
 
 ### Lock markers (per-map)
 
@@ -554,6 +575,13 @@ Same controls as marker scale, but for label text.
 ### Label font (per-map override)
 
 - **Label font** - Inherit / Default, plus any installed fonts from the 12 available families. Sets the font for all marker labels on this map
+
+### Text visibility (per-map override)
+
+- **Inherit** - Use the global default
+- **Always visible** - Labels always shown
+- **Mouseover only** - Labels appear on hover
+- **Hidden** - Labels not shown
 
 ### Controls (per-map override)
 
@@ -574,14 +602,16 @@ Access via **Settings** > **TTRPG Maps**.
 
 ### Markers section
 
-- **Default Marker Scale** - Size of markers on all maps (slider, 25-300%, default 100%)
+- **Default Marker Scale** - Size of markers on all maps (slider, 10-1000%, default 100%)
 - **Scale Markers to Zoom** - Screen-constant or Fixed to map
+- **Max Rendered Markers** - Maximum number of markers rendered at once (default 200). Reduces lag on maps with many markers. Only markers within the current viewport are added to the DOM
 
 ### Text section
 
-- **Default Text Scale** - Size of marker labels on all maps (slider, 25-300%, default 100%)
+- **Default Text Scale** - Size of marker labels on all maps (slider, 10-1000%, default 100%)
 - **Scale Text to Zoom** - Screen-constant or Fixed to map
 - **Default Label Font** - Font family for marker labels. 12 fonts available; only those installed on the current system are shown
+- **Default Text Visibility** - Control whether marker labels are shown on all maps (Always visible / Mouseover only / Hidden)
 
 ### Navigation section
 
@@ -751,7 +781,8 @@ Static map configuration: image path, dimensions, zoom settings. The plugin writ
 Mutable per-map state, including:
 
 - All marker positions and properties
-- Distance scale calibration
+- Distance scale calibration (unit system, unit, and label)
+- Unit conversion settings (mode, display unit, excluded units)
 - Rounding mode, multiple, raw toggle, and decimal places
 - Per-map marker and text scale overrides
 - Layer definitions and zoom ranges

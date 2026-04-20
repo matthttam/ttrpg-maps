@@ -118,6 +118,11 @@ export function convertUnits(value: number, from: MeasurementUnit, to: Measureme
 	if (from === to) return value;
 	const fromDef = getUnitDef(from);
 	const toDef = getUnitDef(to);
+	const fromSystem = getSystemForUnit(from);
+	const toSystem = getSystemForUnit(to);
+	if (fromSystem !== toSystem) {
+		throw new Error(`Cannot convert between different unit systems: ${from} (${fromSystem}) -> ${to} (${toSystem})`);
+	}
 	return (value * fromDef.toBase) / toDef.toBase;
 }
 
@@ -160,8 +165,11 @@ export function convertForDisplay(
 		return [{ value, unit: baseUnit }];
 	}
 
-	if (mode === 'fixed' && fixedUnit) {
-		return [{ value: convertUnits(value, baseUnit, fixedUnit), unit: fixedUnit }];
+	if (mode === 'fixed') {
+		if (fixedUnit) {
+			return [{ value: convertUnits(value, baseUnit, fixedUnit), unit: fixedUnit }];
+		}
+		return [{ value, unit: baseUnit }];
 	}
 
 	// Auto-convert: cascade through enabled units from largest to smallest
@@ -186,7 +194,18 @@ export function convertForDisplay(
 	for (const u of enabledUnits) {
 		if (u.id === baseUnit) {
 			// Last unit: take whatever is left
-			const leftover = Math.round(remainingInBase);
+			let leftover = Math.round(remainingInBase);
+			// Carry overflow into the previous part if rounding pushed us to a full unit
+			if (parts.length > 0 && leftover >= u.toBase) {
+				// Find the previous part's unit scale relative to base
+				const prevPart = parts[parts.length - 1];
+				const prevDef = getUnitDef(prevPart.unit);
+				const prevInBase = prevDef.toBase;
+				while (leftover >= prevInBase) {
+					leftover -= prevInBase;
+					prevPart.value += 1;
+				}
+			}
 			if (leftover > 0 || parts.length === 0) {
 				parts.push({ value: leftover, unit: baseUnit });
 			}

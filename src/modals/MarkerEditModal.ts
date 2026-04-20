@@ -144,13 +144,19 @@ export class MarkerEditModal extends Modal {
 		const fontStack = this.marker.font ? getMarkerFontStack(this.marker.font) : null;
 		if (fontStack) wrapper.style.setProperty('--marker-font', fontStack);
 
-		buildMarkerLabel(
-			wrapper,
-			this.marker.note,
-			this.marker.alias,
-			this.marker.description,
-			'ttrpgmap-edit-preview-label',
-		);
+		const textVis = this.marker.textVisibility ?? 'visible';
+		if (textVis !== 'hidden') {
+			buildMarkerLabel(
+				wrapper,
+				this.marker.note,
+				this.marker.alias,
+				this.marker.description,
+				'ttrpgmap-edit-preview-label',
+			);
+		}
+		if (textVis === 'hover') {
+			wrapper.dataset.textVisibility = 'hover';
+		}
 	}
 
 	onOpen(): void {

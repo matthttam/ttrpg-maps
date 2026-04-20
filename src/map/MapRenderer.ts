@@ -1201,8 +1201,14 @@ export class MapRenderer extends MarkdownRenderChild {
 	private onMouseDown(e: MouseEvent): void {
 		if (e.button !== 0) return;
 
-		// Edge resize: ALT + mousedown near wrapper edge (only when idle)
-		if (e.altKey && !this.edgeResizeAxis && this.measurement.mode === 'pan' && !this.pendingCopy) {
+		// Edge resize: ALT + mousedown near wrapper edge (only when idle, on map surface)
+		if (
+			e.altKey &&
+			!this.edgeResizeAxis &&
+			this.measurement.mode === 'pan' &&
+			!this.pendingCopy &&
+			(e.target as HTMLElement).closest('.ttrpgmap-container, .ttrpgmap-marker-overlay')
+		) {
 			const edge = this.detectWrapperEdge(e);
 			if (edge) {
 				e.preventDefault();

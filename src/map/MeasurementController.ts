@@ -157,7 +157,7 @@ export class MeasurementController {
 	}
 
 	cancelDrawing(): void {
-		this.ctx.interaction.reset();
+		if (this.ctx.interaction.isMeasuring) this.ctx.interaction.reset();
 		this.drawingPoints = [];
 		this.freehandStrokes = [];
 		this.isDrawingFreehand = false;

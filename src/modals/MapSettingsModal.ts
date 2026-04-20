@@ -248,8 +248,8 @@ export class MapSettingsModal extends Modal {
 			target.closest<HTMLElement>('.ttrpgmap-collapsible-content') ??
 			target.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-content') ??
 			null;
-		// If the target is a section heading, flash the collapsible content instead
-		const highlightEl = collapsible ?? target;
+		// Prefer the matched setting row; fall back to collapsible for section headings
+		const highlightEl = target.closest('.ttrpgmap-collapsible-content') ? target : (collapsible ?? target);
 
 		const scrollAndHighlight = () => {
 			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });

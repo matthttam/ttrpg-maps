@@ -71,6 +71,10 @@ export class DataManager {
 	private migrateDistanceScale(state: MapState): void {
 		const scale = state.distanceScale;
 		if (!scale || scale.unitSystem) return;
+		if (typeof scale.unitLabel !== 'string') {
+			scale.unitSystem = 'custom';
+			return;
+		}
 		const detected = detectUnitFromLabel(scale.unitLabel);
 		if (detected) {
 			scale.unitSystem = detected.system;
@@ -188,10 +192,14 @@ export class DataManager {
 		if (writes.length === 0) return;
 		// Fire all writes concurrently in a single promise -- minimizes yield points
 		void (async () => {
-			const adapter = this.app.vault.adapter;
-			const dir = TTRPGMAP_DIR;
-			if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
-			await Promise.all(writes.map((w) => adapter.write(w.path, w.data)));
+			try {
+				const adapter = this.app.vault.adapter;
+				const dir = TTRPGMAP_DIR;
+				if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
+				await Promise.all(writes.map((w) => adapter.write(w.path, w.data)));
+			} catch (e) {
+				console.error('[ttrpg-maps] flushSavesSync write failed:', e);
+			}
 		})();
 	}
 

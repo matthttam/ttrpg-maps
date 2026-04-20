@@ -111,9 +111,9 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Icon color**              | Color of the icon (independent of pin color)                               |
 | **Pin color**               | Background color of the pin or circle shape                                |
 | **Text placement**          | Where the label appears relative to the marker (above/below/left/right)    |
-| **Marker size**             | Override the map-level marker scale (toggle to enable, slider 25-300%)     |
+| **Marker size**             | Override the map-level marker scale (toggle to enable, slider 10-1000%)    |
 | **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                   |
-| **Text size**               | Override the map-level text scale (toggle to enable, slider 25-300%)       |
+| **Text size**               | Override the map-level text scale (toggle to enable, slider 10-1000%)      |
 | **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                   |
 | **Label font**              | Inherit / Default, plus any installed fonts from the 12 available families |
 | **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)         |
@@ -590,7 +590,7 @@ Toggle visibility of individual map UI controls. Each setting defaults to on. Pe
 
 | Setting                    | What it controls                                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------ |
-| **Show measurement tools** | Ruler toggle and measurement drawer in the top-right                                             |
+| **Show measurement tools** | Ruler toggle and inline measurement toolbar in the top-right                                     |
 | **Show zoom controls**     | +/- buttons, center, fit, and lock toggles in the top-left                                       |
 | **Show marker list**       | Markers tab button in the bottom-left panel                                                      |
 | **Show layer list**        | Layers tab button in the bottom-left panel                                                       |

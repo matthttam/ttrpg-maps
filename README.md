@@ -14,12 +14,12 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
 - **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note with `#heading` and `#^block` support)
 - **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
-- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with configurable rounding, decimal places, and raw value display
+- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with unit conversion (auto-convert or fixed), configurable rounding, decimal places, and raw value display
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon
 - **Label fonts** - Choose from 12 font families (with runtime availability detection) at the global, per-map, or per-marker level
-- **Per-map and per-marker settings** - Override scale, zoom behavior, label placement, font, navigation mode, and hover preview at every level
+- **Per-map and per-marker settings** - Override scale, zoom behavior, text visibility, label placement, font, navigation mode, and hover preview at every level
 - **Control visibility and opacity** - Show or hide zoom controls, measurement tools, marker list, layer list, and settings button globally or per-map. Adjust resting opacity of UI controls
 - **Marker list panel** - Browse, locate, and manage markers from a collapsible sidebar
 - **Import/export** - Export maps as ZIP bundles (with image) and import them on another vault. Import/export template sets
@@ -94,10 +94,9 @@ Right-click a marker to edit, copy, resize, or delete it. Drag a marker to repos
 
 <img width="502" height="511" alt="image" src="https://github.com/user-attachments/assets/53c5351e-763b-4902-8424-b79432eccc66" />
 
-
 ### 4. Measure distances
 
-1. Open the measurement panel (ruler icon, top-right)
+1. Open the measurement toolbar (ruler icon, top-right)
 2. **Calibrate**: Click two points and enter the real-world distance (e.g. "100 feet"). Choose Metric or Imperial systems for automatic conversion.
 3. **Measure**: Click points along a path to see segment and total distances
 4. **Freehand**: Click and drag to measure along curves
@@ -106,8 +105,6 @@ Right-click a marker to edit, copy, resize, or delete it. Drag a marker to repos
 Set settings for rounding, conversion mode (none, auto, and always show as...), and conversion unit exclusions (e.g. don't show yards when measuring in feet but do show miles).
 <img width="947" height="513" alt="Measuring v2" src="https://github.com/user-attachments/assets/328c8cfa-df7f-4bbf-913a-68e093e2e3d1" />
 <img width="947" height="729" alt="Measuring v2 exclusion" src="https://github.com/user-attachments/assets/14987699-fa15-47e6-afba-978fbe42e597" />
-
-
 
 ### 5. Manage templates
 

@@ -95,8 +95,11 @@ After selecting a template, the **marker edit modal** opens so you can customize
 ### Editing Markers
 
 The marker edit modal lets you configure every aspect of a marker.
+<img width="1445" height="655" alt="Edit Marker Basics" src="https://github.com/user-attachments/assets/ef6ca033-6490-4422-8f93-f55f2503cdb4" />
+<img width="1437" height="671" alt="Edit Marker Additional Options" src="https://github.com/user-attachments/assets/9b9d3cdd-2809-4b20-b40e-2575260ffd4a" />
+<img width="1446" height="628" alt="Edit Marker Size Overrides" src="https://github.com/user-attachments/assets/5df38ba8-6a9e-4665-8500-a79c9211a74e" />
 
-<img width="1456" height="1660" alt="image" src="https://github.com/user-attachments/assets/9211f13d-a721-4e09-9919-8a4092428e1e" />
+&nbsp;
 
 | Field                       | Description                                                                |
 | --------------------------- | -------------------------------------------------------------------------- |

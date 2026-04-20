@@ -97,16 +97,16 @@ Right-click a marker to edit, copy, resize, or delete it. Drag a marker to repos
 ### 4. Measure distances
 
 1. Open the measurement panel (ruler icon, top-right)
-2. **Calibrate**: Click two points and enter the real-world distance (e.g. "100 feet")
+2. **Calibrate**: Click two points and enter the real-world distance (e.g. "100 feet"). Choose Metric or Imperial systems for automatic conversion.
 3. **Measure**: Click points along a path to see segment and total distances
 4. **Freehand**: Click and drag to measure along curves
 5. Press **Escape** or double-click to finish
 
-Configure rounding in the measurement panel to snap distances to the nearest multiple.
+Set settings for rounding, conversion mode (none, auto, and always show as...), and conversion unit exclusions (e.g. don't show yards when measuring in feet but do show miles).
+<img width="947" height="513" alt="Measuring v2" src="https://github.com/user-attachments/assets/328c8cfa-df7f-4bbf-913a-68e093e2e3d1" />
+<img width="947" height="729" alt="Measuring v2 exclusion" src="https://github.com/user-attachments/assets/14987699-fa15-47e6-afba-978fbe42e597" />
 
-<img width="240" height="194" alt="image" src="https://github.com/user-attachments/assets/658a3897-754b-4751-94eb-3edf5b98f189" />
-<img width="803" height="624" alt="image" src="https://github.com/user-attachments/assets/5cfcdd20-8d77-4bbe-a943-4fe0faca4f65" />
-<img width="800" height="793" alt="image" src="https://github.com/user-attachments/assets/cd25067e-1f9f-4c8d-8d4f-55f31f966307" />
+
 
 ### 5. Manage templates
 

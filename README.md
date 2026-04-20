@@ -92,7 +92,8 @@ See the [code block reference](docs/features.md#code-block-reference) for all av
 
 Right-click a marker to edit, copy, resize, or delete it. Drag a marker to reposition it. Click a marker linked to a note to navigate there.
 
-<img width="321" height="281" alt="image" src="https://github.com/user-attachments/assets/fd95d630-5796-497e-839c-34a875784f1f" />
+<img width="502" height="511" alt="image" src="https://github.com/user-attachments/assets/53c5351e-763b-4902-8424-b79432eccc66" />
+
 
 ### 4. Measure distances
 

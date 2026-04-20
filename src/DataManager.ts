@@ -1,6 +1,7 @@
 import { App } from 'obsidian';
 import type TTRPGMapsPlugin from './main';
 import { MapState, MapMarker, TTRPGMapsSettings, DEFAULT_SETTINGS, DEFAULT_LAYER, DEFAULT_LAYER_ID } from './types';
+import { detectUnitFromLabel } from './units';
 
 const TTRPGMAP_DIR = '.ttrpgmap';
 
@@ -66,6 +67,23 @@ export class DataManager {
 		}
 	}
 
+	/** Migrate distance scale from legacy free-text unitLabel to structured unit system */
+	private migrateDistanceScale(state: MapState): void {
+		const scale = state.distanceScale;
+		if (!scale || scale.unitSystem) return;
+		if (typeof scale.unitLabel !== 'string') {
+			scale.unitSystem = 'custom';
+			return;
+		}
+		const detected = detectUnitFromLabel(scale.unitLabel);
+		if (detected) {
+			scale.unitSystem = detected.system;
+			scale.unit = detected.unit;
+		} else {
+			scale.unitSystem = 'custom';
+		}
+	}
+
 	/** Migrate markers from legacy |alias syntax to separate alias field */
 	private migrateMarkers(markers: MapMarker[]): void {
 		for (const m of markers) {
@@ -105,6 +123,7 @@ export class DataManager {
 				const state = JSON.parse(raw) as MapState;
 				this.ensureLayers(state);
 				this.migrateMarkers(state.markers);
+				this.migrateDistanceScale(state);
 				return state;
 			} catch (e) {
 				console.warn(`[ttrpg-maps] Failed to parse map state ${path}:`, e);
@@ -154,6 +173,43 @@ export class DataManager {
 		this.pendingStates.clear();
 	}
 
+	/**
+	 * Fire all pending saves without awaiting. Use in synchronous onunload
+	 * where async flushSaves may not complete before teardown.
+	 */
+	flushSavesSync(): void {
+		if (this.saveTimeouts.size === 0) return;
+		const writes: Array<{ path: string; data: string }> = [];
+		const flushedMapIds: string[] = [];
+		for (const [mapId, timeout] of this.saveTimeouts) {
+			clearTimeout(timeout);
+			const state = this.pendingStates.get(mapId);
+			if (state) {
+				flushedMapIds.push(mapId);
+				writes.push({ path: this.getMapStatePath(mapId), data: JSON.stringify(state, null, 2) });
+			}
+		}
+		if (writes.length === 0) {
+			this.saveTimeouts.clear();
+			return;
+		}
+		// Fire all writes concurrently in a single promise -- minimizes yield points
+		void (async () => {
+			try {
+				const adapter = this.app.vault.adapter;
+				const dir = TTRPGMAP_DIR;
+				if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
+				await Promise.all(writes.map((w) => adapter.write(w.path, w.data)));
+				for (const mapId of flushedMapIds) {
+					this.pendingStates.delete(mapId);
+					this.saveTimeouts.delete(mapId);
+				}
+			} catch (e) {
+				console.error('[ttrpg-maps] flushSavesSync write failed:', e);
+			}
+		})();
+	}
+
 	/** Load all map states from the sidecar directory (flushes pending saves first) */
 	async loadAllMapStates(): Promise<MapState[]> {
 		await this.flushSaves();
@@ -170,6 +226,7 @@ export class DataManager {
 				const state = JSON.parse(raw) as MapState;
 				this.ensureLayers(state);
 				this.migrateMarkers(state.markers);
+				this.migrateDistanceScale(state);
 				states.push(state);
 			} catch (e) {
 				console.warn(`[ttrpg-maps] Failed to parse ${file}:`, e);

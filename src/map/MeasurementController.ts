@@ -1,12 +1,18 @@
 import { Notice, setIcon } from 'obsidian';
-import { MapPoint, MapState, RoundingMode } from '../types';
+import { MapPoint, MapState } from '../types';
 import { ScaleCalibrationModal } from '../modals/ScaleCalibrationModal';
 import { pixelDistance, pixelsToUnits, polylineUnitsDistance, applyRounding } from '../distance';
-
-type InteractionMode = 'pan' | 'calibrate' | 'measure' | 'freehand';
+import { roundingToBaseUnits, convertForDisplay, formatDisplayParts } from '../units';
+import type { InteractionManager, Interaction } from './InteractionManager';
 
 const FREEHAND_MIN_DISTANCE = 5;
-const DEFAULT_ROUNDING_MULTIPLE = 5;
+
+/** Measurement modes mapped to interaction manager modes */
+const MODE_MAP: Record<string, Interaction> = {
+	calibrate: 'calibrating',
+	measure: 'measuring',
+	freehand: 'freehand',
+};
 
 /** Context interface the measurement controller needs from the renderer */
 export interface MeasurementContext {
@@ -20,14 +26,25 @@ export interface MeasurementContext {
 	plugin: { app: { workspace: unknown }; dataManager: { saveMapState: (id: string, state: MapState) => void } };
 	renderMarkers: () => void;
 	cancelCopy: () => void;
+	openSettings: () => void;
+	interaction: InteractionManager;
 }
 
 /**
  * Manages all measurement and drawing interactions: calibration, point-to-point,
  * freehand measurement, and the SVG overlays they produce.
  */
+type MeasurementMode = 'pan' | 'calibrate' | 'measure' | 'freehand';
+
 export class MeasurementController {
-	mode: InteractionMode = 'pan';
+	/** Derived from the interaction manager. 'pan' when not in a measurement mode. */
+	get mode(): MeasurementMode {
+		const cur = this.ctx.interaction.current;
+		if (cur === 'calibrating') return 'calibrate';
+		if (cur === 'measuring') return 'measure';
+		if (cur === 'freehand' || cur === 'drawing-freehand') return 'freehand';
+		return 'pan';
+	}
 
 	// Drawing state
 	private drawingPoints: MapPoint[] = [];
@@ -47,7 +64,9 @@ export class MeasurementController {
 	panelEl: HTMLElement | null = null;
 	private toolbar: HTMLElement | null = null;
 	private totalDisplay: HTMLDivElement | null = null;
-	private drawerWrapper: HTMLElement | null = null;
+	private measureBtn: HTMLElement | null = null;
+	private freehandBtn: HTMLElement | null = null;
+	private settingsBtn: HTMLElement | null = null;
 
 	private ctx: MeasurementContext;
 
@@ -55,141 +74,70 @@ export class MeasurementController {
 		this.ctx = ctx;
 	}
 
-	private get state(): MapState | null { return this.ctx.getState(); }
-	private get zoom(): number { return this.ctx.getZoom(); }
+	private get state(): MapState | null {
+		return this.ctx.getState();
+	}
+	private get zoom(): number {
+		return this.ctx.getZoom();
+	}
 
-	/** Build the measurement panel UI (toggle button, tool buttons, rounding controls, total display) */
+	/** Build the measurement toolbar (inline buttons, no drawer) */
 	buildUI(): void {
 		const panel = this.ctx.wrapper.createDiv({ cls: 'ttrpgmap-measure-panel' });
 		this.panelEl = panel;
+		this.toolbar = panel;
 
-		// Toggle button
-		const toggleBtn = panel.createDiv({ cls: 'ttrpgmap-measure-toggle' });
-		setIcon(toggleBtn, 'ruler');
-		toggleBtn.setAttribute('aria-label', 'Measurement tools');
-
-		// Drawer (hidden by default)
-		const drawer = panel.createDiv({ cls: 'ttrpgmap-measure-drawer' });
-		drawer.addClass('ttrpgmap-hidden');
-		this.drawerWrapper = drawer;
-
-		// Tool buttons
-		const toolRow = drawer.createDiv({ cls: 'ttrpgmap-measure-tools' });
-		this.toolbar = toolRow;
-
-		const tools: { label: string; icon: string; mode: InteractionMode }[] = [
-			{ label: 'Set Distance Scale', icon: 'scaling', mode: 'calibrate' },
-			{ label: 'Measure Distance', icon: 'route', mode: 'measure' },
-			{ label: 'Freehand Measure', icon: 'pencil', mode: 'freehand' },
-		];
-		for (const tool of tools) {
-			const btn = toolRow.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': tool.label } });
-			setIcon(btn, tool.icon);
-			btn.addEventListener('click', (e) => { e.stopPropagation(); this.setMode(tool.mode); });
-		}
-
-		// Rounding controls
-		this.buildRoundingControls(drawer);
-
-		// Toggle drawer
-		toggleBtn.addEventListener('click', (e) => {
+		// Calibrate button
+		const calibrateBtn = panel.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': 'Set distance scale' } });
+		setIcon(calibrateBtn, 'ruler');
+		calibrateBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
-			drawer.toggleClass('ttrpgmap-hidden', !drawer.hasClass('ttrpgmap-hidden'));
+			if (!this.state?.distanceScale) {
+				new Notice('Click two points on the map to set the distance scale.');
+			}
+			this.setMode('calibrate');
 		});
+
+		// Measure button
+		this.measureBtn = panel.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': 'Measure distance' } });
+		setIcon(this.measureBtn, 'route');
+		this.measureBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			this.setMode('measure');
+		});
+
+		// Freehand button
+		this.freehandBtn = panel.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': 'Freehand measure' } });
+		setIcon(this.freehandBtn, 'pencil');
+		this.freehandBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			this.setMode('freehand');
+		});
+
+		// Settings button
+		this.settingsBtn = panel.createDiv({ cls: 'ttrpgmap-toolbar-btn', attr: { 'aria-label': 'Measurement settings' } });
+		setIcon(this.settingsBtn, 'settings');
+		this.settingsBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			this.ctx.openSettings();
+		});
+
+		this.updateToolbarLayout();
 
 		// Total distance display
 		this.totalDisplay = this.ctx.wrapper.createDiv({ cls: 'ttrpgmap-measure-total' });
 		this.totalDisplay.addClass('ttrpgmap-hidden');
 	}
 
-	private buildRoundingControls(drawer: HTMLElement): void {
-		const section = drawer.createDiv({ cls: 'ttrpgmap-measure-rounding' });
-		section.createDiv({ cls: 'ttrpgmap-measure-rounding-label', text: 'Rounding' });
-
-		const row = section.createDiv({ cls: 'ttrpgmap-measure-rounding-row' });
-
-		// Mode dropdown
-		const modeSelect = row.createEl('select', { cls: 'ttrpgmap-measure-rounding-select' });
-		const modes = [
-			{ text: 'None', value: 'none' },
-			{ text: 'Closest', value: 'closest' },
-			{ text: 'Up to', value: 'up' },
-			{ text: 'Down to', value: 'down' },
-		];
-		const currentMode = this.state?.roundingMode ?? 'none';
-		for (const m of modes) {
-			const opt = modeSelect.createEl('option', { text: m.text, value: m.value });
-			opt.selected = currentMode === m.value;
-		}
-
-		const multipleLabel = row.createEl('span', { cls: 'ttrpgmap-measure-rounding-of', text: 'Multiple of' });
-		const multipleInput = row.createEl('input', {
-			cls: 'ttrpgmap-measure-rounding-input',
-			type: 'number',
-			attr: { min: '0', step: 'any' },
-			value: String(this.state?.roundingMultiple ?? DEFAULT_ROUNDING_MULTIPLE),
-		});
-
-		const rawLabel = row.createEl('label', { cls: 'ttrpgmap-measure-rounding-raw' });
-		const rawCheckbox = rawLabel.createEl('input', { type: 'checkbox' });
-		rawCheckbox.checked = this.state?.showRawDistance ?? false;
-		rawLabel.append('Raw');
-
-		const updateVisibility = () => {
-			const isNone = modeSelect.value === 'none';
-			multipleLabel.toggleClass('ttrpgmap-hidden', isNone);
-			multipleInput.toggleClass('ttrpgmap-hidden', isNone);
-			rawLabel.toggleClass('ttrpgmap-hidden', isNone);
-		};
-		updateVisibility();
-
-		const saveState = () => {
-			if (this.state) this.ctx.plugin.dataManager.saveMapState(this.ctx.config.id, this.state);
-		};
-
-		modeSelect.addEventListener('change', () => {
-			if (!this.state) return;
-			this.state.roundingMode = modeSelect.value as RoundingMode;
-			updateVisibility();
-			saveState();
-		});
-
-		multipleInput.addEventListener('change', () => {
-			if (!this.state) return;
-			const val = parseFloat(multipleInput.value);
-			if (!isNaN(val) && val > 0) {
-				this.state.roundingMultiple = val;
-				saveState();
-			}
-		});
-
-		rawCheckbox.addEventListener('change', () => {
-			if (!this.state) return;
-			this.state.showRawDistance = rawCheckbox.checked;
-			saveState();
-		});
-
-		// Decimal places
-		const decimalsRow = section.createDiv({ cls: 'ttrpgmap-measure-rounding-row' });
-		decimalsRow.createEl('span', { cls: 'ttrpgmap-measure-rounding-of', text: 'Decimal places' });
-		const decimalsInput = decimalsRow.createEl('input', {
-			cls: 'ttrpgmap-measure-rounding-input',
-			type: 'number',
-			attr: { min: '0', max: '6', step: '1' },
-			value: String(this.state?.distanceDecimals ?? 0),
-		});
-		decimalsInput.addEventListener('change', () => {
-			if (!this.state) return;
-			const val = parseInt(decimalsInput.value, 10);
-			if (!isNaN(val) && val >= 0 && val <= 6) {
-				this.state.distanceDecimals = val;
-				saveState();
-			}
-		});
+	/** Show/hide toolbar buttons based on scale state */
+	updateToolbarLayout(): void {
+		const hasScale = !!this.state?.distanceScale;
+		this.measureBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
+		this.freehandBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
+		this.settingsBtn?.toggleClass('ttrpgmap-hidden', !hasScale);
 	}
 
-	setMode(mode: InteractionMode): void {
-		this.ctx.cancelCopy();
+	setMode(mode: MeasurementMode): void {
 		if (this.mode === mode) {
 			this.cancelDrawing();
 			return;
@@ -198,20 +146,18 @@ export class MeasurementController {
 			new Notice('Set a distance scale first before measuring.');
 			return;
 		}
-		this.mode = mode;
+		const interaction = MODE_MAP[mode];
+		if (!interaction || !this.ctx.interaction.tryEnter(interaction)) return;
 		this.drawingPoints = [];
 		this.freehandStrokes = [];
 		this.clearActiveSvg();
 		this.updateToolbarState();
+		this.updateToolbarLayout();
 		this.updateMeasureMode();
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-grab');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-copy');
-		this.ctx.wrapper.addClass(this.mode === 'pan' ? 'ttrpgmap-cursor-grab' : 'ttrpgmap-cursor-crosshair');
 	}
 
 	cancelDrawing(): void {
-		this.mode = 'pan';
+		if (this.ctx.interaction.isMeasuring) this.ctx.interaction.reset();
 		this.drawingPoints = [];
 		this.freehandStrokes = [];
 		this.isDrawingFreehand = false;
@@ -219,11 +165,9 @@ export class MeasurementController {
 		this.clearMeasurePreview();
 		this.clearActiveSvg();
 		this.updateToolbarState();
+		this.updateToolbarLayout();
 		this.updateMeasureMode();
 		this.hideTotalDisplay();
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-crosshair');
-		this.ctx.wrapper.removeClass('ttrpgmap-cursor-copy');
-		this.ctx.wrapper.addClass('ttrpgmap-cursor-grab');
 		this.ctx.wrapper.removeClass('ttrpgmap-panning');
 	}
 
@@ -321,6 +265,7 @@ export class MeasurementController {
 
 		e.preventDefault();
 		e.stopPropagation();
+		if (!this.ctx.interaction.tryEnter('drawing-freehand')) return;
 		this.isDrawingFreehand = true;
 
 		const point = this.screenToMap(e);
@@ -359,6 +304,7 @@ export class MeasurementController {
 
 	endFreehand(): void {
 		this.isDrawingFreehand = false;
+		this.ctx.interaction.exit();
 
 		const currentStroke = this.freehandStrokes[this.freehandStrokes.length - 1];
 		if (currentStroke && currentStroke.length > 0) {
@@ -407,11 +353,11 @@ export class MeasurementController {
 	}
 
 	private updateToolbarState(): void {
-		const buttons = this.toolbar!.querySelectorAll('.ttrpgmap-toolbar-btn');
-		buttons.forEach((btn) => btn.removeClass('ttrpgmap-toolbar-btn-active'));
-		if (this.mode === 'calibrate') buttons[0]?.addClass('ttrpgmap-toolbar-btn-active');
-		else if (this.mode === 'measure') buttons[1]?.addClass('ttrpgmap-toolbar-btn-active');
-		else if (this.mode === 'freehand') buttons[2]?.addClass('ttrpgmap-toolbar-btn-active');
+		const buttons = this.toolbar?.querySelectorAll('.ttrpgmap-toolbar-btn');
+		buttons?.forEach((btn) => btn.removeClass('ttrpgmap-toolbar-btn-active'));
+		if (this.mode === 'calibrate') buttons?.[0]?.addClass('ttrpgmap-toolbar-btn-active');
+		else if (this.mode === 'measure') this.measureBtn?.addClass('ttrpgmap-toolbar-btn-active');
+		else if (this.mode === 'freehand') this.freehandBtn?.addClass('ttrpgmap-toolbar-btn-active');
 	}
 
 	private handleCalibrateClick(): void {
@@ -426,12 +372,13 @@ export class MeasurementController {
 
 		new ScaleCalibrationModal(
 			this.ctx.plugin.app as import('obsidian').App,
-			(units, unitLabel) => {
+			(units, unitLabel, unitSystem, unit) => {
 				if (!this.state) return;
-				this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel };
+				this.state.distanceScale = { pointA: a, pointB: b, units, unitLabel, unitSystem, unit };
 				this.ctx.plugin.dataManager.saveMapState(this.ctx.config.id, this.state);
 				new Notice(`Scale set: ${units} ${unitLabel}`);
 				this.cancelDrawing();
+				this.updateToolbarLayout();
 			},
 			() => {
 				this.cancelDrawing();
@@ -477,7 +424,11 @@ export class MeasurementController {
 	private roundDistance(value: number): number {
 		const mode = this.state?.roundingMode ?? 'none';
 		const multiple = this.state?.roundingMultiple ?? 5;
-		return applyRounding(value, mode, multiple);
+		const baseUnit = this.state?.distanceScale?.unit;
+		const roundingUnit = this.state?.roundingUnit;
+		const effectiveMultiple =
+			baseUnit && roundingUnit ? roundingToBaseUnits(multiple, roundingUnit, baseUnit) : multiple;
+		return applyRounding(value, mode, effectiveMultiple);
 	}
 
 	private formatNumber(value: number): string {
@@ -487,14 +438,36 @@ export class MeasurementController {
 
 	formatDistance(value: number): string {
 		const rounded = this.roundDistance(value);
-		const label = this.state?.distanceScale?.unitLabel ?? '';
-		const display = this.formatNumber(rounded);
+		const scale = this.state?.distanceScale;
+		const baseUnit = scale?.unit;
+		const system = scale?.unitSystem;
 		const isRounding = (this.state?.roundingMode ?? 'none') !== 'none' && (this.state?.roundingMultiple ?? 0) > 0;
-		if (isRounding && this.state?.showRawDistance) {
-			const rawDisplay = this.formatNumber(value);
-			return `${display} (${rawDisplay}) ${label}`;
+
+		// Custom or legacy: existing flat-number behavior
+		if (!system || system === 'custom' || !baseUnit) {
+			const label = scale?.unitLabel ?? '';
+			const display = this.formatNumber(rounded);
+			if (isRounding && this.state?.showRawDistance) {
+				const rawDisplay = this.formatNumber(value);
+				return `${display} (${rawDisplay}) ${label}`;
+			}
+			return `${display} ${label}`;
 		}
-		return `${display} ${label}`;
+
+		// Imperial / metric: use unit conversion system
+		const mode = this.state?.conversionMode ?? 'auto';
+		const fixedUnit = this.state?.displayUnit;
+		const excluded = this.state?.excludedUnits;
+		const decimals = this.state?.distanceDecimals ?? 0;
+		const parts = convertForDisplay(rounded, baseUnit, mode, fixedUnit, excluded);
+		const formatted = formatDisplayParts(parts, decimals);
+
+		if (isRounding && this.state?.showRawDistance) {
+			const rawParts = convertForDisplay(value, baseUnit, mode, fixedUnit, excluded);
+			const rawFormatted = formatDisplayParts(rawParts, decimals);
+			return `${formatted} (${rawFormatted})`;
+		}
+		return formatted;
 	}
 
 	private updateTotalDisplay(): void {

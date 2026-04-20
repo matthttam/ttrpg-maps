@@ -85,7 +85,6 @@ The current zoom level is displayed as a percentage between the buttons.
 
 Right-click anywhere on the map to open the context menu. Select a template to place a marker at that location.
 
-
 - The **Default** template is always available
 - Custom templates appear as additional menu items
 - Templates organized in folders appear in submenus
@@ -99,25 +98,26 @@ The marker edit modal lets you configure every aspect of a marker.
 
 <img width="1456" height="1660" alt="image" src="https://github.com/user-attachments/assets/9211f13d-a721-4e09-9919-8a4092428e1e" />
 
-| Field                       | Description                                                             |
-| --------------------------- | ----------------------------------------------------------------------- |
-| **Template**                | Which template this marker is based on                                  |
-| **Note link**               | Link to a vault note (supports `#headings` and `#^block-ids`)           |
-| **Alias**                   | Display name shown on the map instead of the note filename              |
-| **Preview Note**            | Alternate note shown in hover preview (blank uses the linked note)      |
-| **Description**             | Additional text shown in the marker label and list tooltip              |
-| **Pin shape and direction** | Choose pin/circle/hotspot and which direction the pin points            |
-| **Icon**                    | Search and select from 5,500+ icons                                     |
-| **Icon rotation**           | Rotate the icon (slider 0-359 degrees)                                  |
-| **Icon color**              | Color of the icon (independent of pin color)                            |
-| **Pin color**               | Background color of the pin or circle shape                             |
-| **Text placement**          | Where the label appears relative to the marker (above/below/left/right) |
-| **Marker size**             | Override the map-level marker scale (toggle to enable, slider 25-300%)  |
-| **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                |
-| **Text size**               | Override the map-level text scale (toggle to enable, slider 25-300%)    |
-| **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                |
+| Field                       | Description                                                                |
+| --------------------------- | -------------------------------------------------------------------------- |
+| **Template**                | Which template this marker is based on                                     |
+| **Note link**               | Link to a vault note (supports `#headings` and `#^block-ids`)              |
+| **Alias**                   | Display name shown on the map instead of the note filename                 |
+| **Preview Note**            | Alternate note shown in hover preview (blank uses the linked note)         |
+| **Description**             | Additional text shown in the marker label and list tooltip                 |
+| **Pin shape and direction** | Choose pin/circle/hotspot and which direction the pin points               |
+| **Icon**                    | Search and select from 5,500+ icons                                        |
+| **Icon rotation**           | Rotate the icon (slider 0-359 degrees)                                     |
+| **Icon color**              | Color of the icon (independent of pin color)                               |
+| **Pin color**               | Background color of the pin or circle shape                                |
+| **Text placement**          | Where the label appears relative to the marker (above/below/left/right)    |
+| **Text visibility**         | Inherit / Always visible / Mouseover only / Hidden                         |
+| **Marker size**             | Override the map-level marker scale (toggle to enable, slider 10-1000%)    |
+| **Scale to zoom**           | Inherit / Screen-constant / Fixed to map                                   |
+| **Text size**               | Override the map-level text scale (toggle to enable, slider 10-1000%)      |
+| **Text scale to zoom**      | Inherit / Screen-constant / Fixed to map                                   |
 | **Label font**              | Inherit / Default, plus any installed fonts from the 12 available families |
-| **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)      |
+| **Layer**                   | Assign to a visibility layer (only shown if multiple layers exist)         |
 
 Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
 
@@ -281,20 +281,20 @@ Marker label text can use a custom font family, following the same three-tier hi
 
 There are 12 available fonts. The plugin detects which fonts are installed on the current system at runtime and only shows those that are available.
 
-| Font            | CSS stack                                                    |
-| --------------- | ------------------------------------------------------------ |
-| **Default**     | Inherits from Obsidian's theme                               |
-| **Serif**       | Georgia, Times New Roman, serif                              |
-| **Monospace**   | Obsidian's monospace font, Courier New, monospace            |
-| **System**      | System UI, Apple system font, sans-serif                     |
-| **Palatino**    | Palatino Linotype, Palatino, Book Antiqua, serif             |
-| **Garamond**    | Garamond, EB Garamond, Times New Roman, serif                |
-| **Humanist**    | Gill Sans, Segoe UI, Tahoma, sans-serif                      |
-| **Trebuchet**   | Trebuchet MS, Lucida Grande, sans-serif                      |
-| **Impact**      | Impact, Arial Black, sans-serif                              |
-| **Handwritten** | Segoe Script, Bradley Hand, Comic Sans MS, cursive           |
-| **Fantasy**     | Copperplate, Papyrus, fantasy                                |
-| **Typewriter**  | Courier New, Lucida Console, monospace                       |
+| Font            | CSS stack                                          |
+| --------------- | -------------------------------------------------- |
+| **Default**     | Inherits from Obsidian's theme                     |
+| **Serif**       | Georgia, Times New Roman, serif                    |
+| **Monospace**   | Obsidian's monospace font, Courier New, monospace  |
+| **System**      | System UI, Apple system font, sans-serif           |
+| **Palatino**    | Palatino Linotype, Palatino, Book Antiqua, serif   |
+| **Garamond**    | Garamond, EB Garamond, Times New Roman, serif      |
+| **Humanist**    | Gill Sans, Segoe UI, Tahoma, sans-serif            |
+| **Trebuchet**   | Trebuchet MS, Lucida Grande, sans-serif            |
+| **Impact**      | Impact, Arial Black, sans-serif                    |
+| **Handwritten** | Segoe Script, Bradley Hand, Comic Sans MS, cursive |
+| **Fantasy**     | Copperplate, Papyrus, fantasy                      |
+| **Typewriter**  | Courier New, Lucida Console, monospace             |
 
 The first three (Serif, Monospace, System) use generic CSS stacks and are always available. The remaining nine are tested with `document.fonts.check()` and hidden if not installed. Each font stack includes cross-platform fallbacks ending with a generic CSS family.
 
@@ -589,12 +589,12 @@ Access via **Settings** > **TTRPG Maps**.
 
 Toggle visibility of individual map UI controls. Each setting defaults to on. Per-map overrides (Inherit / Show / Hide) are available in the map settings modal.
 
-| Setting                    | What it controls                                                   |
-| -------------------------- | ------------------------------------------------------------------ |
-| **Show measurement tools** | Ruler toggle and measurement drawer in the top-right               |
-| **Show zoom controls**     | +/- buttons, center, fit, and lock toggles in the top-left         |
-| **Show marker list**       | Markers tab button in the bottom-left panel                        |
-| **Show layer list**        | Layers tab button in the bottom-left panel                         |
+| Setting                    | What it controls                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Show measurement tools** | Ruler toggle and inline measurement toolbar in the top-right                                     |
+| **Show zoom controls**     | +/- buttons, center, fit, and lock toggles in the top-left                                       |
+| **Show marker list**       | Markers tab button in the bottom-left panel                                                      |
+| **Show layer list**        | Layers tab button in the bottom-left panel                                                       |
 | **Show map settings**      | Gear button in the bottom-right. When hidden, "Edit map" appears in the right-click context menu |
 
 Controls are toggled via CSS without rebuilding the map. When only one list tab is visible, the tab bar adapts its corner rounding automatically. When both list tabs are hidden, the entire panel is hidden.
@@ -652,12 +652,12 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 
 <img width="303" height="465" alt="image" src="https://github.com/user-attachments/assets/259f0b3c-b603-443f-b1b5-53659db68b97" />
 
-| Item                       | Action                                        |
-| -------------------------- | --------------------------------------------- |
-| **Place Marker**           | Places a marker using the default template    |
-| _Template name_            | Places a marker using that template           |
-| _Folder name_ > _Template_ | Templates in folders appear as submenus       |
-| **Edit Templates**         | Opens plugin settings to the template manager |
+| Item                       | Action                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| **Place Marker**           | Places a marker using the default template                                   |
+| _Template name_            | Places a marker using that template                                          |
+| _Folder name_ > _Template_ | Templates in folders appear as submenus                                      |
+| **Edit Templates**         | Opens plugin settings to the template manager                                |
 | **Edit Map**               | Opens the map settings modal (only shown when the settings button is hidden) |
 
 When the map has multiple layers, each template entry expands into a submenu to select the target layer. Templates and folders are sorted alphabetically.

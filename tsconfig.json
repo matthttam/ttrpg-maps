@@ -13,13 +13,7 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"strictNullChecks": true,
-		"lib": [
-			"DOM",
-			"ESNext"
-		]
+		"lib": ["DOM", "ESNext"]
 	},
-	"include": [
-		"src/**/*.ts",
-		"tests/**/*.ts"
-	]
+	"include": ["src/**/*.ts", "tests/**/*.ts"]
 }

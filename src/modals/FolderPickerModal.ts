@@ -29,15 +29,12 @@ export class FolderPickerModal extends Modal {
 				});
 			});
 
-		new Setting(contentEl).addButton((btn) =>
-			btn
-				.setButtonText('Import')
-				.setCta()
-				.onClick(() => {
-					this.onChoose(this.selectedFolder);
-					this.close();
-				}),
-		);
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const importBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Import' });
+		importBtn.addEventListener('click', () => {
+			this.onChoose(this.selectedFolder);
+			this.close();
+		});
 	}
 
 	onClose(): void {

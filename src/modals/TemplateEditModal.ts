@@ -201,26 +201,15 @@ export class TemplateEditModal extends Modal {
 		this.addDirtyIndicator(iconSetting, 'icon', 'iconColor', 'iconRotation');
 
 		// ── Actions ──
-		const actionSetting = new Setting(mainCol);
-		actionSetting.controlEl.addClass('ttrpgmap-action-row');
-
-			if (!this.isNew) {
-			actionSetting.addButton((btn) =>
-				btn
-					.setButtonText('Save & update markers')
-					.setWarning()
-					.onClick(() => this.saveAndUpdateMarkers()),
-			);
+		const footer = mainCol.createDiv({ cls: 'modal-button-container ttrpgmap-action-row' });
+		if (!this.isNew) {
+			const updateBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Save & update markers' });
+			updateBtn.addEventListener('click', () => this.saveAndUpdateMarkers());
 		}
-
-		actionSetting
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.close()))
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => this.saveTemplate()),
-			);
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.close());
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => this.saveTemplate());
 	}
 
 	/** Save the template without updating existing markers */
@@ -326,17 +315,14 @@ class ConfirmApplyModal extends Modal {
 			cls: 'ttrpgmap-muted',
 		});
 
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Yes, apply')
-					.setWarning()
-					.onClick(() => {
-						void this.onConfirm();
-						this.close();
-					}),
-			)
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.close()));
+		const applyFooter = contentEl.createDiv({ cls: 'modal-button-container' });
+		const applyCancelBtn = applyFooter.createEl('button', { text: 'Cancel' });
+		applyCancelBtn.addEventListener('click', () => this.close());
+		const applyBtn = applyFooter.createEl('button', { cls: 'mod-warning', text: 'Yes, apply' });
+		applyBtn.addEventListener('click', () => {
+			void this.onConfirm();
+			this.close();
+		});
 	}
 
 	onClose(): void {

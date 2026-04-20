@@ -5,6 +5,7 @@ import {
 	MapConfig,
 	MapState,
 	MarkerLayer,
+	RoundingMode,
 	DEFAULT_LAYER,
 	DEFAULT_LAYER_ID,
 	DEFAULT_MARKER_SCALE,
@@ -15,6 +16,8 @@ import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
+import type { MeasurementUnit, ConversionMode } from '../units';
+import { getUnitsForSystem } from '../units';
 
 /** Persists collapsed/expanded state for each section across modal opens */
 const sectionExpanded = new WeakMap<App, Record<string, boolean>>();
@@ -120,31 +123,20 @@ export class MapSettingsModal extends Modal {
 		const confirmModal = new Modal(this.app);
 		confirmModal.titleEl.setText('Unsaved changes');
 		confirmModal.contentEl.createEl('p', { text: 'You have unsaved changes. What would you like to do?' });
-		new Setting(confirmModal.contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => {
-					confirmModal.close();
-				}),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Discard')
-					.setWarning()
-					.onClick(() => {
-						confirmModal.close();
-						this.saved = true;
-						this.close();
-					}),
-			)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => {
-						confirmModal.close();
-						this.doSave();
-					}),
-			);
+		const footer = confirmModal.contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => confirmModal.close());
+		const discardBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Discard' });
+		discardBtn.addEventListener('click', () => {
+			confirmModal.close();
+			this.saved = true;
+			this.close();
+		});
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => {
+			confirmModal.close();
+			this.doSave();
+		});
 		confirmModal.open();
 	}
 
@@ -198,22 +190,17 @@ export class MapSettingsModal extends Modal {
 			modal.close();
 		};
 
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Migrate')
-					.setCta()
-					.onClick(() => executeIdChange('migrate')),
-			)
-			.addButton((btn) => btn.setButtonText('Copy').onClick(() => executeIdChange('copy')))
-			.addButton((btn) => btn.setButtonText('Orphan').onClick(() => executeIdChange('orphan')))
-			.addButton((btn) =>
-				btn
-					.setButtonText('Delete')
-					.setWarning()
-					.onClick(() => executeIdChange('delete')),
-			)
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => modal.close()));
+		const idFooter = contentEl.createDiv({ cls: 'modal-button-container' });
+		const migrateBtn = idFooter.createEl('button', { cls: 'mod-cta', text: 'Migrate' });
+		migrateBtn.addEventListener('click', () => executeIdChange('migrate'));
+		const copyBtn = idFooter.createEl('button', { text: 'Copy' });
+		copyBtn.addEventListener('click', () => executeIdChange('copy'));
+		const orphanBtn = idFooter.createEl('button', { text: 'Orphan' });
+		orphanBtn.addEventListener('click', () => executeIdChange('orphan'));
+		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning', text: 'Delete' });
+		deleteBtn.addEventListener('click', () => executeIdChange('delete'));
+		const idCancelBtn = idFooter.createEl('button', { text: 'Cancel' });
+		idCancelBtn.addEventListener('click', () => modal.close());
 
 		modal.open();
 	}
@@ -227,6 +214,7 @@ export class MapSettingsModal extends Modal {
 		this.buildGeneralSection(contentEl);
 		this.buildMarkersSection(contentEl);
 		this.buildTextSection(contentEl);
+		this.buildMeasurementSection(contentEl);
 		this.buildControlsSection(contentEl);
 		this.buildLayersSection(contentEl);
 		this.buildFooter(contentEl);
@@ -234,7 +222,10 @@ export class MapSettingsModal extends Modal {
 		// Prevent auto-focus on the first input, then highlight the target setting if requested
 		activeWindow.setTimeout(() => {
 			(activeWindow.document.activeElement as HTMLElement)?.blur();
-			if (this.highlightSetting) this.scrollToSetting(contentEl, this.highlightSetting);
+			if (this.highlightSetting) {
+				this.scrollToSetting(contentEl, this.highlightSetting);
+				this.highlightSetting = undefined;
+			}
 		}, 0);
 	}
 
@@ -251,9 +242,29 @@ export class MapSettingsModal extends Modal {
 		}
 		if (!target) return;
 
-		// Expand the collapsible section if the target is inside one
-		const collapsible = target.closest<HTMLElement>('.ttrpgmap-collapsible-content');
+		// Expand the collapsible section: target may be inside it (regular setting)
+		// or a sibling heading (section name match)
+		const collapsible =
+			target.closest<HTMLElement>('.ttrpgmap-collapsible-content') ??
+			target.parentElement?.querySelector<HTMLElement>('.ttrpgmap-collapsible-content') ??
+			null;
+		// Prefer the matched setting row; fall back to collapsible for section headings
+		const highlightEl = target.closest('.ttrpgmap-collapsible-content') ? target : (collapsible ?? target);
+
+		const scrollAndHighlight = () => {
+			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			highlightEl.addClass('ttrpgmap-setting-highlight');
+			highlightEl.addEventListener(
+				'animationend',
+				() => {
+					highlightEl.removeClass('ttrpgmap-setting-highlight');
+				},
+				{ once: true },
+			);
+		};
+
 		if (collapsible && collapsible.hasClass('is-collapsed')) {
+			collapsible.addEventListener('transitionend', scrollAndHighlight, { once: true });
 			collapsible.removeClass('is-collapsed');
 			const chevron = collapsible.parentElement?.querySelector<HTMLElement>('.ttrpgmap-folder-chevron');
 			if (chevron) chevron.removeClass('is-collapsed');
@@ -266,19 +277,9 @@ export class MapSettingsModal extends Modal {
 				s[heading.textContent] = true;
 				sectionExpanded.set(this.app, s);
 			}
+		} else {
+			scrollAndHighlight();
 		}
-
-		activeWindow.setTimeout(() => {
-			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			target.addClass('ttrpgmap-setting-highlight');
-			target.addEventListener(
-				'animationend',
-				() => {
-					target.removeClass('ttrpgmap-setting-highlight');
-				},
-				{ once: true },
-			);
-		}, 50);
 	}
 
 	private buildGeneralSection(contentEl: HTMLElement): void {
@@ -540,6 +541,52 @@ export class MapSettingsModal extends Modal {
 					this.state.markersLocked = value || undefined;
 				});
 			});
+
+		// Max rendered markers
+		const globalMax = this.plugin.settings.maxRenderedMarkers ?? 200;
+		const hasMaxOverride = this.state.maxRenderedMarkers != null;
+		const effectiveMax = this.state.maxRenderedMarkers ?? globalMax;
+
+		const maxSetting = new Setting(items).setName('Max rendered markers');
+		let maxTextRef: { setValue: (v: string) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
+
+		maxSetting.addText((text) => {
+			maxTextRef = text;
+			text.inputEl.type = 'number';
+			text.inputEl.min = '1';
+			text.inputEl.step = '1';
+			text.setValue(String(effectiveMax)).onChange((value) => {
+				const num = parseInt(value, 10);
+				if (!isNaN(num) && num > 0) this.state.maxRenderedMarkers = num;
+			});
+			if (!hasMaxOverride) text.setDisabled(true);
+		});
+
+		maxSetting.addToggle((toggle) => {
+			toggle.setValue(hasMaxOverride).onChange((enabled) => {
+				if (enabled) {
+					if (maxTextRef) {
+						maxTextRef.setDisabled(false);
+						maxTextRef.setValue(String(globalMax));
+					}
+					this.state.maxRenderedMarkers = globalMax;
+					maxSetting.setDesc(`Map override: ${globalMax} (global default: ${globalMax})`);
+				} else {
+					if (maxTextRef) {
+						maxTextRef.setDisabled(true);
+						maxTextRef.setValue(String(globalMax));
+					}
+					this.state.maxRenderedMarkers = undefined;
+					maxSetting.setDesc(`Using global default: ${globalMax}`);
+				}
+			});
+		});
+
+		maxSetting.setDesc(
+			hasMaxOverride
+				? `Map override: ${effectiveMax} (global default: ${globalMax})`
+				: `Using global default: ${globalMax}`,
+		);
 	}
 
 	private buildTextSection(contentEl: HTMLElement): void {
@@ -579,6 +626,186 @@ export class MapSettingsModal extends Modal {
 				else this.state.markerFont = value;
 			},
 		});
+
+		const globalVis = this.plugin.settings.defaultTextVisibility ?? 'visible';
+		const globalVisLabel =
+			globalVis === 'visible' ? 'Always visible' : globalVis === 'hover' ? 'Mouseover only' : 'Hidden';
+		new Setting(items)
+			.setName('Text visibility')
+			.setDesc(`Inherit uses the global default (currently ${globalVisLabel})`)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('inherit', 'Inherit')
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.state.textVisibility ?? 'inherit')
+					.onChange((value) => {
+						(this.state as unknown as Record<string, unknown>).textVisibility = value === 'inherit' ? undefined : value;
+					});
+			});
+	}
+
+	private buildMeasurementSection(contentEl: HTMLElement): void {
+		const items = this.buildCollapsibleGroup(contentEl, 'Measurement');
+		const scale = this.state.distanceScale;
+
+		if (!scale) {
+			new Setting(items)
+				.setName('No scale set')
+				.setDesc('Set a distance scale on the map first by clicking the ruler icon and measuring a reference distance');
+			return;
+		}
+
+		const system = scale.unitSystem;
+		const hasStructuredUnits = !!scale.unit && (system === 'imperial' || system === 'metric');
+		const systemUnits = hasStructuredUnits ? getUnitsForSystem(system) : [];
+
+		// ── Conversion mode (imperial/metric only) ──
+		const conversionSetting = new Setting(items)
+			.setName('Unit conversion')
+			.setDesc('How distances are converted for display');
+
+		const displayUnitSetting = new Setting(items).setName('Display unit');
+
+		const conversionUnitsHeading = new Setting(items)
+			.setName('Conversion units')
+			.setDesc('Units available for auto-conversion');
+		let unitListEl: HTMLElement | null = null;
+
+		const updateConversionVisibility = (mode: string) => {
+			displayUnitSetting.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'fixed');
+			conversionUnitsHeading.settingEl.toggleClass('ttrpgmap-hidden', mode !== 'auto');
+			unitListEl?.toggleClass('ttrpgmap-hidden', mode !== 'auto');
+		};
+
+		if (hasStructuredUnits) {
+			const currentConversion = this.state.conversionMode ?? 'auto';
+			const baseIdx = systemUnits.findIndex((u) => u.id === scale?.unit);
+			const largerUnits = systemUnits.filter((_, i) => i > baseIdx);
+
+			conversionSetting.addDropdown((dropdown) => {
+				dropdown
+					.addOption('none', 'No conversion')
+					.addOption('auto', 'Auto-convert')
+					.addOption('fixed', 'Always show as...')
+					.setValue(currentConversion)
+					.onChange((value) => {
+						this.state.conversionMode = value as ConversionMode;
+						updateConversionVisibility(value);
+					});
+			});
+
+			displayUnitSetting.addDropdown((dropdown) => {
+				for (const u of systemUnits) {
+					dropdown.addOption(u.id, u.label.charAt(0).toUpperCase() + u.label.slice(1));
+				}
+				dropdown.setValue(this.state.displayUnit ?? scale?.unit ?? systemUnits[0]?.id ?? '').onChange((value) => {
+					this.state.displayUnit = value as MeasurementUnit;
+				});
+			});
+
+			// Conversion unit toggles (one per unit, wrapped in a layer-list container)
+			const excluded = new Set(this.state.excludedUnits ?? []);
+			unitListEl = items.createDiv({ cls: 'ttrpgmap-layer-list' });
+			for (const u of largerUnits) {
+				new Setting(unitListEl).setName(u.label.charAt(0).toUpperCase() + u.label.slice(1)).addToggle((toggle) => {
+					toggle.setValue(!excluded.has(u.id)).onChange((enabled) => {
+						if (!this.state.excludedUnits) this.state.excludedUnits = [];
+						if (enabled) {
+							this.state.excludedUnits = this.state.excludedUnits.filter((id) => id !== u.id);
+						} else {
+							this.state.excludedUnits.push(u.id);
+						}
+					});
+				});
+			}
+
+			updateConversionVisibility(currentConversion);
+		} else {
+			conversionSetting.settingEl.addClass('ttrpgmap-hidden');
+			displayUnitSetting.settingEl.addClass('ttrpgmap-hidden');
+			conversionUnitsHeading.settingEl.addClass('ttrpgmap-hidden');
+		}
+
+		// ── Rounding mode ──
+		const currentRoundingMode = this.state.roundingMode ?? 'none';
+
+		const roundingSetting = new Setting(items).setName('Rounding mode').setDesc('How measured distances are rounded');
+		roundingSetting.addDropdown((dropdown) => {
+			dropdown
+				.addOption('none', 'None')
+				.addOption('closest', 'Closest')
+				.addOption('up', 'Up to')
+				.addOption('down', 'Down to')
+				.setValue(currentRoundingMode)
+				.onChange((value) => {
+					this.state.roundingMode = value as RoundingMode;
+					updateRoundingVisibility(value);
+				});
+		});
+
+		// ── Rounding multiple + unit ──
+		const multipleSetting = new Setting(items).setName('Round to nearest');
+
+		multipleSetting.addText((text) => {
+			text
+				.setValue(String(this.state.roundingMultiple ?? 5))
+				.setPlaceholder('5')
+				.onChange((value) => {
+					const num = parseFloat(value);
+					if (!isNaN(num) && num > 0) this.state.roundingMultiple = num;
+				});
+			text.inputEl.type = 'number';
+			text.inputEl.min = '0';
+			text.inputEl.step = 'any';
+		});
+
+		if (hasStructuredUnits) {
+			multipleSetting.addDropdown((dropdown) => {
+				for (const u of systemUnits) {
+					dropdown.addOption(u.id, u.label.charAt(0).toUpperCase() + u.label.slice(1));
+				}
+				dropdown.setValue(this.state.roundingUnit ?? scale?.unit ?? systemUnits[0]?.id ?? '').onChange((value) => {
+					this.state.roundingUnit = value as MeasurementUnit;
+				});
+			});
+		}
+
+		// ── Show raw distance ──
+		const rawSetting = new Setting(items)
+			.setName('Show raw distance')
+			.setDesc('Display the unrounded distance alongside the rounded value');
+		rawSetting.addToggle((toggle) => {
+			toggle.setValue(this.state.showRawDistance ?? false).onChange((value) => {
+				this.state.showRawDistance = value;
+			});
+		});
+
+		const updateRoundingVisibility = (mode: string) => {
+			const isNone = mode === 'none';
+			multipleSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+			rawSetting.settingEl.toggleClass('ttrpgmap-hidden', isNone);
+		};
+		updateRoundingVisibility(currentRoundingMode);
+
+		// ── Decimal places ──
+		new Setting(items)
+			.setName('Decimal places')
+			.setDesc('Number of decimal places shown in distance values')
+			.addText((text) => {
+				text
+					.setValue(String(this.state.distanceDecimals ?? 0))
+					.setPlaceholder('0')
+					.onChange((value) => {
+						const num = parseInt(value, 10);
+						if (!isNaN(num) && num >= 0 && num <= 6) this.state.distanceDecimals = num;
+					});
+				text.inputEl.type = 'number';
+				text.inputEl.min = '0';
+				text.inputEl.max = '6';
+				text.inputEl.step = '1';
+			});
 	}
 
 	private buildControlsSection(contentEl: HTMLElement): void {
@@ -663,20 +890,15 @@ export class MapSettingsModal extends Modal {
 	}
 
 	private buildFooter(contentEl: HTMLElement): void {
-		new Setting(contentEl)
-			.addButton((btn) => {
-				btn.setButtonText('Export map');
-				btn.onClick(() => {
-					void exportMap(this.app, this.plugin, this.config, this.state);
-				});
-			})
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.doCancel()))
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => this.doSave()),
-			);
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const exportBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Export map' });
+		exportBtn.addEventListener('click', () => {
+			void exportMap(this.app, this.plugin, this.config, this.state);
+		});
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.doCancel());
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => this.doSave());
 	}
 
 	private formatZoomRange(layer: MarkerLayer): string {

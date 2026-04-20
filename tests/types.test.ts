@@ -87,6 +87,7 @@ describe('Marker template resolution', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 
 		// Simulate resolution logic (same as MapRenderer.renderMarkers)
@@ -127,6 +128,7 @@ describe('Marker template resolution', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 
 		const color = marker.color ?? defaultTemplate.color;
@@ -243,6 +245,7 @@ describe('MapMarker scale fields', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 		expect(marker.scale).toBe(0.5);
 		expect(marker.scaleToZoom).toBe(false);
@@ -272,6 +275,7 @@ describe('MapMarker scale fields', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 		expect(marker.scale).toBeNull();
 		expect(marker.scaleToZoom).toBeNull();
@@ -351,6 +355,7 @@ describe('MapMarker text scale fields', () => {
 			textScale: 0.75,
 			textScaleToZoom: false,
 			font: null,
+			textVisibility: null,
 		};
 		expect(marker.textScale).toBe(0.75);
 		expect(marker.textScaleToZoom).toBe(false);
@@ -380,6 +385,7 @@ describe('MapMarker text scale fields', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 		expect(marker.textScale).toBeNull();
 		expect(marker.textScaleToZoom).toBeNull();
@@ -411,6 +417,7 @@ describe('MapMarker font field', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: 'serif',
+			textVisibility: null,
 		};
 		expect(marker.font).toBe('serif');
 	});
@@ -439,6 +446,7 @@ describe('MapMarker font field', () => {
 			textScale: null,
 			textScaleToZoom: null,
 			font: null,
+			textVisibility: null,
 		};
 		expect(marker.font).toBeNull();
 	});

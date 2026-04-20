@@ -1,7 +1,13 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import { confirmAction } from '../utils/confirmModal';
 import type TTRPGMapsPlugin from '../main';
-import { DEFAULT_MARKER_SCALE, DEFAULT_MARKER_TEXT_SCALE, MarkerFont, TTRPGMapsSettings } from '../types';
+import {
+	DEFAULT_MARKER_SCALE,
+	DEFAULT_MARKER_TEXT_SCALE,
+	MarkerFont,
+	TextVisibility,
+	TTRPGMapsSettings,
+} from '../types';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from '../modals/sharedFields';
 import { renderTemplateManager } from './renderTemplateManager';
 
@@ -82,6 +88,25 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 						this.save(true);
 					});
 			});
+
+		new Setting(containerEl)
+			.setName('Max rendered markers')
+			.setDesc('Maximum number of markers rendered at once. Reduces lag on maps with many markers.')
+			.addText((text) => {
+				text
+					.setValue(String(this.plugin.settings.maxRenderedMarkers ?? 200))
+					.setPlaceholder('200')
+					.onChange((value) => {
+						const num = parseInt(value, 10);
+						if (!isNaN(num) && num > 0) {
+							this.plugin.settings.maxRenderedMarkers = num;
+							this.save(true);
+						}
+					});
+				text.inputEl.type = 'number';
+				text.inputEl.min = '1';
+				text.inputEl.step = '1';
+			});
 	}
 
 	private buildTextSection(containerEl: HTMLElement): void {
@@ -122,39 +147,89 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 			setting: fontSetting,
 			value: this.plugin.settings.defaultMarkerFont ?? 'default',
 			onChange: (value) => {
-				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : value as MarkerFont;
+				this.plugin.settings.defaultMarkerFont = value === 'default' ? undefined : (value as MarkerFont);
 				this.save(true);
 			},
 		});
+
+		new Setting(containerEl)
+			.setName('Default text visibility')
+			.setDesc('Control whether marker labels are shown on all maps')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('visible', 'Always visible')
+					.addOption('hover', 'Mouseover only')
+					.addOption('hidden', 'Hidden')
+					.setValue(this.plugin.settings.defaultTextVisibility ?? 'visible')
+					.onChange((value) => {
+						this.plugin.settings.defaultTextVisibility = value === 'visible' ? undefined : (value as TextVisibility);
+						this.save(true);
+					});
+			});
 	}
 
 	private buildNavigationSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Navigation').setHeading();
 
 		this.addToggle(
-			containerEl, 'Open links in new tab',
+			containerEl,
+			'Open links in new tab',
 			'When clicking a marker with a linked note, open it in a new tab instead of replacing the current one.',
-			'openLinksInNewTab', false,
+			'openLinksInNewTab',
+			false,
 		);
 
 		this.addToggle(
-			containerEl, 'Show hover preview',
+			containerEl,
+			'Show hover preview',
 			'Show a page preview when hovering over markers with linked notes.',
-			'showHoverPreview', false,
+			'showHoverPreview',
+			false,
 		);
 	}
 
 	private buildControlsSection(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName('Controls').setHeading();
 
-		this.addToggle(containerEl, 'Show measurement tools', 'Show the distance measurement panel on maps', 'showMeasurementTools', true, true);
-		this.addToggle(containerEl, 'Show zoom controls', 'Show zoom buttons, center, fit, and lock toggles on maps', 'showZoomControls', true, true);
-		this.addToggle(containerEl, 'Show marker list', 'Show the marker list tab in the bottom-left panel', 'showMarkerList', true, true);
-		this.addToggle(containerEl, 'Show layer list', 'Show the layer list tab in the bottom-left panel', 'showLayerList', true, true);
 		this.addToggle(
-			containerEl, 'Show map settings button',
+			containerEl,
+			'Show measurement tools',
+			'Show the distance measurement panel on maps',
+			'showMeasurementTools',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show zoom controls',
+			'Show zoom buttons, center, fit, and lock toggles on maps',
+			'showZoomControls',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show marker list',
+			'Show the marker list tab in the bottom-left panel',
+			'showMarkerList',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show layer list',
+			'Show the layer list tab in the bottom-left panel',
+			'showLayerList',
+			true,
+			true,
+		);
+		this.addToggle(
+			containerEl,
+			'Show map settings button',
 			'Show the gear button on maps. When hidden, map settings are accessible from the right-click menu.',
-			'showMapSettings', true, true,
+			'showMapSettings',
+			true,
+			true,
 		);
 
 		const opacitySetting = new Setting(containerEl)

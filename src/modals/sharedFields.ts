@@ -313,6 +313,10 @@ export function buildPercentSlider(opts: PercentSliderOpts): PercentSliderContro
 	};
 }
 
+const SCALE_MIN = 10;
+const SCALE_MAX = 1000;
+const SCALE_STEP = 5;
+
 export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	const { setting, value, onChange, disabled = false } = opts;
 	let sliderRef: { setValue: (v: number) => unknown; setDisabled: (d: boolean) => unknown } | null = null;
@@ -321,7 +325,7 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	setting.addSlider((slider) => {
 		sliderRef = slider;
 		slider
-			.setLimits(25, 300, 5)
+			.setLimits(SCALE_MIN, SCALE_MAX, SCALE_STEP)
 			.setValue(Math.round(value * 100))
 			.onChange((v: number) => {
 				if (textRef) textRef.setValue(String(v));
@@ -337,15 +341,17 @@ export function buildScaleSlider(opts: ScaleSliderOpts): ScaleSliderControls {
 	setting.addText((text) => {
 		textRef = text;
 		text.inputEl.type = 'number';
-		text.inputEl.min = '25';
-		text.inputEl.max = '300';
-		text.inputEl.step = '5';
+		text.inputEl.min = String(SCALE_MIN);
+		text.inputEl.max = String(SCALE_MAX);
+		text.inputEl.step = String(SCALE_STEP);
 		text.inputEl.addClass('ttrpgmap-scale-input');
 		text.setValue(String(Math.round(value * 100))).onChange((v: string) => {
 			const num = parseInt(v, 10);
-			if (!isNaN(num) && num >= 25 && num <= 300) {
-				if (sliderRef) sliderRef.setValue(num);
-				onChange(num / 100);
+			if (!isNaN(num) && num >= SCALE_MIN && num <= SCALE_MAX) {
+				const snapped = Math.max(SCALE_MIN, Math.min(SCALE_MAX, Math.round(num / SCALE_STEP) * SCALE_STEP));
+				if (sliderRef) sliderRef.setValue(snapped);
+				text.setValue(String(snapped));
+				onChange(snapped / 100);
 			}
 		});
 		if (disabled) text.setDisabled(true);

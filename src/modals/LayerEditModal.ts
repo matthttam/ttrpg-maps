@@ -195,23 +195,20 @@ export class LayerEditModal extends Modal {
 			if (e.key === 'Enter') syncMaxText();
 		});
 
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn
-					.setButtonText('Save')
-					.setCta()
-					.onClick(() => {
-						const err = this.validate();
-						if (err) {
-							errorEl.setText(err);
-							errorEl.removeClass('ttrpgmap-hidden');
-							return;
-						}
-						this.onSave(this.layer);
-						this.close();
-					}),
-			)
-			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => this.close()));
+		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.close());
+		const saveBtn = footer.createEl('button', { cls: 'mod-cta', text: 'Save' });
+		saveBtn.addEventListener('click', () => {
+			const err = this.validate();
+			if (err) {
+				errorEl.setText(err);
+				errorEl.removeClass('ttrpgmap-hidden');
+				return;
+			}
+			this.onSave(this.layer);
+			this.close();
+		});
 	}
 
 	onClose(): void {

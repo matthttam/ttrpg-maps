@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal } from 'obsidian';
 
 /**
  * Show a confirmation modal and return a promise that resolves to true (confirmed) or false (cancelled).
@@ -12,22 +12,28 @@ export function confirmAction(
 ): Promise<boolean> {
 	return new Promise<boolean>((resolve) => {
 		const modal = new Modal(app);
+		let settled = false;
+		const finish = (result: boolean) => {
+			if (settled) return;
+			settled = true;
+			resolve(result);
+			modal.close();
+		};
 		modal.titleEl.setText(title);
 		modal.contentEl.createEl('p', { text: message });
-		new Setting(modal.contentEl)
-			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => {
-					resolve(false);
-					modal.close();
-				}),
-			)
-			.addButton((btn) => {
-				btn.setButtonText(actionText).onClick(() => {
-					resolve(true);
-					modal.close();
-				});
-				if (warning) btn.setWarning();
-			});
+		const footer = modal.contentEl.createDiv({ cls: 'modal-button-container' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => finish(false));
+		const actionBtn = footer.createEl('button', { cls: warning ? 'mod-warning' : 'mod-cta', text: actionText });
+		actionBtn.addEventListener('click', () => finish(true));
+		const origOnClose = modal.onClose.bind(modal);
+		modal.onClose = () => {
+			if (!settled) {
+				settled = true;
+				resolve(false);
+			}
+			origOnClose();
+		};
 		modal.open();
 	});
 }

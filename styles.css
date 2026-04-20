@@ -11,18 +11,12 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	background-color: var(--background-primary);
-	cursor: grab;
 	user-select: none;
 	min-height: 100px;
 }
 
 .ttrpgmap-wrapper.ttrpgmap-panning {
 	cursor: grabbing;
-}
-
-/* Pan-locked cursor: only apply when no measurement/copy cursor is active */
-.ttrpgmap-wrapper.ttrpgmap-pan-locked:not(.ttrpgmap-cursor-crosshair):not(.ttrpgmap-cursor-copy) {
-	cursor: default;
 }
 
 /* ===== Map Container (transformed for pan/zoom) ===== */
@@ -138,13 +132,25 @@
 }
 
 @keyframes ttrpgmap-warning-fade {
-	0%, 70% { opacity: 1; }
-	100% { opacity: 0; }
+	0%,
+	70% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
 }
 
-/* Setting highlight pulse (used when clicking a lock warning) */
+/* Setting highlight flash (used when clicking a lock warning or measurement gear) */
 .ttrpgmap-setting-highlight {
-	animation: ttrpgmap-highlight-pulse 1.5s ease;
+	animation: ttrpgmap-highlight-flash 2.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ttrpgmap-setting-highlight {
+		animation: none;
+		background: var(--background-modifier-hover);
+	}
 }
 
 .setting-items > .setting-item.ttrpgmap-setting-highlight:last-child {
@@ -152,24 +158,53 @@
 	margin-bottom: -20px;
 }
 
-@keyframes ttrpgmap-highlight-pulse {
-	0%, 100% { background: transparent; }
-	30%, 70% { background: var(--background-modifier-hover); }
+@keyframes ttrpgmap-highlight-flash {
+	0% {
+		background: var(--setting-items-background, transparent);
+	}
+	10% {
+		background: color-mix(in srgb, var(--interactive-accent) 30%, var(--setting-items-background, transparent));
+	}
+	22% {
+		background: var(--setting-items-background, transparent);
+	}
+	35% {
+		background: color-mix(in srgb, var(--interactive-accent) 30%, var(--setting-items-background, transparent));
+	}
+	47% {
+		background: var(--setting-items-background, transparent);
+	}
+	60% {
+		background: color-mix(in srgb, var(--interactive-accent) 30%, var(--setting-items-background, transparent));
+	}
+	75% {
+		background: var(--setting-items-background, transparent);
+	}
+	100% {
+		background: var(--setting-items-background, transparent);
+	}
 }
 
-/* ===== Measurement Panel (top-right drawer) ===== */
+/* ===== Measurement Toolbar (top-right) ===== */
 .ttrpgmap-measure-panel {
 	position: absolute;
 	top: 10px;
 	right: 10px;
 	z-index: 10;
 	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
+	flex-direction: row;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.ttrpgmap-measure-panel > .ttrpgmap-toolbar-btn {
+	border: none;
+	border-radius: 0;
 }
 
 /* Shared overlay button base */
-.ttrpgmap-measure-toggle,
 .ttrpgmap-toolbar-btn,
 .ttrpgmap-settings-btn,
 .ttrpgmap-marker-list-toggle {
@@ -185,7 +220,6 @@
 	color: var(--text-normal);
 }
 
-.ttrpgmap-measure-toggle:hover,
 .ttrpgmap-toolbar-btn:hover,
 .ttrpgmap-settings-btn:hover,
 .ttrpgmap-marker-list-toggle:hover {
@@ -193,27 +227,9 @@
 	filter: brightness(1.1);
 }
 
-.ttrpgmap-measure-toggle svg,
 .ttrpgmap-toolbar-btn svg {
 	width: 16px;
 	height: 16px;
-}
-
-.ttrpgmap-measure-drawer {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 4px;
-	background: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	padding: 8px;
-	min-width: 160px;
-}
-
-.ttrpgmap-measure-tools {
-	display: flex;
-	gap: 4px;
 }
 
 .ttrpgmap-toolbar-btn {
@@ -279,64 +295,20 @@
 	stroke-linejoin: round;
 }
 
-/* ===== Rounding Controls ===== */
-.ttrpgmap-measure-rounding {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	border-top: 1px solid var(--background-modifier-border);
-	padding-top: 6px;
-}
-
-.ttrpgmap-measure-rounding-label {
-	font-size: 11px;
+/* ===== Marker Cull Banner ===== */
+.ttrpgmap-cull-banner {
+	position: absolute;
+	bottom: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	background: rgba(0, 0, 0, 0.7);
 	color: var(--text-muted);
-	font-weight: 500;
-}
-
-.ttrpgmap-measure-rounding-row {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	flex-wrap: wrap;
-}
-
-.ttrpgmap-measure-rounding-select {
+	padding: 4px 12px;
+	border-radius: 4px;
 	font-size: 12px;
-	padding: 2px 4px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 3px;
-	background: var(--background-modifier-form-field);
-	color: var(--text-normal);
-}
-
-.ttrpgmap-measure-rounding-of {
-	font-size: 11px;
-	color: var(--text-muted);
-}
-
-.ttrpgmap-measure-rounding-input {
-	width: 50px;
-	font-size: 12px;
-	padding: 2px 4px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 3px;
-	background: var(--background-modifier-form-field);
-	color: var(--text-normal);
-}
-
-.ttrpgmap-measure-rounding-raw {
-	display: flex;
-	align-items: center;
-	gap: 3px;
-	font-size: 12px;
-	color: var(--text-muted);
-	cursor: pointer;
 	white-space: nowrap;
-}
-
-.ttrpgmap-measure-rounding-raw input[type='checkbox'] {
-	margin: 0;
+	pointer-events: none;
 }
 
 /* ===== Total Distance Display ===== */
@@ -359,15 +331,6 @@
 /* ===== Marker Measurement Mode ===== */
 .ttrpgmap-measuring .ttrpgmap-marker-overlay {
 	cursor: crosshair;
-}
-
-.ttrpgmap-marker-fade-in {
-	animation: ttrpgmap-marker-appear 0.3s ease;
-}
-
-@keyframes ttrpgmap-marker-appear {
-	from { opacity: 0; }
-	to { opacity: 1; }
 }
 
 .ttrpgmap-marker.ttrpgmap-marker-measuring {
@@ -428,12 +391,15 @@
 }
 
 /* Adjacent tabs: flatten the shared edge between them */
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) + .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
+.ttrpgmap-panel-tabs
+	.ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)
+	+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
 }
 
-.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)) {
+.ttrpgmap-panel-tabs
+	.ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)) {
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
@@ -583,7 +549,6 @@
 .ttrpgmap-marker-list-row:hover {
 	background: var(--background-modifier-hover);
 }
-
 
 .ttrpgmap-marker-list-row--hidden {
 	opacity: 0.5;
@@ -1029,6 +994,18 @@
 	max-width: calc(220px * var(--marker-text-scale, 1));
 }
 
+/* Text visibility: hover-only mode */
+.ttrpgmap-marker[data-text-visibility='hover'] .ttrpgmap-marker-label {
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	pointer-events: none;
+}
+
+.ttrpgmap-marker[data-text-visibility='hover']:hover .ttrpgmap-marker-label {
+	opacity: 1;
+	pointer-events: auto;
+}
+
 .ttrpgmap-marker[data-text-placement='above'] .ttrpgmap-marker-label {
 	bottom: 100%;
 	margin-bottom: calc(4px * var(--marker-text-scale, 1));
@@ -1109,7 +1086,6 @@
 	border-radius: 6px;
 }
 
-
 /* ===== Modal styles ===== */
 .ttrpgmap-modal--wide {
 	width: 90ch;
@@ -1136,6 +1112,11 @@
 
 .ttrpgmap-layer-list {
 	padding-left: 24px;
+	padding-bottom: 20px;
+}
+
+.setting-items:last-child > .ttrpgmap-layer-list:last-child {
+	padding-bottom: 0;
 }
 
 /* Inline labeled inputs (Map Size, Zoom Range) */
@@ -1341,7 +1322,10 @@
 /* Animated collapsible content (accordion) */
 .ttrpgmap-collapsible-content {
 	overflow: hidden;
-	transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease;
+	transition:
+		max-height 0.25s ease,
+		opacity 0.25s ease,
+		padding 0.25s ease;
 	max-height: 800px;
 	opacity: 1;
 }
@@ -1850,6 +1834,14 @@
 
 .ttrpgmap-cursor-copy {
 	cursor: copy;
+}
+
+.ttrpgmap-cursor-ew-resize {
+	cursor: ew-resize;
+}
+
+.ttrpgmap-cursor-ns-resize {
+	cursor: ns-resize;
 }
 
 .ttrpgmap-pixelated {

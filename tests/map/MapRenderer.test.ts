@@ -72,6 +72,7 @@ function createMarker(overrides?: Partial<MapMarker>): MapMarker {
 		textScale: null,
 		textScaleToZoom: null,
 		font: null,
+		textVisibility: null,
 		...overrides,
 	};
 }
@@ -113,17 +114,15 @@ describe('MapRenderer DOM', () => {
 		expect(label!.textContent).toBe('100%');
 	});
 
-	it('renders measurement drawer with calibrate, measure, and freehand buttons', async () => {
+	it('renders measurement toolbar with calibrate, measure, freehand, and settings buttons', async () => {
 		const plugin = createMockPlugin();
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
 		await renderer.onload();
 
 		const panel = container.querySelector('.ttrpgmap-measure-panel');
 		expect(panel).not.toBeNull();
-		const tools = panel!.querySelector('.ttrpgmap-measure-tools');
-		expect(tools).not.toBeNull();
-		const btns = tools!.querySelectorAll('.ttrpgmap-toolbar-btn');
-		expect(btns.length).toBe(3);
+		const btns = panel!.querySelectorAll('.ttrpgmap-toolbar-btn');
+		expect(btns.length).toBe(4);
 	});
 
 	it('renders settings button', async () => {
@@ -242,58 +241,33 @@ describe('MapRenderer DOM', () => {
 		expect((total as HTMLElement).classList.contains('ttrpgmap-hidden')).toBe(true);
 	});
 
-	it('renders rounding controls in the measurement drawer', async () => {
+	it('hides measure, freehand, and settings buttons when no scale is set', async () => {
 		const plugin = createMockPlugin();
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
 		await renderer.onload();
 
-		const rounding = container.querySelector('.ttrpgmap-measure-rounding');
-		expect(rounding).not.toBeNull();
-
-		const select = rounding!.querySelector('select');
-		expect(select).not.toBeNull();
-		const options = select!.querySelectorAll('option');
-		expect(options.length).toBe(4);
-		expect(options[0].value).toBe('none');
-		expect(options[1].value).toBe('closest');
-		expect(options[2].value).toBe('up');
-		expect(options[3].value).toBe('down');
-
-		const input = rounding!.querySelector("input[type='number']");
-		expect(input).not.toBeNull();
+		const panel = container.querySelector('.ttrpgmap-measure-panel');
+		const btns = panel!.querySelectorAll('.ttrpgmap-toolbar-btn');
+		// calibrate visible, measure/freehand/settings hidden
+		expect(btns[0].classList.contains('ttrpgmap-hidden')).toBe(false);
+		expect(btns[1].classList.contains('ttrpgmap-hidden')).toBe(true);
+		expect(btns[2].classList.contains('ttrpgmap-hidden')).toBe(true);
+		expect(btns[3].classList.contains('ttrpgmap-hidden')).toBe(true);
 	});
 
-	it('measurement drawer is hidden by default', async () => {
-		const plugin = createMockPlugin();
+	it('shows all measurement buttons when scale is set', async () => {
+		const plugin = createMockPlugin({
+			distanceScale: { pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, units: 50, unitLabel: 'ft' },
+		});
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
 		await renderer.onload();
 
-		const drawer = container.querySelector('.ttrpgmap-measure-drawer');
-		expect(drawer).not.toBeNull();
-		expect((drawer as HTMLElement).classList.contains('ttrpgmap-hidden')).toBe(true);
-	});
-
-	it('renders measurement toggle button', async () => {
-		const plugin = createMockPlugin();
-		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
-		await renderer.onload();
-
-		const toggle = container.querySelector('.ttrpgmap-measure-toggle');
-		expect(toggle).not.toBeNull();
-	});
-
-	it('initializes rounding select from state', async () => {
-		const plugin = createMockPlugin({ roundingMode: 'up', roundingMultiple: 10 });
-		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
-		await renderer.onload();
-
-		const select = container.querySelector('.ttrpgmap-measure-rounding-select') as HTMLSelectElement;
-		expect(select).not.toBeNull();
-		expect(select.value).toBe('up');
-
-		const input = container.querySelector('.ttrpgmap-measure-rounding-input') as HTMLInputElement;
-		expect(input).not.toBeNull();
-		expect(input.value).toBe('10');
+		const panel = container.querySelector('.ttrpgmap-measure-panel');
+		const btns = panel!.querySelectorAll('.ttrpgmap-toolbar-btn');
+		expect(btns[0].classList.contains('ttrpgmap-hidden')).toBe(false);
+		expect(btns[1].classList.contains('ttrpgmap-hidden')).toBe(false);
+		expect(btns[2].classList.contains('ttrpgmap-hidden')).toBe(false);
+		expect(btns[3].classList.contains('ttrpgmap-hidden')).toBe(false);
 	});
 
 	it('sets --marker-scale to 1 on markers by default', async () => {
@@ -712,7 +686,7 @@ describe('MapRenderer Alt+Scroll resize', () => {
 	});
 
 	it('scale is clamped to maximum', async () => {
-		const marker = createMarker({ scale: 4.98 });
+		const marker = createMarker({ scale: 9.98 });
 		const plugin = createMockPlugin({ markers: [marker] });
 		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
 		await renderer.onload();
@@ -720,7 +694,7 @@ describe('MapRenderer Alt+Scroll resize', () => {
 		const pinEl = container.querySelector('.ttrpgmap-marker-pin') as HTMLElement;
 		dispatchWheel(pinEl, { deltaY: -100 }); // scroll up
 
-		expect(marker.scale).toBe(5.0);
+		expect(marker.scale).toBe(10.0);
 	});
 
 	it("map-level Shift+Alt initializes from hovered marker's effective scale", async () => {

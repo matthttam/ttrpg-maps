@@ -658,7 +658,7 @@ export class MapSettingsModal extends Modal {
 		}
 
 		const system = scale.unitSystem;
-		const hasStructuredUnits = system === 'imperial' || system === 'metric';
+		const hasStructuredUnits = !!scale.unit && (system === 'imperial' || system === 'metric');
 		const systemUnits = hasStructuredUnits ? getUnitsForSystem(system) : [];
 
 		// ── Conversion mode (imperial/metric only) ──

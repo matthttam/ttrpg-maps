@@ -144,7 +144,7 @@ export class MarkerEditModal extends Modal {
 		const fontStack = this.marker.font ? getMarkerFontStack(this.marker.font) : null;
 		if (fontStack) wrapper.style.setProperty('--marker-font', fontStack);
 
-		const textVis = this.marker.textVisibility ?? 'visible';
+		const textVis = this.marker.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible';
 		if (textVis !== 'hidden') {
 			buildMarkerLabel(
 				wrapper,

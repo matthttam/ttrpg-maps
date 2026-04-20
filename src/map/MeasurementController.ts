@@ -265,7 +265,7 @@ export class MeasurementController {
 
 		e.preventDefault();
 		e.stopPropagation();
-		this.ctx.interaction.tryEnter('drawing-freehand');
+		if (!this.ctx.interaction.tryEnter('drawing-freehand')) return;
 		this.isDrawingFreehand = true;
 
 		const point = this.screenToMap(e);

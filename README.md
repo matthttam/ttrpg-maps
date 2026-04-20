@@ -81,7 +81,7 @@ See the [code block reference](docs/features.md#code-block-reference) for all av
 - **Zoom** - Scroll wheel, or use the +/- buttons (top-left)
 - **Reset view** - Click the center button (top-left)
 
-<img width="87" height="255" alt="image" src="https://github.com/user-attachments/assets/128ba815-f5a6-474e-927a-c3931660e9a5" />
+<img width="73" height="390" alt="image" src="https://github.com/user-attachments/assets/93f0222c-c986-4b81-b779-d05e3bc35b4a" />
 
 ### 3. Place markers
 

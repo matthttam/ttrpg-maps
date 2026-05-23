@@ -1,0 +1,20 @@
+# Treat all files as text by default and normalize line endings to LF
+# in both the repository and the working tree. This stops Windows
+# contributors from seeing the "LF will be replaced by CRLF" warning
+# when staging files written with CRLF by an editor.
+* text=auto eol=lf
+
+# Mark common binary asset types so git never tries to diff/normalize them.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.otf  binary
+*.zip  binary
+*.pdf  binary

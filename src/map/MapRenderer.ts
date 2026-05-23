@@ -207,8 +207,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.imageEl = this.mapContainer.createEl('img', { cls: 'ttrpgmap-image' });
 		this.loadImage();
 
-		this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-		this.svgOverlay.addClass('ttrpgmap-svg-overlay');
+		this.svgOverlay = createSvg('svg', { cls: 'ttrpgmap-svg-overlay' });
 		this.mapContainer.appendChild(this.svgOverlay);
 
 		// Marker overlay sits outside the scaled container for crisp rendering
@@ -550,7 +549,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		const nameEl = row.createDiv({ cls: 'ttrpgmap-marker-list-name' });
 		nameEl.setText(layer.name);
 		const rangeText = this.formatZoomRangeShort(layer);
-		if (rangeText) nameEl.createEl('span', { cls: 'ttrpgmap-layer-range-badge', text: ` ${rangeText}` });
+		if (rangeText) nameEl.createSpan({ cls: 'ttrpgmap-layer-range-badge', text: ` ${rangeText}` });
 
 		// Actions
 		const actionGroup = row.createDiv({ cls: 'ttrpgmap-layer-action-group' });
@@ -1765,7 +1764,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		// Create markers newly entering visibility
 		if (visibleIds.size > 0) {
-			const fragment = document.createDocumentFragment();
+			const fragment = createFragment();
 			for (const marker of this.state.markers) {
 				if (!visibleIds.has(marker.id)) continue;
 				const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
@@ -1811,7 +1810,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			visibleMarkers.length = maxMarkers;
 		}
 
-		const fragment = document.createDocumentFragment();
+		const fragment = createFragment();
 		for (const marker of visibleMarkers) {
 			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
 			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
@@ -1845,8 +1844,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		const { sx, sy } = this.getImageScale();
 		const scale = this.zoom / 100;
-		const markerEl = document.createElement('div');
-		markerEl.addClass('ttrpgmap-marker');
+		const markerEl = createDiv({ cls: 'ttrpgmap-marker' });
 		(parent ?? this.markerOverlay).appendChild(markerEl);
 
 		markerEl.style.left = `${marker.x * sx * scale}px`;

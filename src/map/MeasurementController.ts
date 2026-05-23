@@ -213,11 +213,9 @@ export class MeasurementController {
 		const cursor: MapPoint = { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
 
 		if (!this.measurePreviewLine) {
-			this.measurePreviewLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-			this.measurePreviewLine.setAttribute(
-				'class',
-				'ttrpgmap-draw-line ttrpgmap-measure-line ttrpgmap-measure-preview',
-			);
+			this.measurePreviewLine = createSvg('line', {
+				cls: 'ttrpgmap-draw-line ttrpgmap-measure-line ttrpgmap-measure-preview',
+			});
 			this.ctx.svgOverlay.appendChild(this.measurePreviewLine);
 		}
 		this.measurePreviewLine.setAttribute('x1', String(last.x));
@@ -226,9 +224,10 @@ export class MeasurementController {
 		this.measurePreviewLine.setAttribute('y2', String(cursor.y));
 
 		if (!this.measurePreviewCircle) {
-			this.measurePreviewCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+			this.measurePreviewCircle = createSvg('circle', {
+				cls: 'ttrpgmap-draw-point ttrpgmap-measure-preview',
+			});
 			this.measurePreviewCircle.setAttribute('r', '4');
-			this.measurePreviewCircle.setAttribute('class', 'ttrpgmap-draw-point ttrpgmap-measure-preview');
 			this.ctx.svgOverlay.appendChild(this.measurePreviewCircle);
 		}
 		this.measurePreviewCircle.setAttribute('cx', String(cursor.x));
@@ -239,8 +238,9 @@ export class MeasurementController {
 			if (segDist !== null) {
 				const mid: MapPoint = { x: (last.x + cursor.x) / 2, y: (last.y + cursor.y) / 2 };
 				if (!this.measurePreviewLabel) {
-					this.measurePreviewLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-					this.measurePreviewLabel.setAttribute('class', 'ttrpgmap-draw-label ttrpgmap-measure-preview');
+					this.measurePreviewLabel = createSvg('text', {
+						cls: 'ttrpgmap-draw-label ttrpgmap-measure-preview',
+					});
 					this.ctx.svgOverlay.appendChild(this.measurePreviewLabel);
 				}
 				this.measurePreviewLabel.setAttribute('x', String(mid.x));
@@ -272,8 +272,7 @@ export class MeasurementController {
 		const stroke: MapPoint[] = [point];
 		this.freehandStrokes.push(stroke);
 
-		const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-		polyline.setAttribute('class', 'ttrpgmap-draw-line ttrpgmap-freehand-line');
+		const polyline = createSvg('polyline', { cls: 'ttrpgmap-draw-line ttrpgmap-freehand-line' });
 		polyline.setAttribute('points', `${point.x},${point.y}`);
 		polyline.setAttribute('fill', 'none');
 		this.ctx.svgOverlay.appendChild(polyline);
@@ -500,33 +499,30 @@ export class MeasurementController {
 	}
 
 	private drawSvgLine(a: MapPoint, b: MapPoint, cls: string): SVGLineElement {
-		const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+		const line = createSvg('line', { cls });
 		line.setAttribute('x1', String(a.x));
 		line.setAttribute('y1', String(a.y));
 		line.setAttribute('x2', String(b.x));
 		line.setAttribute('y2', String(b.y));
-		line.setAttribute('class', cls);
 		this.ctx.svgOverlay.appendChild(line);
 		this.activeSvgElements.push(line);
 		return line;
 	}
 
 	private drawSvgCircle(p: MapPoint, r: number, cls: string): SVGCircleElement {
-		const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+		const circle = createSvg('circle', { cls });
 		circle.setAttribute('cx', String(p.x));
 		circle.setAttribute('cy', String(p.y));
 		circle.setAttribute('r', String(r));
-		circle.setAttribute('class', cls);
 		this.ctx.svgOverlay.appendChild(circle);
 		this.activeSvgElements.push(circle);
 		return circle;
 	}
 
 	private drawSvgText(p: MapPoint, text: string, cls: string): SVGTextElement {
-		const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		const el = createSvg('text', { cls });
 		el.setAttribute('x', String(p.x));
 		el.setAttribute('y', String(p.y - 10));
-		el.setAttribute('class', cls);
 		el.textContent = text;
 		this.ctx.svgOverlay.appendChild(el);
 		this.activeSvgElements.push(el);

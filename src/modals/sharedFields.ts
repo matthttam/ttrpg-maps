@@ -95,6 +95,9 @@ export function buildIconField(ctx: FieldContext): {
 	rotationInput: { setValue: (deg: number) => void };
 } {
 	const setting = new Setting(ctx.contentEl).setName('Icon');
+	// Mark the setting row so its CSS rules can match without using
+	// `:has(.ttrpgmap-icon-input-wrap)` on every .setting-item.
+	setting.settingEl.addClass('ttrpgmap-icon-setting');
 
 	// Wrapper that looks like a dropdown with icon + text + source badge
 	const inputWrap = setting.controlEl.createDiv({ cls: 'ttrpgmap-icon-input-wrap' });

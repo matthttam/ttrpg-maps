@@ -1577,6 +1577,14 @@ export class MapRenderer extends MarkdownRenderChild {
 		this.markersTabEl?.toggleClass('ttrpgmap-hidden', !showMarkers);
 		this.layersTabEl?.toggleClass('ttrpgmap-hidden', !showLayers);
 
+		// Stamp first/last-visible classes so the segmented-tab styling
+		// can avoid `:has(+ .ttrpgmap-marker-list-toggle:not(.hidden))`.
+		// Only matters when BOTH tabs are visible -- a single-visible tab
+		// keeps both border radii from the base rule.
+		const bothVisible = showMarkers && showLayers;
+		this.markersTabEl?.toggleClass('ttrpgmap-panel-tab-first-of-pair', bothVisible);
+		this.layersTabEl?.toggleClass('ttrpgmap-panel-tab-last-of-pair', bothVisible);
+
 		// Close panel if the active tab was just hidden
 		if ((this.activeListTab === 'markers' && !showMarkers) || (this.activeListTab === 'layers' && !showLayers)) {
 			this.closeListPanel();
@@ -1888,6 +1896,22 @@ export class MapRenderer extends MarkdownRenderChild {
 			markerEl.addClass('ttrpgmap-marker-measuring');
 		}
 
+		// Mirror the shape decision createPinElement makes so the marker
+		// container gets a matching modifier class. This lets the anchor /
+		// transform-origin CSS target `.ttrpgmap-marker--<shape>` directly
+		// instead of using `:has(.ttrpgmap-pin--<shape>)` on the parent.
+		const useBaseMarker = marker.useBaseMarker ?? true;
+		const requestedShape = marker.shape ?? 'pin';
+		let effectiveShape: 'pin' | 'circle' | 'hotspot' | 'standalone';
+		if (requestedShape === 'hotspot') {
+			effectiveShape = 'hotspot';
+		} else if (useBaseMarker || !marker.icon) {
+			effectiveShape = requestedShape;
+		} else {
+			effectiveShape = 'standalone';
+		}
+		markerEl.addClass(`ttrpgmap-marker--${effectiveShape}`);
+
 		createPinElement(markerEl, {
 			pinClass: 'ttrpgmap-marker-pin',
 			svgClass: 'ttrpgmap-pin-svg',
@@ -1896,8 +1920,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			iconColor,
 			iconRotation: marker.iconRotation ?? 0,
 			iconClass: 'ttrpgmap-marker-icon',
-			useBaseMarker: marker.useBaseMarker ?? true,
-			shape: marker.shape ?? 'pin',
+			useBaseMarker,
+			shape: requestedShape,
 		});
 
 		const textVis =

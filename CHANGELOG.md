@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/matthttam/ttrpg-maps/compare/1.4.0...1.4.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* address Obsidian community plugin review warnings ([#4](https://github.com/matthttam/ttrpg-maps/issues/4)) ([6021535](https://github.com/matthttam/ttrpg-maps/commit/6021535583b4b15cb525c8ee3df8eab62fe1aee1))
+
 # [1.4.0](https://github.com/matthttam/ttrpg-maps/compare/1.3.3...1.4.0) (2026-04-20)
 
 ### Bug Fixes

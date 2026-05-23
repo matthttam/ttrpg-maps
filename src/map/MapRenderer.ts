@@ -252,6 +252,10 @@ export class MapRenderer extends MarkdownRenderChild {
 				this.svgOverlay.removeClass('ttrpgmap-hidden');
 				this.updateImageScaleCache();
 				this.syncViewportMarkers(true);
+				// SVG draw helpers cache sx/sy at the moment of creation; a wrapper
+				// resize invalidates those positions, so redraw the in-progress
+				// measurement (if any) using the new display ratio.
+				this.measurement.redrawActiveMeasurements();
 				this.markerOverlay.removeClass('ttrpgmap-visibility-hidden');
 			}, 150);
 		});
@@ -415,6 +419,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			mapContainer: this.mapContainer,
 			svgOverlay: this.svgOverlay,
 			getZoom: () => this.zoom,
+			getImageScale: () => this.getImageScale(),
 			getState: () => this.state,
 			config: this.config,
 			plugin: this.plugin,

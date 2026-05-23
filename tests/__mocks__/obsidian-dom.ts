@@ -154,30 +154,38 @@ function applySvgOpts(el: SVGElement, opts?: CreateSvgOpts): void {
 
 const g = globalThis as unknown as Record<string, unknown>;
 
+// Build a detached element matching Obsidian's global create* helpers, which
+// return free-standing nodes the caller is expected to attach. Using a
+// detached host (instead of document.body) keeps test DOM state isolated.
+function createDetachedEl<K extends keyof HTMLElementTagNameMap>(
+	tag: K,
+	opts?: CreateElOpts,
+): HTMLElementTagNameMap[K] {
+	const el = document.createElement(tag);
+	if (opts?.cls) {
+		for (const c of opts.cls.split(' ')) {
+			if (c) el.classList.add(c);
+		}
+	}
+	if (opts?.text) el.textContent = opts.text;
+	if (opts?.attr) {
+		for (const [k, v] of Object.entries(opts.attr)) {
+			el.setAttribute(k, v);
+		}
+	}
+	if (opts?.type) (el as HTMLInputElement).type = opts.type;
+	if (opts?.value) (el as HTMLInputElement).value = opts.value;
+	return el;
+}
+
 if (typeof g.createDiv === 'undefined') {
-	g.createDiv = (opts?: CreateElOpts): HTMLDivElement => createEl.call(document.body, 'div', opts) as HTMLDivElement;
+	g.createDiv = (opts?: CreateElOpts): HTMLDivElement => createDetachedEl('div', opts);
 }
 if (typeof g.createEl === 'undefined') {
-	g.createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, opts?: CreateElOpts): HTMLElementTagNameMap[K] => {
-		const el = document.createElement(tag);
-		if (opts?.cls) {
-			for (const c of opts.cls.split(' ')) {
-				if (c) el.classList.add(c);
-			}
-		}
-		if (opts?.text) el.textContent = opts.text;
-		if (opts?.attr) {
-			for (const [k, v] of Object.entries(opts.attr)) {
-				el.setAttribute(k, v);
-			}
-		}
-		if (opts?.type) (el as HTMLInputElement).type = opts.type;
-		if (opts?.value) (el as HTMLInputElement).value = opts.value;
-		return el;
-	};
+	g.createEl = createDetachedEl;
 }
 if (typeof g.createSpan === 'undefined') {
-	g.createSpan = (opts?: CreateElOpts): HTMLSpanElement => createEl.call(document.body, 'span', opts) as HTMLSpanElement;
+	g.createSpan = (opts?: CreateElOpts): HTMLSpanElement => createDetachedEl('span', opts);
 }
 if (typeof g.createSvg === 'undefined') {
 	g.createSvg = (tag: string, opts?: CreateSvgOpts): SVGElement => {

@@ -1,5 +1,5 @@
 import { App, Notice } from 'obsidian';
-import JSZip from 'jszip';
+import { strToU8, zipSync } from 'fflate';
 import type TTRPGMapsPlugin from '../main';
 import { MapConfig, MapState, MapExportManifest } from '../types';
 
@@ -26,12 +26,13 @@ export async function exportMap(app: App, plugin: TTRPGMapsPlugin, config: MapCo
 		imageFilename,
 	};
 
-	// Create ZIP
-	const zip = new JSZip();
-	zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-	zip.file(imageFilename, imageData);
+	// Create ZIP (sync API keeps us off the bundled Web Worker code path)
+	const zipBytes = zipSync({
+		'manifest.json': strToU8(JSON.stringify(manifest, null, 2)),
+		[imageFilename]: new Uint8Array(imageData),
+	});
 
-	const blob = await zip.generateAsync({ type: 'blob' });
+	const blob = new Blob([zipBytes], { type: 'application/zip' });
 
 	// Trigger download
 	const url = URL.createObjectURL(blob);

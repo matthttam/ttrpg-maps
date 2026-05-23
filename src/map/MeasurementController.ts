@@ -21,6 +21,8 @@ export interface MeasurementContext {
 	mapContainer: HTMLElement;
 	svgOverlay: SVGSVGElement;
 	getZoom: () => number;
+	/** Display-pixel-to-natural-image ratio for the current render */
+	getImageScale: () => { sx: number; sy: number };
 	getState: () => MapState | null;
 	config: { id: string };
 	plugin: { app: { workspace: unknown }; dataManager: { saveMapState: (id: string, state: MapState) => void } };
@@ -171,6 +173,87 @@ export class MeasurementController {
 		this.ctx.wrapper.removeClass('ttrpgmap-panning');
 	}
 
+	/**
+	 * Redraw any in-progress measurement geometry from the stored
+	 * natural-pixel point lists. Call this after the wrapper resizes so
+	 * existing strokes / measure segments line up with the (now differently
+	 * scaled) image.
+	 */
+	redrawActiveMeasurements(): void {
+		// Nothing to redraw when not actively measuring.
+		const mode = this.mode;
+		if (mode === 'pan') return;
+
+		this.clearActiveSvg();
+		this.clearMeasurePreview();
+		this.currentFreehandPolyline = null;
+
+		if (mode === 'calibrate') {
+			for (const p of this.drawingPoints) {
+				this.drawSvgCircle(p, 4, 'ttrpgmap-draw-point');
+			}
+			if (this.drawingPoints.length === 2) {
+				const [a, b] = this.drawingPoints;
+				this.drawSvgLine(a, b, 'ttrpgmap-draw-line ttrpgmap-calibrate-line');
+			}
+			return;
+		}
+
+		if (mode === 'measure') {
+			for (const p of this.drawingPoints) {
+				this.drawSvgCircle(p, 4, 'ttrpgmap-draw-point');
+			}
+			for (let i = 1; i < this.drawingPoints.length; i++) {
+				const prev = this.drawingPoints[i - 1];
+				const curr = this.drawingPoints[i];
+				this.drawSvgLine(prev, curr, 'ttrpgmap-draw-line ttrpgmap-measure-line');
+				if (this.state?.distanceScale) {
+					const segDist = pixelsToUnits(pixelDistance(prev, curr), this.state.distanceScale);
+					if (segDist !== null) {
+						const mid: MapPoint = { x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2 };
+						this.drawSvgText(mid, this.formatDistance(segDist), 'ttrpgmap-draw-label');
+					}
+				}
+			}
+			return;
+		}
+
+		if (mode === 'freehand') {
+			const { sx, sy } = this.ctx.getImageScale();
+			const lastIdx = this.freehandStrokes.length - 1;
+			for (let i = 0; i < this.freehandStrokes.length; i++) {
+				const stroke = this.freehandStrokes[i];
+				if (stroke.length === 0) continue;
+				const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+				polyline.setAttribute('class', 'ttrpgmap-draw-line ttrpgmap-freehand-line');
+				polyline.setAttribute('points', stroke.map((p) => `${p.x * sx},${p.y * sy}`).join(' '));
+				polyline.setAttribute('fill', 'none');
+				this.ctx.svgOverlay.appendChild(polyline);
+				this.activeSvgElements.push(polyline);
+
+				// Start-of-stroke dot
+				this.drawSvgCircle(stroke[0], 4, 'ttrpgmap-draw-point');
+
+				const isLast = i === lastIdx;
+				if (this.isDrawingFreehand && isLast) {
+					// The user is still drawing into this stroke; subsequent
+					// continueFreehand calls will mutate the polyline points.
+					this.currentFreehandPolyline = polyline;
+				} else {
+					// Completed strokes get an end dot and a per-stroke label.
+					this.drawSvgCircle(stroke[stroke.length - 1], 4, 'ttrpgmap-draw-point');
+					if (this.state?.distanceScale && stroke.length >= 2) {
+						const strokeDist = polylineUnitsDistance(stroke, this.state.distanceScale);
+						if (strokeDist !== null) {
+							const midIdx = Math.floor(stroke.length / 2);
+							this.drawSvgText(stroke[midIdx], this.formatDistance(strokeDist), 'ttrpgmap-draw-label');
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/** Get total point count across measure mode and freehand strokes */
 	getMeasurePointCount(): number {
 		if (this.mode === 'freehand') {
@@ -195,9 +278,7 @@ export class MeasurementController {
 
 	onMapClick(e: MouseEvent): void {
 		if (this.mode === 'pan' || this.mode === 'freehand') return;
-		const rect = this.ctx.mapContainer.getBoundingClientRect();
-		const scale = this.zoom / 100;
-		const point: MapPoint = { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
+		const point = this.screenToMap(e);
 
 		this.drawingPoints.push(point);
 		this.drawSvgCircle(point, 4, 'ttrpgmap-draw-point');
@@ -208,9 +289,8 @@ export class MeasurementController {
 
 	updateMeasurePreview(e: MouseEvent): void {
 		const last = this.drawingPoints[this.drawingPoints.length - 1];
-		const rect = this.ctx.mapContainer.getBoundingClientRect();
-		const scale = this.zoom / 100;
-		const cursor: MapPoint = { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
+		const cursor = this.screenToMap(e);
+		const { sx, sy } = this.ctx.getImageScale();
 
 		if (!this.measurePreviewLine) {
 			this.measurePreviewLine = createSvg('line', {
@@ -218,10 +298,10 @@ export class MeasurementController {
 			});
 			this.ctx.svgOverlay.appendChild(this.measurePreviewLine);
 		}
-		this.measurePreviewLine.setAttribute('x1', String(last.x));
-		this.measurePreviewLine.setAttribute('y1', String(last.y));
-		this.measurePreviewLine.setAttribute('x2', String(cursor.x));
-		this.measurePreviewLine.setAttribute('y2', String(cursor.y));
+		this.measurePreviewLine.setAttribute('x1', String(last.x * sx));
+		this.measurePreviewLine.setAttribute('y1', String(last.y * sy));
+		this.measurePreviewLine.setAttribute('x2', String(cursor.x * sx));
+		this.measurePreviewLine.setAttribute('y2', String(cursor.y * sy));
 
 		if (!this.measurePreviewCircle) {
 			this.measurePreviewCircle = createSvg('circle', {
@@ -230,8 +310,8 @@ export class MeasurementController {
 			this.measurePreviewCircle.setAttribute('r', '4');
 			this.ctx.svgOverlay.appendChild(this.measurePreviewCircle);
 		}
-		this.measurePreviewCircle.setAttribute('cx', String(cursor.x));
-		this.measurePreviewCircle.setAttribute('cy', String(cursor.y));
+		this.measurePreviewCircle.setAttribute('cx', String(cursor.x * sx));
+		this.measurePreviewCircle.setAttribute('cy', String(cursor.y * sy));
 
 		if (this.state?.distanceScale) {
 			const segDist = pixelsToUnits(pixelDistance(last, cursor), this.state.distanceScale);
@@ -243,8 +323,8 @@ export class MeasurementController {
 					});
 					this.ctx.svgOverlay.appendChild(this.measurePreviewLabel);
 				}
-				this.measurePreviewLabel.setAttribute('x', String(mid.x));
-				this.measurePreviewLabel.setAttribute('y', String(mid.y - 10));
+				this.measurePreviewLabel.setAttribute('x', String(mid.x * sx));
+				this.measurePreviewLabel.setAttribute('y', String(mid.y * sy - 10));
 				this.measurePreviewLabel.textContent = this.formatDistance(segDist);
 			}
 		}
@@ -272,8 +352,9 @@ export class MeasurementController {
 		const stroke: MapPoint[] = [point];
 		this.freehandStrokes.push(stroke);
 
+		const { sx, sy } = this.ctx.getImageScale();
 		const polyline = createSvg('polyline', { cls: 'ttrpgmap-draw-line ttrpgmap-freehand-line' });
-		polyline.setAttribute('points', `${point.x},${point.y}`);
+		polyline.setAttribute('points', `${point.x * sx},${point.y * sy}`);
 		polyline.setAttribute('fill', 'none');
 		this.ctx.svgOverlay.appendChild(polyline);
 		this.activeSvgElements.push(polyline);
@@ -289,14 +370,16 @@ export class MeasurementController {
 
 		const point = this.screenToMap(e);
 		const last = currentStroke[currentStroke.length - 1];
-		const dx = point.x - last.x;
-		const dy = point.y - last.y;
-		const dist = Math.sqrt(dx * dx + dy * dy);
+		const { sx, sy } = this.ctx.getImageScale();
+		// Min-distance threshold is a visual one, so compare in display pixels.
+		const dxDisplay = (point.x - last.x) * sx;
+		const dyDisplay = (point.y - last.y) * sy;
+		const distDisplay = Math.sqrt(dxDisplay * dxDisplay + dyDisplay * dyDisplay);
 
-		if (dist < FREEHAND_MIN_DISTANCE) return;
+		if (distDisplay < FREEHAND_MIN_DISTANCE) return;
 
 		currentStroke.push(point);
-		const pointsStr = currentStroke.map((p) => `${p.x},${p.y}`).join(' ');
+		const pointsStr = currentStroke.map((p) => `${p.x * sx},${p.y * sy}`).join(' ');
 		this.currentFreehandPolyline.setAttribute('points', pointsStr);
 		this.updateTotalDisplay();
 	}
@@ -333,10 +416,17 @@ export class MeasurementController {
 
 	// ── Private helpers ──
 
+	/**
+	 * Convert a mouse event to natural-image pixel coordinates -- the same
+	 * coordinate system markers and the saved distance scale use. Keeping
+	 * everything in natural pixels means measurement geometry stays anchored
+	 * to image features when the wrapper resizes.
+	 */
 	private screenToMap(e: MouseEvent): MapPoint {
 		const rect = this.ctx.mapContainer.getBoundingClientRect();
 		const scale = this.zoom / 100;
-		return { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
+		const { sx, sy } = this.ctx.getImageScale();
+		return { x: (e.clientX - rect.left) / scale / sx, y: (e.clientY - rect.top) / scale / sy };
 	}
 
 	private updateMeasureMode(): void {
@@ -499,20 +589,22 @@ export class MeasurementController {
 	}
 
 	private drawSvgLine(a: MapPoint, b: MapPoint, cls: string): SVGLineElement {
+		const { sx, sy } = this.ctx.getImageScale();
 		const line = createSvg('line', { cls });
-		line.setAttribute('x1', String(a.x));
-		line.setAttribute('y1', String(a.y));
-		line.setAttribute('x2', String(b.x));
-		line.setAttribute('y2', String(b.y));
+		line.setAttribute('x1', String(a.x * sx));
+		line.setAttribute('y1', String(a.y * sy));
+		line.setAttribute('x2', String(b.x * sx));
+		line.setAttribute('y2', String(b.y * sy));
 		this.ctx.svgOverlay.appendChild(line);
 		this.activeSvgElements.push(line);
 		return line;
 	}
 
 	private drawSvgCircle(p: MapPoint, r: number, cls: string): SVGCircleElement {
+		const { sx, sy } = this.ctx.getImageScale();
 		const circle = createSvg('circle', { cls });
-		circle.setAttribute('cx', String(p.x));
-		circle.setAttribute('cy', String(p.y));
+		circle.setAttribute('cx', String(p.x * sx));
+		circle.setAttribute('cy', String(p.y * sy));
 		circle.setAttribute('r', String(r));
 		this.ctx.svgOverlay.appendChild(circle);
 		this.activeSvgElements.push(circle);
@@ -520,9 +612,10 @@ export class MeasurementController {
 	}
 
 	private drawSvgText(p: MapPoint, text: string, cls: string): SVGTextElement {
+		const { sx, sy } = this.ctx.getImageScale();
 		const el = createSvg('text', { cls });
-		el.setAttribute('x', String(p.x));
-		el.setAttribute('y', String(p.y - 10));
+		el.setAttribute('x', String(p.x * sx));
+		el.setAttribute('y', String(p.y * sy - 10));
 		el.textContent = text;
 		this.ctx.svgOverlay.appendChild(el);
 		this.activeSvgElements.push(el);

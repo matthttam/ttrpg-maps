@@ -1,7 +1,7 @@
 {
 	"id": "ttrpg-maps",
 	"name": "TTRPG Maps",
-	"version": "1.4.1",
+	"version": "1.4.2",
 	"minAppVersion": "1.6.6",
 	"description": "Render interactive TTRPG maps from code blocks with markers, templates, and distance measurement tools.",
 	"author": "matthttam",

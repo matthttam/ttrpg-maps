@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/matthttam/ttrpg-maps/compare/1.4.1...1.4.2) (2026-05-23)
+
+
+### Bug Fixes
+
+* keep measurements stable across window resize ([#6](https://github.com/matthttam/ttrpg-maps/issues/6)) ([2d71c38](https://github.com/matthttam/ttrpg-maps/commit/2d71c3875cd3d57cbc1ddfd73873085ba7ef05f5)), closes [#4](https://github.com/matthttam/ttrpg-maps/issues/4)
+
 ## [1.4.1](https://github.com/matthttam/ttrpg-maps/compare/1.4.0...1.4.1) (2026-05-23)
 
 

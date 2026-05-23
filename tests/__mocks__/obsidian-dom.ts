@@ -132,4 +132,68 @@ function createEl(this: HTMLElement, tag: string, opts?: CreateElOpts): HTMLElem
 	return el;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+interface CreateSvgOpts {
+	cls?: string;
+	attr?: Record<string, string>;
+}
+
+function applySvgOpts(el: SVGElement, opts?: CreateSvgOpts): void {
+	if (opts?.cls) {
+		for (const c of opts.cls.split(' ')) {
+			if (c) el.classList.add(c);
+		}
+	}
+	if (opts?.attr) {
+		for (const [k, v] of Object.entries(opts.attr)) {
+			el.setAttribute(k, v);
+		}
+	}
+}
+
+const g = globalThis as unknown as Record<string, unknown>;
+
+if (typeof g.createDiv === 'undefined') {
+	g.createDiv = (opts?: CreateElOpts): HTMLDivElement => createEl.call(document.body, 'div', opts) as HTMLDivElement;
+}
+if (typeof g.createEl === 'undefined') {
+	g.createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, opts?: CreateElOpts): HTMLElementTagNameMap[K] => {
+		const el = document.createElement(tag);
+		if (opts?.cls) {
+			for (const c of opts.cls.split(' ')) {
+				if (c) el.classList.add(c);
+			}
+		}
+		if (opts?.text) el.textContent = opts.text;
+		if (opts?.attr) {
+			for (const [k, v] of Object.entries(opts.attr)) {
+				el.setAttribute(k, v);
+			}
+		}
+		if (opts?.type) (el as HTMLInputElement).type = opts.type;
+		if (opts?.value) (el as HTMLInputElement).value = opts.value;
+		return el;
+	};
+}
+if (typeof g.createSpan === 'undefined') {
+	g.createSpan = (opts?: CreateElOpts): HTMLSpanElement => createEl.call(document.body, 'span', opts) as HTMLSpanElement;
+}
+if (typeof g.createSvg === 'undefined') {
+	g.createSvg = (tag: string, opts?: CreateSvgOpts): SVGElement => {
+		const el = document.createElementNS(SVG_NS, tag);
+		applySvgOpts(el, opts);
+		return el;
+	};
+}
+if (typeof g.createFragment === 'undefined') {
+	g.createFragment = (): DocumentFragment => document.createDocumentFragment();
+}
+if (typeof g.activeWindow === 'undefined') {
+	g.activeWindow = globalThis.window ?? globalThis;
+}
+if (typeof g.activeDocument === 'undefined') {
+	g.activeDocument = globalThis.document;
+}
+
 export {};

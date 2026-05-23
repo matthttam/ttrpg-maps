@@ -35,7 +35,7 @@ export async function exportMap(app: App, plugin: TTRPGMapsPlugin, config: MapCo
 
 	// Trigger download
 	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
+	const a = createEl('a');
 	a.href = url;
 	a.download = `ttrpg-map-${config.id}.zip`;
 	a.click();

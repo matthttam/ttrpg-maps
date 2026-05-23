@@ -9,18 +9,12 @@ export const PIN_PATH =
 export const PIN_STROKE = '#000000';
 export const PIN_STROKE_WIDTH = '8';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
 /** Create the SVG element for a marker pin shape */
 export function createPinSvg(fillColor: string, cssClass: string): SVGSVGElement {
-	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('viewBox', PIN_VIEWBOX);
-	svg.setAttribute('class', cssClass);
-	const path = document.createElementNS(SVG_NS, 'path');
-	path.setAttribute('d', PIN_PATH);
-	path.setAttribute('fill', fillColor);
-	path.setAttribute('stroke', PIN_STROKE);
-	path.setAttribute('stroke-width', PIN_STROKE_WIDTH);
+	const svg = createSvg('svg', { cls: cssClass, attr: { viewBox: PIN_VIEWBOX } });
+	const path = createSvg('path', {
+		attr: { d: PIN_PATH, fill: fillColor, stroke: PIN_STROKE, 'stroke-width': PIN_STROKE_WIDTH },
+	});
 	svg.appendChild(path);
 	return svg;
 }
@@ -28,31 +22,33 @@ export function createPinSvg(fillColor: string, cssClass: string): SVGSVGElement
 /** Create an SVG circle shape for a marker using FA's circle icon */
 export function createCircleSvg(fillColor: string, cssClass: string): SVGSVGElement {
 	const faCircle = getMapIcon('circle');
-	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('viewBox', faCircle?.viewBox ?? '0 0 512 512');
-	svg.setAttribute('class', cssClass);
-	const path = document.createElementNS(SVG_NS, 'path');
-	path.setAttribute('d', faCircle?.path ?? 'M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z');
-	path.setAttribute('fill', fillColor);
-	path.setAttribute('stroke', PIN_STROKE);
-	path.setAttribute('stroke-width', '12');
+	const svg = createSvg('svg', { cls: cssClass, attr: { viewBox: faCircle?.viewBox ?? '0 0 512 512' } });
+	const path = createSvg('path', {
+		attr: {
+			d: faCircle?.path ?? 'M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z',
+			fill: fillColor,
+			stroke: PIN_STROKE,
+			'stroke-width': '12',
+		},
+	});
 	svg.appendChild(path);
 	return svg;
 }
 
 /** Create an SVG dashed-circle for a hotspot marker */
 export function createHotspotSvg(cssClass: string): SVGSVGElement {
-	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('viewBox', '0 0 512 512');
-	svg.setAttribute('class', cssClass);
-	const circle = document.createElementNS(SVG_NS, 'circle');
-	circle.setAttribute('cx', '256');
-	circle.setAttribute('cy', '256');
-	circle.setAttribute('r', '240');
-	circle.setAttribute('fill', 'none');
-	circle.setAttribute('stroke', 'var(--text-muted)');
-	circle.setAttribute('stroke-width', '16');
-	circle.setAttribute('stroke-dasharray', '40 25');
+	const svg = createSvg('svg', { cls: cssClass, attr: { viewBox: '0 0 512 512' } });
+	const circle = createSvg('circle', {
+		attr: {
+			cx: '256',
+			cy: '256',
+			r: '240',
+			fill: 'none',
+			stroke: 'var(--text-muted)',
+			'stroke-width': '16',
+			'stroke-dasharray': '40 25',
+		},
+	});
 	svg.appendChild(circle);
 	return svg;
 }
@@ -61,12 +57,8 @@ export function createHotspotSvg(cssClass: string): SVGSVGElement {
 function renderIcon(container: HTMLElement, iconName: string): void {
 	const icon = getMapIcon(iconName);
 	if (!icon) return;
-	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('viewBox', icon.viewBox);
-	svg.setAttribute('fill', 'currentColor');
-	svg.setAttribute('class', 'ttrpgmap-map-icon');
-	const path = document.createElementNS(SVG_NS, 'path');
-	path.setAttribute('d', icon.path);
+	const svg = createSvg('svg', { cls: 'ttrpgmap-map-icon', attr: { viewBox: icon.viewBox, fill: 'currentColor' } });
+	const path = createSvg('path', { attr: { d: icon.path } });
 	svg.appendChild(path);
 	container.appendChild(svg);
 }

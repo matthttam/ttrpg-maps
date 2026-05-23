@@ -3,15 +3,12 @@ import { App } from 'obsidian';
 import { exportMap } from '../../src/utils/mapExport';
 import { MapConfig, MapState, MapExportManifest } from '../../src/types';
 
-// Mock JSZip
-const mockGenerateAsync = vi.fn();
-const mockZipFile = vi.fn();
-function MockJSZip() {
-	return { file: mockZipFile, generateAsync: mockGenerateAsync };
-}
-vi.mock('jszip', () => ({
-	default: MockJSZip,
-	__esModule: true,
+// Mock fflate so tests can inspect what was zipped without touching the real codec.
+const mockZipSync = vi.fn();
+vi.mock('fflate', () => ({
+	zipSync: (data: Record<string, Uint8Array>) => mockZipSync(data),
+	strToU8: (s: string) => new TextEncoder().encode(s),
+	strFromU8: (u: Uint8Array) => new TextDecoder().decode(u),
 }));
 
 function createMockApp() {
@@ -75,7 +72,7 @@ describe('exportMap', () => {
 	it('flushes pending saves before exporting', async () => {
 		(app.vault.getFileByPath as any).mockReturnValue({ path: 'maps/dungeon.png', name: 'dungeon.png' });
 		(app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
-		mockGenerateAsync.mockResolvedValue(new Blob(['test']));
+		mockZipSync.mockReturnValue(new Uint8Array([1, 2, 3]));
 
 		await exportMap(app, plugin, testConfig, testState);
 
@@ -87,50 +84,51 @@ describe('exportMap', () => {
 
 		await exportMap(app, plugin, testConfig, testState);
 
-		expect(mockZipFile).not.toHaveBeenCalled();
+		expect(mockZipSync).not.toHaveBeenCalled();
 	});
 
 	it('adds manifest.json and image to the ZIP', async () => {
 		const imageData = new ArrayBuffer(16);
 		(app.vault.getFileByPath as any).mockReturnValue({ path: 'maps/dungeon.png', name: 'dungeon.png' });
 		(app.vault as any).readBinary.mockResolvedValue(imageData);
-		mockGenerateAsync.mockResolvedValue(new Blob(['zipdata']));
+		mockZipSync.mockReturnValue(new Uint8Array([1, 2, 3]));
 
 		await exportMap(app, plugin, testConfig, testState);
 
-		expect(mockZipFile).toHaveBeenCalledTimes(2);
+		expect(mockZipSync).toHaveBeenCalledOnce();
+		const archive: Record<string, Uint8Array> = mockZipSync.mock.calls[0][0];
+		expect(Object.keys(archive).sort()).toEqual(['dungeon.png', 'manifest.json']);
 
-		// First call: manifest.json
-		const manifestCall = mockZipFile.mock.calls[0];
-		expect(manifestCall[0]).toBe('manifest.json');
-		const manifest: MapExportManifest = JSON.parse(manifestCall[1]);
+		const manifest: MapExportManifest = JSON.parse(new TextDecoder().decode(archive['manifest.json']));
 		expect(manifest.pluginVersion).toBe('0.3.0');
 		expect(manifest.config).toEqual(testConfig);
 		expect(manifest.state).toEqual(testState);
 		expect(manifest.imageFilename).toBe('dungeon.png');
 
-		// Second call: image
-		expect(mockZipFile.mock.calls[1][0]).toBe('dungeon.png');
-		expect(mockZipFile.mock.calls[1][1]).toBe(imageData);
+		// Image bytes match the input ArrayBuffer
+		expect(archive['dungeon.png']).toBeInstanceOf(Uint8Array);
+		expect(archive['dungeon.png'].byteLength).toBe(16);
 	});
 
-	it('generates ZIP as blob and triggers download', async () => {
-		const blob = new Blob(['zipdata']);
+	it('wraps the zip bytes in a Blob and triggers download', async () => {
+		const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
 		(app.vault.getFileByPath as any).mockReturnValue({ path: 'maps/dungeon.png', name: 'dungeon.png' });
 		(app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
-		mockGenerateAsync.mockResolvedValue(blob);
+		mockZipSync.mockReturnValue(zipBytes);
 
 		await exportMap(app, plugin, testConfig, testState);
 
-		expect(mockGenerateAsync).toHaveBeenCalledWith({ type: 'blob' });
-		expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+		expect(URL.createObjectURL).toHaveBeenCalledOnce();
+		const blobArg = (URL.createObjectURL as any).mock.calls[0][0] as Blob;
+		expect(blobArg).toBeInstanceOf(Blob);
+		expect(blobArg.type).toBe('application/zip');
 		expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
 	});
 
 	it('uses map ID in the download filename', async () => {
 		(app.vault.getFileByPath as any).mockReturnValue({ path: 'maps/dungeon.png', name: 'dungeon.png' });
 		(app.vault as any).readBinary.mockResolvedValue(new ArrayBuffer(8));
-		mockGenerateAsync.mockResolvedValue(new Blob(['test']));
+		mockZipSync.mockReturnValue(new Uint8Array([1, 2, 3]));
 
 		const createElementSpy = vi.spyOn(document, 'createElement');
 		let anchor: any;

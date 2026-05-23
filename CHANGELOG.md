@@ -1,3 +1,10 @@
+## [1.4.3](https://github.com/matthttam/ttrpg-maps/compare/1.4.2...1.4.3) (2026-05-23)
+
+
+### Bug Fixes
+
+* replace jszip with fflate to drop dynamic script-element paths ([#7](https://github.com/matthttam/ttrpg-maps/issues/7)) ([9217b1c](https://github.com/matthttam/ttrpg-maps/commit/9217b1cdf774ea0712e3eff8da8a123a912c0908))
+
 ## [1.4.2](https://github.com/matthttam/ttrpg-maps/compare/1.4.1...1.4.2) (2026-05-23)
 
 

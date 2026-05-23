@@ -7,6 +7,15 @@ import type { InteractionManager, Interaction } from './InteractionManager';
 
 const FREEHAND_MIN_DISTANCE = 5;
 
+/**
+ * Obsidian's createSvg helper feeds `cls` to `classList.add`, which rejects
+ * tokens containing whitespace. Split space-separated class strings here so
+ * existing helper-call sites (e.g. drawSvgLine(a, b, 'a b')) keep working.
+ */
+function splitClasses(cls: string): string[] {
+	return cls.split(/\s+/).filter(Boolean);
+}
+
 /** Measurement modes mapped to interaction manager modes */
 const MODE_MAP: Record<string, Interaction> = {
 	calibrate: 'calibrating',
@@ -224,8 +233,7 @@ export class MeasurementController {
 			for (let i = 0; i < this.freehandStrokes.length; i++) {
 				const stroke = this.freehandStrokes[i];
 				if (stroke.length === 0) continue;
-				const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-				polyline.setAttribute('class', 'ttrpgmap-draw-line ttrpgmap-freehand-line');
+				const polyline = createSvg('polyline', { cls: ['ttrpgmap-draw-line', 'ttrpgmap-freehand-line'] });
 				polyline.setAttribute('points', stroke.map((p) => `${p.x * sx},${p.y * sy}`).join(' '));
 				polyline.setAttribute('fill', 'none');
 				this.ctx.svgOverlay.appendChild(polyline);
@@ -294,7 +302,7 @@ export class MeasurementController {
 
 		if (!this.measurePreviewLine) {
 			this.measurePreviewLine = createSvg('line', {
-				cls: 'ttrpgmap-draw-line ttrpgmap-measure-line ttrpgmap-measure-preview',
+				cls: ['ttrpgmap-draw-line', 'ttrpgmap-measure-line', 'ttrpgmap-measure-preview'],
 			});
 			this.ctx.svgOverlay.appendChild(this.measurePreviewLine);
 		}
@@ -305,7 +313,7 @@ export class MeasurementController {
 
 		if (!this.measurePreviewCircle) {
 			this.measurePreviewCircle = createSvg('circle', {
-				cls: 'ttrpgmap-draw-point ttrpgmap-measure-preview',
+				cls: ['ttrpgmap-draw-point', 'ttrpgmap-measure-preview'],
 			});
 			this.measurePreviewCircle.setAttribute('r', '4');
 			this.ctx.svgOverlay.appendChild(this.measurePreviewCircle);
@@ -319,7 +327,7 @@ export class MeasurementController {
 				const mid: MapPoint = { x: (last.x + cursor.x) / 2, y: (last.y + cursor.y) / 2 };
 				if (!this.measurePreviewLabel) {
 					this.measurePreviewLabel = createSvg('text', {
-						cls: 'ttrpgmap-draw-label ttrpgmap-measure-preview',
+						cls: ['ttrpgmap-draw-label', 'ttrpgmap-measure-preview'],
 					});
 					this.ctx.svgOverlay.appendChild(this.measurePreviewLabel);
 				}
@@ -353,7 +361,7 @@ export class MeasurementController {
 		this.freehandStrokes.push(stroke);
 
 		const { sx, sy } = this.ctx.getImageScale();
-		const polyline = createSvg('polyline', { cls: 'ttrpgmap-draw-line ttrpgmap-freehand-line' });
+		const polyline = createSvg('polyline', { cls: ['ttrpgmap-draw-line', 'ttrpgmap-freehand-line'] });
 		polyline.setAttribute('points', `${point.x * sx},${point.y * sy}`);
 		polyline.setAttribute('fill', 'none');
 		this.ctx.svgOverlay.appendChild(polyline);
@@ -590,7 +598,7 @@ export class MeasurementController {
 
 	private drawSvgLine(a: MapPoint, b: MapPoint, cls: string): SVGLineElement {
 		const { sx, sy } = this.ctx.getImageScale();
-		const line = createSvg('line', { cls });
+		const line = createSvg('line', { cls: splitClasses(cls) });
 		line.setAttribute('x1', String(a.x * sx));
 		line.setAttribute('y1', String(a.y * sy));
 		line.setAttribute('x2', String(b.x * sx));
@@ -602,7 +610,7 @@ export class MeasurementController {
 
 	private drawSvgCircle(p: MapPoint, r: number, cls: string): SVGCircleElement {
 		const { sx, sy } = this.ctx.getImageScale();
-		const circle = createSvg('circle', { cls });
+		const circle = createSvg('circle', { cls: splitClasses(cls) });
 		circle.setAttribute('cx', String(p.x * sx));
 		circle.setAttribute('cy', String(p.y * sy));
 		circle.setAttribute('r', String(r));
@@ -613,7 +621,7 @@ export class MeasurementController {
 
 	private drawSvgText(p: MapPoint, text: string, cls: string): SVGTextElement {
 		const { sx, sy } = this.ctx.getImageScale();
-		const el = createSvg('text', { cls });
+		const el = createSvg('text', { cls: splitClasses(cls) });
 		el.setAttribute('x', String(p.x * sx));
 		el.setAttribute('y', String(p.y * sy - 10));
 		el.textContent = text;

@@ -132,4 +132,76 @@ function createEl(this: HTMLElement, tag: string, opts?: CreateElOpts): HTMLElem
 	return el;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+interface CreateSvgOpts {
+	cls?: string;
+	attr?: Record<string, string>;
+}
+
+function applySvgOpts(el: SVGElement, opts?: CreateSvgOpts): void {
+	if (opts?.cls) {
+		for (const c of opts.cls.split(' ')) {
+			if (c) el.classList.add(c);
+		}
+	}
+	if (opts?.attr) {
+		for (const [k, v] of Object.entries(opts.attr)) {
+			el.setAttribute(k, v);
+		}
+	}
+}
+
+const g = globalThis as unknown as Record<string, unknown>;
+
+// Build a detached element matching Obsidian's global create* helpers, which
+// return free-standing nodes the caller is expected to attach. Using a
+// detached host (instead of document.body) keeps test DOM state isolated.
+function createDetachedEl<K extends keyof HTMLElementTagNameMap>(
+	tag: K,
+	opts?: CreateElOpts,
+): HTMLElementTagNameMap[K] {
+	const el = document.createElement(tag);
+	if (opts?.cls) {
+		for (const c of opts.cls.split(' ')) {
+			if (c) el.classList.add(c);
+		}
+	}
+	if (opts?.text) el.textContent = opts.text;
+	if (opts?.attr) {
+		for (const [k, v] of Object.entries(opts.attr)) {
+			el.setAttribute(k, v);
+		}
+	}
+	if (opts?.type) (el as HTMLInputElement).type = opts.type;
+	if (opts?.value) (el as HTMLInputElement).value = opts.value;
+	return el;
+}
+
+if (typeof g.createDiv === 'undefined') {
+	g.createDiv = (opts?: CreateElOpts): HTMLDivElement => createDetachedEl('div', opts);
+}
+if (typeof g.createEl === 'undefined') {
+	g.createEl = createDetachedEl;
+}
+if (typeof g.createSpan === 'undefined') {
+	g.createSpan = (opts?: CreateElOpts): HTMLSpanElement => createDetachedEl('span', opts);
+}
+if (typeof g.createSvg === 'undefined') {
+	g.createSvg = (tag: string, opts?: CreateSvgOpts): SVGElement => {
+		const el = document.createElementNS(SVG_NS, tag);
+		applySvgOpts(el, opts);
+		return el;
+	};
+}
+if (typeof g.createFragment === 'undefined') {
+	g.createFragment = (): DocumentFragment => document.createDocumentFragment();
+}
+if (typeof g.activeWindow === 'undefined') {
+	g.activeWindow = globalThis.window ?? globalThis;
+}
+if (typeof g.activeDocument === 'undefined') {
+	g.activeDocument = globalThis.document;
+}
+
 export {};

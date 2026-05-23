@@ -365,7 +365,7 @@ export class MarkerEditModal extends Modal {
 			});
 	}
 
-	private buildSizeOverrides(contentEl: HTMLElement, previewContainer: HTMLElement): void {
+	private buildSizeOverrides(contentEl: HTMLElement, _previewContainer: HTMLElement): void {
 		const group = contentEl.createDiv({ cls: 'setting-group' });
 		const expanded = sizeOverridesExpanded.get(this.app) ?? false;
 

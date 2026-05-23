@@ -57,7 +57,7 @@ function exportTemplates(plugin: TTRPGMapsPlugin): void {
 	const json = JSON.stringify(data, null, 2);
 	const blob = new Blob([json], { type: 'application/json' });
 	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
+	const a = createEl('a');
 	a.href = url;
 	a.download = 'ttrpg-maps-templates.json';
 	a.click();
@@ -65,7 +65,7 @@ function exportTemplates(plugin: TTRPGMapsPlugin): void {
 }
 
 function importTemplates(plugin: TTRPGMapsPlugin, rerender: () => void): void {
-	const input = document.createElement('input');
+	const input = createEl('input');
 	input.type = 'file';
 	input.accept = '.json';
 	input.addEventListener('change', () => {
@@ -300,7 +300,7 @@ function renderFolder(
 	const nameSpan = nameRow.createSpan({ text: folder.name });
 
 	const startEditing = () => {
-		const input = document.createElement('input');
+		const input = createEl('input');
 		input.type = 'text';
 		input.value = folder.name;
 		input.addClass('ttrpgmap-folder-name-input');

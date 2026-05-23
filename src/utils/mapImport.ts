@@ -13,7 +13,7 @@ export function importMap(
 	sourcePath: string,
 	sectionInfo: { lineStart: number; lineEnd: number },
 ): void {
-	const input = document.createElement('input');
+	const input = createEl('input');
 	input.type = 'file';
 	input.accept = '.zip';
 	input.addEventListener('change', () => {

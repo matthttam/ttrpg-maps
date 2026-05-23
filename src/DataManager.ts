@@ -8,7 +8,7 @@ const TTRPGMAP_DIR = '.ttrpgmap';
 export class DataManager {
 	private app: App;
 	private plugin: TTRPGMapsPlugin;
-	private saveTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+	private saveTimeouts: Map<string, number> = new Map();
 	private pendingStates: Map<string, MapState> = new Map();
 
 	constructor(app: App, plugin: TTRPGMapsPlugin) {
@@ -141,11 +141,11 @@ export class DataManager {
 	/** Save per-map state to sidecar file (debounced 300ms) */
 	saveMapState(mapId: string, state: MapState): void {
 		const existing = this.saveTimeouts.get(mapId);
-		if (existing) clearTimeout(existing);
+		if (existing) activeWindow.clearTimeout(existing);
 
 		this.pendingStates.set(mapId, state);
 
-		const timeout = setTimeout(() => {
+		const timeout = activeWindow.setTimeout(() => {
 			void (async () => {
 				this.saveTimeouts.delete(mapId);
 				this.pendingStates.delete(mapId);
@@ -161,7 +161,7 @@ export class DataManager {
 	/** Flush any pending debounced saves immediately */
 	async flushSaves(): Promise<void> {
 		for (const [mapId, timeout] of this.saveTimeouts) {
-			clearTimeout(timeout);
+			activeWindow.clearTimeout(timeout);
 			const state = this.pendingStates.get(mapId);
 			if (state) {
 				await this.ensureDir();
@@ -182,7 +182,7 @@ export class DataManager {
 		const writes: Array<{ path: string; data: string }> = [];
 		const flushedMapIds: string[] = [];
 		for (const [mapId, timeout] of this.saveTimeouts) {
-			clearTimeout(timeout);
+			activeWindow.clearTimeout(timeout);
 			const state = this.pendingStates.get(mapId);
 			if (state) {
 				flushedMapIds.push(mapId);

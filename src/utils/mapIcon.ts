@@ -1,13 +1,25 @@
-import { FA_ICONS, ALL_ICON_NAMES, GI_ICON_TERMS } from '../generated/fa-icons';
+import {
+	FA_ICONS as _FA_ICONS,
+	ALL_ICON_NAMES as _ALL_ICON_NAMES,
+	GI_ICON_TERMS as _GI_ICON_TERMS,
+} from '../generated/fa-icons';
 
-interface IconEntry {
+export interface IconEntry {
 	viewBox: string;
 	path: string;
 	terms: string[];
 	set: 'fa' | 'gi';
 }
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+// The src/generated/ directory is gitignored so the community-plugin review
+// bot cannot resolve the types in those files. Re-type the imports here so
+// type-aware lint rules have a concrete shape to work with. These assertions
+// are unnecessary when the generated source is present locally.
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+const FA_ICONS = _FA_ICONS as Record<string, IconEntry>;
+const ALL_ICON_NAMES = _ALL_ICON_NAMES as string[];
+const GI_ICON_TERMS = _GI_ICON_TERMS as Record<string, string[]>;
+/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
 
 // Lazy-loaded Game Icons cache
 let giIconsLoaded = false;
@@ -59,13 +71,13 @@ export async function extractAndLoadGameIcons(
 ): Promise<void> {
 	if (giIconsLoaded) return;
 	try {
-		const { GI_ICONS_COMPRESSED } = await import('../generated/gi-icons-embedded');
-		const binary = Uint8Array.from(atob(GI_ICONS_COMPRESSED), (c) => c.charCodeAt(0));
+		const mod = (await import('../generated/gi-icons-embedded')) as { GI_ICONS_COMPRESSED: string };
+		const binary = Uint8Array.from(atob(mod.GI_ICONS_COMPRESSED), (c) => c.charCodeAt(0));
 		const ds = new DecompressionStream('deflate');
 		const writer = ds.writable.getWriter();
 		void writer.write(binary);
 		void writer.close();
-		const reader = ds.readable.getReader();
+		const reader = ds.readable.getReader() as ReadableStreamDefaultReader<Uint8Array>;
 		const chunks: Uint8Array[] = [];
 		for (;;) {
 			const { done, value } = await reader.read();
@@ -99,12 +111,8 @@ export function setMapIcon(parent: HTMLElement, iconName: string): void {
 	if (!icon) return;
 
 	parent.empty();
-	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('viewBox', icon.viewBox);
-	svg.setAttribute('fill', 'currentColor');
-	svg.setAttribute('class', 'ttrpgmap-map-icon');
-	const path = document.createElementNS(SVG_NS, 'path');
-	path.setAttribute('d', icon.path);
+	const svg = createSvg('svg', { cls: 'ttrpgmap-map-icon', attr: { viewBox: icon.viewBox, fill: 'currentColor' } });
+	const path = createSvg('path', { attr: { d: icon.path } });
 	svg.appendChild(path);
 	parent.appendChild(svg);
 }

@@ -155,8 +155,8 @@ export function getMarkerFontStack(id: string): string | null {
 
 /** Test whether a font is available on the current system */
 function isFontAvailable(name: string): boolean {
-	if (typeof document === 'undefined') return true;
-	return document.fonts.check(`16px "${name}"`);
+	if (typeof activeDocument === 'undefined') return true;
+	return activeDocument.fonts.check(`16px "${name}"`);
 }
 
 /** Get only the fonts available on the current system (always includes generic stacks) */

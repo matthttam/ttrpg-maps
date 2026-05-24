@@ -16,7 +16,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
 - **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with unit conversion (auto-convert or fixed), configurable rounding, decimal places, and raw value display
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
-- **5,500+ icons** - Choose from Font Awesome (~1,400) and Game Icons (~4,100) with live search and rotation
+- **5,500+ icons** - Choose from Font Awesome (1,400+) and Game Icons (4,100+) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon
 - **Label fonts** - Choose from 12 font families (with runtime availability detection) at the global, per-map, or per-marker level
 - **Per-map and per-marker settings** - Override scale, zoom behavior, text visibility, label placement, font, navigation mode, and hover preview at every level

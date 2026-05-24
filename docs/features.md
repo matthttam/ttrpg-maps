@@ -213,8 +213,8 @@ Pin and circle SVGs use an expanded viewBox so strokes are never clipped at the 
 
 Over 5,500 icons are available:
 
-- **~1,400 Font Awesome** icons (bundled inline for fast loading)
-- **~4,100 Game Icons** (loaded at runtime)
+- **1,400+ Font Awesome** icons (bundled inline for fast loading)
+- **4,100+ Game Icons** (loaded at runtime)
 
 ![Icon Listing](https://github.com/user-attachments/assets/24898abe-a34c-460d-ad9c-63ac13c629a1)
 

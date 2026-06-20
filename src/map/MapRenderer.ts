@@ -1106,6 +1106,9 @@ export class MapRenderer extends MarkdownRenderChild {
 	private applyTransform(): void {
 		const scale = this.zoom / 100;
 		this.mapContainer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${scale})`;
+		// Expose the zoom scale so the SVG overlay can counter-scale dot radii and
+		// label text, keeping measurement geometry a constant on-screen size.
+		this.mapContainer.style.setProperty('--ttrpgmap-overlay-scale', String(scale));
 
 		if (this.zoom === this._lastSettledZoom) {
 			// Pan only: hide markers for smooth panning, rebuild when paused

@@ -14,7 +14,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
 - **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note with `#heading` and `#^block` support)
 - **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
-- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with unit conversion (auto-convert or fixed), configurable rounding, decimal places, and raw value display
+- **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with unit conversion (auto-convert or fixed), configurable rounding, decimal places, and raw value display. Measurement lines, points, and labels stay a constant on-screen size at any zoom level
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (1,400+) and Game Icons (4,100+) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon

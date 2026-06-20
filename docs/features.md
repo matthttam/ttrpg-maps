@@ -446,6 +446,8 @@ Examples with 0 decimal places: `40 ft`. With 1: `40.0 ft`. With 3 and no roundi
 
 During measurement, markers and their labels are dimmed, non-interactive, and do not show hover highlights. The cursor stays as a crosshair over markers during measurement mode. Distance labels displayed on the map are also non-interactive and do not interfere with placing measurement points.
 
+Measurement overlays (lines, point dots, and distance labels) keep a **constant on-screen size regardless of zoom level**, so lines stay a readable thickness and labels stay legible whether the map is zoomed all the way in or out.
+
 ---
 
 ## Visibility Layers

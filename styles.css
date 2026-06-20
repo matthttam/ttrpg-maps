@@ -256,11 +256,16 @@
 	fill: #ff4444;
 	stroke: #ffffff;
 	stroke-width: 2;
+	/* Keep dots a constant on-screen size regardless of map zoom. */
+	r: calc(4px / var(--ttrpgmap-overlay-scale, 1));
+	vector-effect: non-scaling-stroke;
 }
 
 .ttrpgmap-draw-line {
 	stroke-width: 3;
 	stroke-linecap: round;
+	/* Constant on-screen line width regardless of map zoom. */
+	vector-effect: non-scaling-stroke;
 }
 
 .ttrpgmap-calibrate-line {
@@ -281,11 +286,14 @@
 	stroke-width: 3;
 	stroke-linecap: round;
 	stroke-linejoin: round;
+	/* Constant on-screen line width regardless of map zoom. */
+	vector-effect: non-scaling-stroke;
 }
 
 .ttrpgmap-draw-label {
 	fill: #ffffff;
-	font-size: 14px;
+	/* Constant on-screen text size regardless of map zoom. */
+	font-size: calc(18px / var(--ttrpgmap-overlay-scale, 1));
 	font-weight: bold;
 	text-anchor: middle;
 	paint-order: stroke;
@@ -293,6 +301,7 @@
 	stroke-width: 3px;
 	stroke-linecap: round;
 	stroke-linejoin: round;
+	vector-effect: non-scaling-stroke;
 }
 
 /* ===== Marker Cull Banner ===== */

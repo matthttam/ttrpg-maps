@@ -40,6 +40,8 @@ Markers can use a pin shape (FA `location-dot` SVG with an icon inside) or stand
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.
 
+Because the SVG overlay is inside the scaled container, its contents would otherwise grow/shrink with zoom. To keep measurement geometry a constant on-screen size, `applyTransform()` writes the current scale to a `--ttrpgmap-overlay-scale` CSS custom property on the container; overlay strokes use `vector-effect: non-scaling-stroke`, and dot radii / label `font-size` are divided by that variable in `styles.css`.
+
 ### Font Awesome & Game Icons
 
 Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/game-icons`) rather than vendored SVG files. `scripts/build-icons.mjs` reads the Iconify JSON format, extracts viewBox and path data (including alias resolution), and produces `src/generated/fa-icons.ts` (~1,408 FA icons bundled inline) and `gi-icons.json` (~4,126 Game Icons loaded at runtime). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance. The pin shape uses FA's `location-dot` icon.

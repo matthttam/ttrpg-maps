@@ -153,8 +153,10 @@
 	}
 }
 
-.setting-items > .setting-item.ttrpgmap-setting-highlight:last-child {
-	padding-bottom: 20px !important;
+/* Doubled class boosts specificity to (0,5,0) so the highlight padding wins
+ * over Obsidian's default .setting-item padding without needing !important. */
+.setting-items > .setting-item.ttrpgmap-setting-highlight.ttrpgmap-setting-highlight:last-child {
+	padding-bottom: 20px;
 	margin-bottom: -20px;
 }
 
@@ -390,18 +392,18 @@
 	border-top-right-radius: 0;
 }
 
-/* Adjacent tabs: flatten the shared edge between them */
-.ttrpgmap-panel-tabs
-	.ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)
-	+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden) {
-	border-top-left-radius: 0;
-	border-bottom-left-radius: 0;
-}
-
-.ttrpgmap-panel-tabs
-	.ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden):has(+ .ttrpgmap-marker-list-toggle:not(.ttrpgmap-hidden)) {
+/* Adjacent tabs: flatten the shared edge between them. The first/last-of-pair
+ * classes are stamped on the tabs from applyControlVisibility() only when
+ * both tabs are visible, so we avoid `:has(+ .ttrpgmap-marker-list-toggle...)`
+ * here. A single visible tab keeps both border radii from the base rule. */
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle.ttrpgmap-panel-tab-first-of-pair {
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
+}
+
+.ttrpgmap-panel-tabs .ttrpgmap-marker-list-toggle.ttrpgmap-panel-tab-last-of-pair {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
 }
 
 /* First visible tab: reset left margin */
@@ -798,13 +800,15 @@
 	transform: translate(-100%, -50%);
 }
 
-/* Standalone icons always anchor at bottom center */
-.ttrpgmap-marker:has(.ttrpgmap-pin--standalone) {
+/* Standalone icons always anchor at bottom center.
+ * MapRenderer.createMarkerElement stamps the matching modifier class on the
+ * marker container, so we avoid `:has(.ttrpgmap-pin--standalone)` here. */
+.ttrpgmap-marker.ttrpgmap-marker--standalone {
 	transform: translate(-50%, -100%);
 }
 
 /* Circle markers anchor at center */
-.ttrpgmap-marker:has(.ttrpgmap-pin--circle) {
+.ttrpgmap-marker.ttrpgmap-marker--circle {
 	transform: translate(-50%, -50%);
 }
 
@@ -820,7 +824,7 @@
 }
 
 /* Hotspot markers anchor at center */
-.ttrpgmap-marker:has(.ttrpgmap-pin--hotspot) {
+.ttrpgmap-marker.ttrpgmap-marker--hotspot {
 	transform: translate(-50%, -50%);
 }
 
@@ -1216,18 +1220,22 @@
 	z-index: 1;
 }
 
-.ttrpgmap-zoom-range-input {
+/* `input.ttrpgmap-zoom-range-input.ttrpgmap-zoom-range-input` doubles the
+ * class specificity (0,2,1) so the overlay-style overrides win over Obsidian's
+ * `input[type='range']` defaults without `!important`. The element-tag
+ * prefix is required because Obsidian's theme reset is also tag-qualified. */
+input.ttrpgmap-zoom-range-input.ttrpgmap-zoom-range-input {
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
 	left: 0;
-	width: 100% !important;
+	width: 100%;
 	height: 100%;
 	margin: 0;
 	padding: 0;
-	background: none !important;
-	border: none !important;
-	box-shadow: none !important;
+	background: none;
+	border: none;
+	box-shadow: none;
 	pointer-events: none;
 	-webkit-appearance: none;
 	appearance: none;
@@ -1485,11 +1493,13 @@
 	text-align: center;
 }
 
-.setting-item:has(.ttrpgmap-icon-input-wrap) {
+/* sharedFields.buildIconField stamps `ttrpgmap-icon-setting` on the .setting-item
+ * directly, so we don't need `:has(.ttrpgmap-icon-input-wrap)` here. */
+.setting-item.ttrpgmap-icon-setting {
 	padding-bottom: 12px;
 }
 
-.setting-item:has(.ttrpgmap-icon-input-wrap) .setting-item-control {
+.setting-item.ttrpgmap-icon-setting .setting-item-control {
 	flex-wrap: wrap;
 }
 
@@ -1809,13 +1819,20 @@
 	border-radius: 2px;
 }
 
-/* Scale percentage input: compact number field next to slider */
-.ttrpgmap-scale-input {
-	width: 55px !important;
+/* Scale percentage input: compact number field next to slider.
+ * Doubled class plus the `input` tag keeps the 55px width sticky against
+ * Obsidian's default form-field sizing without `!important`. */
+input.ttrpgmap-scale-input.ttrpgmap-scale-input {
+	width: 55px;
 	text-align: center;
 }
 
 /* ===== Utility ===== */
+/* `!important` is intentional: ttrpgmap-hidden is a trump-card utility class
+ * toggled at runtime to forcibly hide elements regardless of their existing
+ * display value (inline, flex, etc.). Dropping the `!important` would let
+ * any sibling rule with higher specificity keep the element visible, which
+ * would silently break visibility toggles all over the plugin. */
 .ttrpgmap-hidden {
 	display: none !important;
 }

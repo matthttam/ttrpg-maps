@@ -1,4 +1,5 @@
 import { createPinSvg, createCircleSvg, createHotspotSvg } from './markerPin';
+import { createColorPicker } from './colorPicker';
 
 export type PinSelection = 'none' | 'down' | 'up' | 'left' | 'right' | 'circle' | 'hotspot';
 
@@ -15,15 +16,21 @@ export interface PinSelectorOpts {
 	container: HTMLElement;
 	selected: PinSelection;
 	color: string;
+	/** Pin transparency percentage: 0 = fully opaque. */
+	transparency?: number;
 	onChange: (value: PinSelection) => void;
 	onColorChange: (color: string) => void;
+	onTransparencyChange: (transparency: number) => void;
 }
 
 /**
- * Renders a pin selector: [None] [↓] [↑] [←] [→] + color circle.
- * Returns a function to update the color on all pin icons.
+ * Renders a pin selector: [None] [↓] [↑] [←] [→] + color circle + transparency.
+ * Returns functions to update the color and transparency controls.
  */
-export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color: string) => void } {
+export function createPinSelector(opts: PinSelectorOpts): {
+	updateColor: (color: string) => void;
+	updateTransparency: (transparency: number) => void;
+} {
 	const row = opts.container.createDiv({ cls: 'ttrpgmap-pin-selector' });
 
 	// Button group wrapper so :first-child/:last-child work
@@ -68,18 +75,56 @@ export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color:
 	// Color picker
 	const colorWrap = row.createDiv({ cls: 'ttrpgmap-pin-selector-color-wrap' });
 	colorWrap.createSpan({ cls: 'ttrpgmap-pin-selector-color-label', text: 'Color:' });
-	const colorInput = colorWrap.createEl('input', { cls: 'ttrpgmap-pin-selector-color' });
-	colorInput.type = 'color';
-	colorInput.value = currentColor;
-	colorInput.addEventListener('input', (e) => {
-		currentColor = (e.target as HTMLInputElement).value;
-		opts.onColorChange(currentColor);
+	// Same shared component (and therefore the same class/styling) as the icon color
+	const colorPicker = createColorPicker({
+		container: colorWrap,
+		value: currentColor,
+		onChange: (hex) => {
+			currentColor = hex;
+			opts.onColorChange(hex);
+		},
+	});
+
+	// Transparency (0 = fully opaque)
+	const transpWrap = row.createDiv({ cls: 'ttrpgmap-pin-selector-transparency-wrap' });
+	transpWrap.createSpan({ cls: 'ttrpgmap-pin-selector-color-label', text: 'Transparency:' });
+	const clampTransparency = (v: number) => Math.min(100, Math.max(0, v));
+	const initialTransparency = clampTransparency(opts.transparency ?? 0);
+	const transpSlider = transpWrap.createEl('input', {
+		cls: 'ttrpgmap-pin-transparency-slider',
+		type: 'range',
+		attr: { min: '0', max: '100', step: '1' },
+		value: String(initialTransparency),
+	});
+	const transpInput = transpWrap.createEl('input', {
+		cls: 'ttrpgmap-pin-transparency-input',
+		type: 'number',
+		attr: { min: '0', max: '100', step: '1' },
+		value: String(initialTransparency),
+	});
+	transpSlider.addEventListener('input', () => {
+		const v = parseInt(transpSlider.value, 10);
+		if (isNaN(v)) return;
+		transpInput.value = String(v);
+		opts.onTransparencyChange(clampTransparency(v));
+	});
+	transpInput.addEventListener('input', () => {
+		const v = parseInt(transpInput.value, 10);
+		if (isNaN(v)) return;
+		const clamped = clampTransparency(v);
+		transpSlider.value = String(clamped);
+		opts.onTransparencyChange(clamped);
 	});
 
 	return {
 		updateColor: (color: string) => {
 			currentColor = color;
-			colorInput.value = color;
+			colorPicker.setValue(color);
+		},
+		updateTransparency: (transparency: number) => {
+			const clamped = clampTransparency(transparency);
+			transpSlider.value = String(clamped);
+			transpInput.value = String(clamped);
 		},
 	};
 }

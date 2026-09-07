@@ -9,8 +9,11 @@ export interface ColorPickerOpts {
 	cls?: string;
 }
 
-export function createColorPicker(opts: ColorPickerOpts): { setValue: (hex: string) => void } {
-	const swatch = opts.container.createEl('input', { cls: `ttrpgmap-color-swatch ${opts.cls ?? ''}` });
+export function createColorPicker(opts: ColorPickerOpts): {
+	setValue: (hex: string) => void;
+	setDisabled: (disabled: boolean) => void;
+} {
+	const swatch = opts.container.createEl('input', { cls: `ttrpgmap-color-swatch ${opts.cls ?? ''}`.trim() });
 	swatch.type = 'color';
 	swatch.value = opts.value;
 	swatch.addEventListener('input', () => opts.onChange(swatch.value));
@@ -18,6 +21,9 @@ export function createColorPicker(opts: ColorPickerOpts): { setValue: (hex: stri
 	return {
 		setValue: (hex: string) => {
 			swatch.value = hex;
+		},
+		setDisabled: (disabled: boolean) => {
+			swatch.disabled = disabled;
 		},
 	};
 }

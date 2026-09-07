@@ -11,6 +11,8 @@
 		"icons": "node scripts/build-icons.mjs",
 		"dev": "node scripts/build-icons.mjs && node esbuild.config.mjs",
 		"build": "node scripts/build-icons.mjs && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"deploy": "npm run build && node scripts/deploy.mjs",
+		"deploy:only": "node scripts/deploy.mjs",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "eslint --max-warnings=0 src/",

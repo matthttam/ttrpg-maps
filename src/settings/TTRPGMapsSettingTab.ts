@@ -257,6 +257,7 @@ export class TTRPGMapsSettingTab extends PluginSettingTab {
 			.setName('Manage map data')
 			.setDesc('View and delete stored map data (markers, layers, scale, settings)')
 			.addButton((btn) => {
+				btn.buttonEl.addClass('ttrpgmap-btn-warning');
 				btn
 					.setButtonText('Manage map data')
 					.setWarning()
@@ -331,6 +332,7 @@ class MapDataModal extends Modal {
 			});
 
 			setting.addButton((btn) => {
+				btn.buttonEl.addClass('ttrpgmap-btn-warning');
 				btn
 					.setButtonText('Delete')
 					.setWarning()

@@ -14,6 +14,7 @@ import {
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createPinElement } from '../utils/markerPin';
 import { buildMarkerLabel } from '../utils/markerLabel';
+import { openPluginSettingsSection, openTemplateInSettings } from '../utils/settingsNav';
 import {
 	buildTextPlacementField,
 	buildPinSelectorField,
@@ -39,6 +40,7 @@ export class MarkerEditModal extends Modal {
 		direction: string | null;
 		textPlacement: string | null;
 		color: string | null;
+		transparency?: number | null;
 		icon: string | null;
 		iconColor: string | null;
 		iconRotation: number | null;
@@ -96,6 +98,7 @@ export class MarkerEditModal extends Modal {
 			direction: (this.marker.direction ?? 'down') as MarkerDirection,
 			textPlacement: (this.marker.textPlacement ?? 'above') as TextPlacement,
 			color: this.marker.color ?? '#ffffff',
+			transparency: this.marker.transparency ?? 0,
 			useBaseMarker: this.marker.useBaseMarker ?? true,
 			shape: this.marker.shape ?? 'pin',
 		};
@@ -109,6 +112,7 @@ export class MarkerEditModal extends Modal {
 		this.marker.direction = fs.direction;
 		this.marker.textPlacement = fs.textPlacement;
 		this.marker.color = fs.color;
+		this.marker.transparency = fs.transparency ?? 0;
 		this.marker.useBaseMarker = fs.useBaseMarker;
 		this.marker.shape = fs.shape;
 	}
@@ -133,6 +137,7 @@ export class MarkerEditModal extends Modal {
 			pinClass: 'ttrpgmap-edit-preview-pin',
 			svgClass: 'ttrpgmap-pin-svg',
 			color: this.marker.color ?? '#ffffff',
+			transparency: this.marker.transparency ?? 0,
 			icon: this.marker.icon,
 			iconColor: this.marker.iconColor ?? '#000000',
 			iconRotation: this.marker.iconRotation ?? 0,
@@ -186,7 +191,8 @@ export class MarkerEditModal extends Modal {
 		template: MarkerTemplate | undefined,
 		previewContainer: HTMLElement,
 	): void {
-		new Setting(container).setName('Template').addDropdown((dropdown) => {
+		const templateSetting = new Setting(container).setName('Template');
+		templateSetting.addDropdown((dropdown) => {
 			for (const t of this.plugin.settings.markerTemplates) {
 				dropdown.addOption(t.id, t.name);
 			}
@@ -198,6 +204,7 @@ export class MarkerEditModal extends Modal {
 					this.marker.direction = newTemplate.direction;
 					this.marker.textPlacement = newTemplate.textPlacement;
 					this.marker.color = newTemplate.color;
+					this.marker.transparency = newTemplate.transparency ?? 0;
 					this.marker.icon = newTemplate.icon;
 					this.marker.iconColor = newTemplate.iconColor;
 					this.marker.iconRotation = newTemplate.iconRotation;
@@ -205,6 +212,17 @@ export class MarkerEditModal extends Modal {
 					this.marker.shape = newTemplate.shape;
 				}
 				activeWindow.requestAnimationFrame(() => this.onOpen());
+			});
+		});
+
+		// Jump straight to this template in the settings template manager
+		templateSetting.addExtraButton((btn) => {
+			btn.setIcon('pencil').setTooltip('Edit this template in settings');
+			if (!this.getTemplate()) {
+				btn.setDisabled(true).setTooltip('Template not found');
+			}
+			btn.onClick(() => {
+				openTemplateInSettings(this.app, this.plugin.manifest.id, this.marker.templateId);
 			});
 		});
 
@@ -263,6 +281,7 @@ export class MarkerEditModal extends Modal {
 			this.marker.useBaseMarker = template?.useBaseMarker ?? true;
 			this.marker.direction = template?.direction ?? 'down';
 			this.marker.color = template?.color ?? '#ffffff';
+			this.marker.transparency = template?.transparency ?? 0;
 		});
 
 		const { setting: iconSetting, colorPicker: iconColorPicker } = buildIconField(ctx);
@@ -480,6 +499,13 @@ export class MarkerEditModal extends Modal {
 	private buildFooter(contentEl: HTMLElement, template: MarkerTemplate | undefined): void {
 		const hasTemplate = !!template;
 		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
+
+		const templatesBtn = footer.createEl('button', { text: 'Marker templates' });
+		templatesBtn.title = 'Open the marker template manager in settings';
+		templatesBtn.addEventListener('click', () => {
+			openPluginSettingsSection(this.app, this.plugin.manifest.id, 'Marker templates');
+		});
+
 		const resetBtn = footer.createEl('button', { text: 'Reset to template' });
 		resetBtn.disabled = !hasTemplate;
 		if (!hasTemplate) resetBtn.title = 'Template not found';
@@ -496,6 +522,7 @@ export class MarkerEditModal extends Modal {
 				this.marker.direction = tpl.direction;
 				this.marker.textPlacement = tpl.textPlacement;
 				this.marker.color = tpl.color;
+				this.marker.transparency = tpl.transparency ?? 0;
 				this.marker.icon = tpl.icon;
 				this.marker.iconColor = tpl.iconColor;
 				this.marker.iconRotation = tpl.iconRotation;

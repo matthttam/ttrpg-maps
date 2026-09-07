@@ -30,8 +30,9 @@ function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void
 
 		new Setting(contentEl)
 			.addButton((btn) => btn.setButtonText('Cancel').onClick(() => modal.close()))
-			.addButton((btn) =>
-				btn
+			.addButton((btn) => {
+				btn.buttonEl.addClass('ttrpgmap-btn-warning');
+				return btn
 					.setButtonText('Restore defaults')
 					.setWarning()
 					.onClick(() => {
@@ -42,8 +43,8 @@ function restoreDefaults(app: App, plugin: TTRPGMapsPlugin, rerender: () => void
 						rerender();
 						modal.close();
 						new Notice('Templates restored to defaults.');
-					}),
-			);
+					});
+			});
 	};
 	modal.open();
 }
@@ -143,6 +144,7 @@ function createMarkerPreview(container: HTMLElement, template: MarkerTemplate): 
 		pinClass: 'ttrpgmap-preview-pin',
 		svgClass: 'ttrpgmap-pin-svg',
 		color: template.color,
+		transparency: template.transparency ?? 0,
 		icon: template.icon,
 		iconColor: template.iconColor,
 		iconRotation: template.iconRotation,

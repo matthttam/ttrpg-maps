@@ -34,5 +34,8 @@ fonts/
 # Deploy script (local only)
 deploy.bat
 
+# Local deploy target(s) — vault paths, never committed
+.deploy-target
+
 # Plan
 plan.txt

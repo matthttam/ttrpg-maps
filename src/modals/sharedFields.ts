@@ -14,6 +14,8 @@ export interface MarkerFieldState {
 	direction: MarkerDirection;
 	textPlacement: TextPlacement;
 	color: string;
+	/** Pin transparency percentage: 0 = fully opaque. */
+	transparency?: number;
 	useBaseMarker: boolean;
 	shape: 'pin' | 'circle' | 'hotspot';
 }
@@ -63,6 +65,7 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
 		container,
 		selected,
 		color: ctx.state.color,
+		transparency: ctx.state.transparency ?? 0,
 		onChange: (value) => {
 			if (value === 'none') {
 				ctx.state.useBaseMarker = false;
@@ -83,6 +86,10 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
 			ctx.state.color = color;
 			ctx.onChanged();
 		},
+		onTransparencyChange: (transparency) => {
+			ctx.state.transparency = transparency;
+			ctx.onChanged();
+		},
 	});
 
 	return setting;
@@ -91,7 +98,7 @@ export function buildPinSelectorField(ctx: FieldContext): Setting {
 /** Icon search + rotation + color picker. */
 export function buildIconField(ctx: FieldContext): {
 	setting: Setting;
-	colorPicker: { setValue: (hex: string) => void };
+	colorPicker: { setValue: (hex: string) => void; setDisabled: (disabled: boolean) => void };
 	rotationInput: { setValue: (deg: number) => void };
 } {
 	const setting = new Setting(ctx.contentEl).setName('Icon');
@@ -101,6 +108,10 @@ export function buildIconField(ctx: FieldContext): {
 	const iconPreview = inputWrap.createDiv({ cls: 'ttrpgmap-icon-input-preview' });
 	// Create source badge early so updateInputPreview can reference it (DOM order fixed later)
 	const sourceEl = inputWrap.createSpan({ cls: 'ttrpgmap-icon-input-source' });
+
+	// Rotation and color only mean something once an icon is chosen. Assigned
+	// after those controls exist; updateInputPreview calls it on every change.
+	let syncIconControls: () => void = () => {};
 
 	function updateInputPreview() {
 		iconPreview.empty();
@@ -119,6 +130,7 @@ export function buildIconField(ctx: FieldContext): {
 			sourceEl.setText('');
 			sourceEl.addClass('ttrpgmap-hidden');
 		}
+		syncIconControls();
 	}
 
 	setting.addText((text) => {
@@ -213,6 +225,18 @@ export function buildIconField(ctx: FieldContext): {
 			ctx.onChanged();
 		},
 	});
+
+	// Disable (and dim) rotation + color while no icon is selected, since neither
+	// has any visible effect without one.
+	syncIconControls = () => {
+		const hasIcon = !!ctx.state.icon;
+		rotationSlider.disabled = !hasIcon;
+		rotationInput.disabled = !hasIcon;
+		colorPicker.setDisabled(!hasIcon);
+		rotationWrap.toggleClass('ttrpgmap-field-disabled', !hasIcon);
+		colorWrap.toggleClass('ttrpgmap-field-disabled', !hasIcon);
+	};
+	syncIconControls();
 
 	return {
 		setting,

@@ -126,7 +126,7 @@ export class MapSettingsModal extends Modal {
 		const footer = confirmModal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
 		cancelBtn.addEventListener('click', () => confirmModal.close());
-		const discardBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Discard' });
+		const discardBtn = footer.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Discard' });
 		discardBtn.addEventListener('click', () => {
 			confirmModal.close();
 			this.saved = true;
@@ -197,7 +197,7 @@ export class MapSettingsModal extends Modal {
 		copyBtn.addEventListener('click', () => executeIdChange('copy'));
 		const orphanBtn = idFooter.createEl('button', { text: 'Orphan' });
 		orphanBtn.addEventListener('click', () => executeIdChange('orphan'));
-		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning', text: 'Delete' });
+		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Delete' });
 		deleteBtn.addEventListener('click', () => executeIdChange('delete'));
 		const idCancelBtn = idFooter.createEl('button', { text: 'Cancel' });
 		idCancelBtn.addEventListener('click', () => modal.close());
@@ -891,7 +891,7 @@ export class MapSettingsModal extends Modal {
 
 	private buildFooter(contentEl: HTMLElement): void {
 		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
-		const exportBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Export map' });
+		const exportBtn = footer.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Export map' });
 		exportBtn.addEventListener('click', () => {
 			void exportMap(this.app, this.plugin, this.config, this.state);
 		});

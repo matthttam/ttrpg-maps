@@ -1,4 +1,5 @@
 import { createPinSvg, createCircleSvg, createHotspotSvg } from './markerPin';
+import { normalizeHexColor } from './colorPicker';
 
 export type PinSelection = 'none' | 'down' | 'up' | 'left' | 'right' | 'circle' | 'hotspot';
 
@@ -70,7 +71,7 @@ export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color:
 	colorWrap.createSpan({ cls: 'ttrpgmap-pin-selector-color-label', text: 'Color:' });
 	const colorInput = colorWrap.createEl('input', { cls: 'ttrpgmap-pin-selector-color' });
 	colorInput.type = 'color';
-	colorInput.value = currentColor;
+	colorInput.value = normalizeHexColor(currentColor);
 	colorInput.addEventListener('input', (e) => {
 		currentColor = (e.target as HTMLInputElement).value;
 		opts.onColorChange(currentColor);
@@ -79,7 +80,7 @@ export function createPinSelector(opts: PinSelectorOpts): { updateColor: (color:
 	return {
 		updateColor: (color: string) => {
 			currentColor = color;
-			colorInput.value = color;
+			colorInput.value = normalizeHexColor(color);
 		},
 	};
 }

@@ -1761,9 +1761,6 @@
 	border: 2px solid var(--background-modifier-border);
 	border-radius: 50%;
 	cursor: pointer;
-	background: none;
-	-webkit-appearance: none;
-	appearance: none;
 }
 
 .ttrpgmap-pin-selector-color::-webkit-color-swatch-wrapper {
@@ -1795,9 +1792,6 @@
 	border: 2px solid var(--background-modifier-border);
 	border-radius: 4px;
 	cursor: pointer;
-	background: none;
-	-webkit-appearance: none;
-	appearance: none;
 }
 
 .ttrpgmap-color-swatch::-webkit-color-swatch-wrapper {

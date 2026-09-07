@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run build        # Generate icons + type-check + bundle (production)
 npm run dev          # Generate icons + watch mode (development)
 npm run icons        # Regenerate Font Awesome icon registry only
+npm run deploy       # Build, then copy the plugin into a vault
+npm run deploy:only  # Copy without rebuilding
 npm test             # Run all tests once
 npm run test:watch   # Run tests in watch mode
 
@@ -19,6 +21,8 @@ npx vitest run --coverage
 ```
 
 The build has a required pre-step: `scripts/build-icons.mjs` reads icon data from the `@iconify-json/fa6-solid` and `@iconify-json/game-icons` npm packages and produces `src/generated/fa-icons.ts` (FA icons bundled inline + GI search index) and `gi-icons.json` (GI icon data loaded at runtime). These files are gitignored and must be generated before building or testing.
+
+**The build does not install the plugin anywhere** -- it only writes `main.js` to the repo root. Obsidian loads the copy inside a vault's `.obsidian/plugins/ttrpg-maps/`, so a rebuild alone changes nothing in the app. `scripts/deploy.mjs` copies the four files Obsidian actually needs (`main.js`, `manifest.json`, `styles.css`, `gi-icons.json`) into one or more vault plugin folders, then the plugin must be reloaded (toggle it off/on, or Ctrl+R) -- Obsidian caches `styles.css` until reload, so CSS changes will appear stale otherwise. Deploy targets come from a gitignored `.deploy-target` file (one vault plugin folder per line) or the `VAULT_PLUGIN_DIR` env var, so no personal path is ever committed.
 
 ## Architecture
 
@@ -36,6 +40,8 @@ Markers reference a template by name. On creation, template values are copied di
 
 Markers can use a pin shape (FA `location-dot` SVG with an icon inside) or standalone mode (icon renders directly at full size). The `useBaseMarker` boolean controls this.
 
+An optional `transparency` field (0-100%, 0 = opaque) exists on both templates and markers. `createPinElement()` converts it to a `--pin-opacity` CSS custom property on the pin element, which `.ttrpgmap-pin .ttrpgmap-pin-svg` consumes. Because every render path goes through `createPinElement()`, setting it there covers map markers, both edit previews, the template list, the marker list, and the drag ghost at once. It fades the pin shape only -- the icon stays opaque. The field is optional, so pre-existing templates/markers read as `0` via `?? 0` and need no migration.
+
 ### Rendering approach
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.
@@ -43,6 +49,10 @@ Markers can use a pin shape (FA `location-dot` SVG with an icon inside) or stand
 ### Font Awesome & Game Icons
 
 Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/game-icons`) rather than vendored SVG files. `scripts/build-icons.mjs` reads the Iconify JSON format, extracts viewBox and path data (including alias resolution), and produces `src/generated/fa-icons.ts` (~1,408 FA icons bundled inline) and `gi-icons.json` (~4,126 Game Icons loaded at runtime). Icons render as inline SVGs with `fill="currentColor"` for CSS color inheritance. The pin shape uses FA's `location-dot` icon.
+
+### Settings navigation
+
+`src/utils/settingsNav.ts` jumps from a modal into the plugin's own settings tab and pulse-highlights a target with the shared `ttrpgmap-setting-highlight` animation. `openPluginSettingsSection()` finds a section by heading text; `openTemplateInSettings()` finds a template row by its `data-template-id` (set in `renderTemplateManager`) and expands the containing folder first by *clicking the folder header*, so the manager's own collapsed-folder `WeakMap` state stays in sync. Both are used by the marker edit modal.
 
 ### Plugin refresh system
 
@@ -111,3 +121,15 @@ Do NOT push until all four steps are done. If the user explicitly asks to skip a
 - Map coordinates are stored in **natural image pixel space**. `getImageScale()` provides the display-to-natural ratio for coordinate conversion.
 - CSS class prefix is `ttrpgmap-`. Shared pin styling uses `.ttrpgmap-pin` base class with `.ttrpgmap-marker-pin` (map) and `.ttrpgmap-preview-pin` (settings) size variants.
 - Standalone icon markers (no pin shape) use `.ttrpgmap-pin--standalone` and are excluded from direction-based CSS rotations via `:not(.ttrpgmap-pin--standalone)` selectors.
+
+### Color swatches (`<input type="color">`)
+
+Both color pickers (pin color and icon color) go through `createColorPicker()` and share the single class `ttrpgmap-color-swatch`. Don't fork a second class for one of them -- they drifted before and had to be re-unified. Three non-obvious constraints:
+
+- **Specificity.** Obsidian core styles `input[type="color"]` and `input[type="color"]::-webkit-color-swatch` with attribute-selector specificity, which beats a bare `.class`. Plugin rules must qualify as `input[type='color'].ttrpgmap-color-swatch` or they silently lose.
+- **One ring, on the pseudo-element.** Core already applies its own hover ring via `::-webkit-color-swatch:hover`. Adding a ring to the host input as well produces *two* glows, and since core sizes the host wider than the swatch (`width: calc(var(--swatch-width) + 4px)`), a `border-radius: 50%` on the host renders as an oblong. All hover/focus styling belongs on `::-webkit-color-swatch`, overriding core's rather than stacking on it. Size and shape come from core's own `--swatch-width` / `--swatch-height` / `--swatch-radius` variables.
+- **An `<input>` clips its own shadow DOM.** The ring cannot overflow the host, so ancestor `overflow: visible`, margin, and host padding are all powerless to stop clipping. Room must be reserved *inside* the input: give the host an explicit square size and pad `::-webkit-color-swatch-wrapper` (currently 32px host, 5px wrapper padding, 22px swatch, 3px ring).
+
+### Warning buttons
+
+`styles.css` is injected app-wide, so never restyle `.mod-warning` directly -- it would recolor core Obsidian's own dialogs and other plugins. Add `ttrpgmap-btn-warning` alongside `mod-warning` on this plugin's buttons instead, styled as `button.ttrpgmap-btn-warning` so it outranks `.mod-warning` regardless of stylesheet order (themes load after plugins).

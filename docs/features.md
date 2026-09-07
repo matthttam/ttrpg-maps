@@ -104,7 +104,7 @@ The marker edit modal lets you configure every aspect of a marker.
 
 | Field                       | Description                                                                |
 | --------------------------- | -------------------------------------------------------------------------- |
-| **Template**                | Which template this marker is based on                                     |
+| **Template**                | Which template this marker is based on. A pencil button beside the dropdown jumps to that template in settings |
 | **Note link**               | Link to a vault note (supports `#headings` and `#^block-ids`)              |
 | **Alias**                   | Display name shown on the map instead of the note filename                 |
 | **Preview Note**            | Alternate note shown in hover preview (blank uses the linked note)         |
@@ -114,6 +114,7 @@ The marker edit modal lets you configure every aspect of a marker.
 | **Icon rotation**           | Rotate the icon (slider 0-359 degrees)                                     |
 | **Icon color**              | Color of the icon (independent of pin color)                               |
 | **Pin color**               | Background color of the pin or circle shape                                |
+| **Pin transparency**        | Fade the pin shape from 0% (opaque) to 100% (invisible); the icon stays opaque |
 | **Text placement**          | Where the label appears relative to the marker (above/below/left/right)    |
 | **Text visibility**         | Inherit / Always visible / Mouseover only / Hidden                         |
 | **Marker size**             | Override the map-level marker scale (toggle to enable, slider 10-1000%)    |
@@ -126,6 +127,8 @@ The marker edit modal lets you configure every aspect of a marker.
 Each visual field (icon, rotation, color, pin, text placement) has its own **reset button** that restores the value from the marker's template. Reset buttons are hidden when the marker's template no longer exists.
 
 A **Reset to template** button resets all visual properties to the template defaults with a confirmation prompt. The reset is applied in the modal so you can review the changes before saving. This button is disabled when the marker's template no longer exists.
+
+A **Marker templates** button opens the template manager in settings, scrolling to and highlighting the templates section. The marker modal stays open behind it, so unsaved edits are not lost. The pencil button beside the **Template** dropdown does the same but targets that specific template's row, expanding its folder first if collapsed.
 
 **Size overrides** (marker size, scale to zoom, text size, text scale to zoom) are in a collapsible **Additional options** section that defaults to collapsed. Click the chevron to expand. The expanded/collapsed state persists within the session.
 
@@ -230,6 +233,16 @@ Each marker has two independent color settings:
 - **Icon color** - The color of the icon inside the shape
 
 Both use a color picker.
+
+The icon rotation and icon color controls are disabled until an icon is selected, since neither has any visible effect without one.
+
+### Pin transparency
+
+Next to the pin color is a **transparency** slider (0-100%), with a matching number box. It defaults to **0%**, meaning fully opaque.
+
+- Transparency applies to the **pin shape only** - the icon inside stays fully opaque. At 100% the shape disappears and leaves just the icon.
+- It can be set on a template (so every marker created from it inherits the value) and overridden per marker, exactly like pin color.
+- The value is shown live in the marker and template edit previews, and applies everywhere a marker is drawn: on the map, in the template list, in the marker list panel, and on the drag ghost.
 
 ### Labels
 
@@ -342,9 +355,11 @@ When editing a template, two save options are available:
 - **Save** - Saves the template. Existing markers are not affected
 - **Save & Update Markers** - Saves the template and pushes changes to all markers across all maps that use this template
 
-A confirmation dialog lists the fields that will be updated and shows how many markers will be affected. After applying, a notice reports the number of updated markers (e.g. "Updated 12 markers").
+If you changed fields in this editing session, only those fields are pushed. If there are no pending changes, **all** templated fields are pushed instead, so you can re-sync markers to a template at any time - useful when you saved a change earlier and only later decided to roll it out.
 
-Individual marker overrides are preserved. Only fields that match the old template value are updated.
+A confirmation dialog lists the fields that will be updated before anything is written. After applying, a notice reports the number of updated markers (e.g. "Updated 12 markers").
+
+This **overwrites per-marker customizations** on the listed fields, which is what the confirmation dialog warns about. Fields not listed are left untouched. Since a no-pending-changes apply covers every templated field, it is the broadest case - read the field list before confirming.
 
 ### Import and Export Templates
 

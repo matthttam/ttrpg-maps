@@ -525,3 +525,52 @@ describe('MapRenderer redraw round trip', () => {
 		opened.mockRestore();
 	});
 });
+
+describe('MapRenderer zone label inheritance', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	async function renderWith(
+		zoneOverrides: Partial<MapMarker>,
+		state: Partial<MapState>,
+		settings: Partial<typeof DEFAULT_SETTINGS>,
+	): Promise<HTMLElement> {
+		const zone = createZone({ alias: 'Region', ...zoneOverrides });
+		const plugin = createMockPlugin({ markers: [zone], ...state });
+		plugin.settings = { ...DEFAULT_SETTINGS, ...settings };
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+		return container;
+	}
+
+	it('inherits text visibility from the per-map setting, not just the global default', async () => {
+		// The bug: an "Inherit" zone ignored the map-level override and jumped
+		// straight to the global default.
+		await renderWith({ textVisibility: null }, { textVisibility: 'hidden' }, { defaultTextVisibility: 'visible' });
+
+		expect(container.querySelector('.ttrpgmap-zone-label')).toBeNull();
+	});
+
+	it('falls through to the global default when the map has no override', async () => {
+		await renderWith({ textVisibility: null }, {}, { defaultTextVisibility: 'hidden' });
+
+		expect(container.querySelector('.ttrpgmap-zone-label')).toBeNull();
+	});
+
+	it('lets a zone override beat the per-map setting', async () => {
+		await renderWith({ textVisibility: 'visible' }, { textVisibility: 'hidden' }, { defaultTextVisibility: 'hidden' });
+
+		expect(container.querySelector('.ttrpgmap-zone-label')).not.toBeNull();
+	});
+
+	it('resolves hover through the same chain', async () => {
+		await renderWith({ textVisibility: null }, { textVisibility: 'hover' }, {});
+
+		const label = container.querySelector('.ttrpgmap-zone-label');
+		expect(label).not.toBeNull();
+		expect(label!.classList.contains('ttrpgmap-zone-label--hover')).toBe(true);
+	});
+});

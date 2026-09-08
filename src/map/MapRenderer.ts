@@ -12,6 +12,7 @@ import {
 	DEFAULT_LAYER,
 	DEFAULT_MARKER_SCALE,
 	DEFAULT_MARKER_TEXT_SCALE,
+	TextVisibility,
 	getMarkerFontStack,
 } from '../types';
 import { MapSettingsModal } from '../modals/MapSettingsModal';
@@ -1683,6 +1684,18 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	/** Resolve the effective font for a marker, walking the 3-tier hierarchy */
+	/**
+	 * Resolve a marker's text visibility. "Inherit" on a marker falls through to
+	 * the per-map override (map settings), then the global default. Zones and pins
+	 * must share this: they diverged once, and zone labels silently ignored the
+	 * per-map setting.
+	 */
+	private getTextVisibility(marker: MapMarker): TextVisibility {
+		return (
+			marker.textVisibility ?? this.state?.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible'
+		);
+	}
+
 	private getMarkerFont(marker: MapMarker): string | null {
 		const font = marker.font ?? this.state?.markerFont ?? this.plugin.settings.defaultMarkerFont ?? 'default';
 		return getMarkerFontStack(font);
@@ -1911,7 +1924,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		sy: number,
 		scale: number,
 	): void {
-		const textVis = marker.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible';
+		const textVis = this.getTextVisibility(marker);
 		if (textVis === 'hidden') return;
 
 		const title = displayTitle(marker.note, marker.alias);
@@ -2110,8 +2123,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			shape: marker.shape ?? 'pin',
 		});
 
-		const textVis =
-			marker.textVisibility ?? this.state?.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible';
+		const textVis = this.getTextVisibility(marker);
 		if (textVis !== 'hidden') {
 			buildMarkerLabel(markerEl, marker.note, marker.alias, marker.description, 'ttrpgmap-marker-label');
 		}
@@ -2418,6 +2430,9 @@ export class MapRenderer extends MarkdownRenderChild {
 			},
 			() => this.redrawZone(marker),
 			isNew,
+			// What Inherit resolves to for this zone: the per-map override, else
+			// the global default. Computed here because the modal has neither.
+			this.state?.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible',
 		).open();
 	}
 

@@ -21,6 +21,8 @@ export class ZoneEditModal extends Modal {
 	private onSave: (marker: MapMarker) => void;
 	private onRedraw: () => void;
 	private isNew: boolean;
+	/** What "Inherit" text visibility resolves to for this zone (map, else global). */
+	private inheritedTextVisibility: TextVisibility;
 
 	constructor(
 		app: App,
@@ -30,6 +32,7 @@ export class ZoneEditModal extends Modal {
 		onSave: (marker: MapMarker) => void,
 		onRedraw: () => void,
 		isNew = false,
+		inheritedTextVisibility: TextVisibility = 'visible',
 	) {
 		super(app);
 		this.plugin = plugin;
@@ -38,6 +41,12 @@ export class ZoneEditModal extends Modal {
 		this.onSave = onSave;
 		this.onRedraw = onRedraw;
 		this.isNew = isNew;
+		this.inheritedTextVisibility = inheritedTextVisibility;
+	}
+
+	/** Human-readable label for a text-visibility value. */
+	private static visibilityLabel(v: TextVisibility): string {
+		return v === 'visible' ? 'Always visible' : v === 'hover' ? 'Mouseover only' : 'Hidden';
 	}
 
 	/** Draw the zone's real outline, scaled to fit the preview box. */
@@ -215,7 +224,11 @@ export class ZoneEditModal extends Modal {
 
 		new Setting(container)
 			.setName('Text visibility')
-			.setDesc('Control whether the zone label is shown')
+			.setDesc(
+				`Whether the zone label is shown. Inherit uses this map's setting (currently ${ZoneEditModal.visibilityLabel(
+					this.inheritedTextVisibility,
+				)}).`,
+			)
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption('inherit', 'Inherit')

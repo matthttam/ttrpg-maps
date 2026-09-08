@@ -371,7 +371,7 @@ The zone editor has:
 | **Fill color**       | The zone's fill. The outline is derived from it                                      |
 | **Transparency**     | 0% is fully opaque, 100% is invisible until hovered                                  |
 | **Label placement**  | Above or below the zone's center                                                    |
-| **Text visibility**  | Inherit / Always visible / Mouseover only / Hidden                                  |
+| **Text visibility**  | Inherit / Always visible / Mouseover only / Hidden. **Inherit** uses this map's text visibility setting, falling back to the global default; the dropdown description shows the resolved value |
 | **Label font**       | Inherit / Default, plus any installed fonts                                         |
 
 A live preview shows the zone's real outline, scaled to fit, along with its point count.

@@ -64,6 +64,8 @@ A hot zone is a marker with `shape: 'area'` plus a `points` array: a user-drawn 
 
 Zone shapes must set `pointer-events: auto`. The SVG overlay sets `pointer-events: none` so measurement lines never block the map, and anything added to that overlay inherits it — which silently cost zones both click and hover handling.
 
+Text visibility resolves through three levels for every marker, zones included: the marker's own value, then the per-map setting (`MapState.textVisibility`), then the global default. `MapRenderer.getTextVisibility()` is the single resolver — pins and zones must both use it. Zone labels once skipped the per-map level, so an "Inherit" zone silently ignored the map setting. The zone editor is passed the resolved value so its "Text visibility" description can show what "Inherit" currently means (the pin editor and map-settings modal do the same).
+
 ### Inert markers during map-wide drawing
 
 Whenever a drawing mode owns the map surface, existing markers must not be able to swallow clicks meant for the drawing. `MapRenderer.markersInert` is the single source of truth (true while measuring **or** drawing a zone) and drives three things:

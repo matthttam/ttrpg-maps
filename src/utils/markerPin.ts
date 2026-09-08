@@ -1,4 +1,5 @@
 import { getMapIcon } from './mapIcon';
+import type { MarkerShape } from '../types';
 
 // FA location-pin (solid teardrop, no inner circle) as the default pin shape
 const MAP_MARKER = getMapIcon('location-pin');
@@ -75,7 +76,7 @@ export interface PinElementOpts {
 	iconClass: string;
 	useBaseMarker?: boolean;
 	/** Pin shape: "pin" (default teardrop), "circle", or "hotspot" (transparent clickable area) */
-	shape?: 'pin' | 'circle' | 'hotspot';
+	shape?: MarkerShape;
 }
 
 /** Convert a 0-100 transparency percentage into a 0-1 opacity, clamped. */
@@ -87,7 +88,8 @@ export function transparencyToOpacity(transparency?: number | null): number {
 /** Create a full pin element: pin shape, circle shape, or standalone icon */
 export function createPinElement(container: HTMLElement, opts: PinElementOpts): HTMLElement {
 	const useBase = opts.useBaseMarker ?? true;
-	const shape = opts.shape ?? 'pin';
+	// Hot zones render as SVG polygons elsewhere; never as a pin element.
+	const shape = opts.shape === 'area' ? 'pin' : (opts.shape ?? 'pin');
 	const pinOpacity = transparencyToOpacity(opts.transparency);
 
 	if (shape === 'hotspot') {

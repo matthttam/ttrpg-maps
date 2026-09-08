@@ -6,6 +6,7 @@ import {
 	MapConfig,
 	MapState,
 	MapMarker,
+	MapPoint,
 	MarkerLayer,
 	DEFAULT_LAYER_ID,
 	DEFAULT_LAYER,
@@ -15,6 +16,18 @@ import {
 } from '../types';
 import { MapSettingsModal } from '../modals/MapSettingsModal';
 import { MarkerEditModal } from '../modals/MarkerEditModal';
+import { ZoneEditModal } from '../modals/ZoneEditModal';
+import { ZoneDrawController } from './ZoneDrawController';
+import {
+	anchorZonePoints,
+	appendZoneListPreview,
+	darkenHex,
+	isZone,
+	resolveZonePoints,
+	zoneArea,
+	zoneCentroid,
+	zonePointsAttr,
+} from '../utils/zoneGeometry';
 import { LayerEditModal } from '../modals/LayerEditModal';
 import { serializeMapConfig, writeConfigToCodeBlock } from '../utils/configSerializer';
 import { createPinElement } from '../utils/markerPin';
@@ -64,6 +77,12 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	// Marker focus state (last-hovered stays promoted via incrementing z-index)
 	private markerZCounter = 0;
+
+	// Hot zones: polygons live in their own <g> inside the transformed SVG overlay
+	private zoneLayer!: SVGGElement;
+	private zoneDraw!: ZoneDrawController;
+	/** Authoring aid: reveal every zone outline, not just the hovered one. */
+	private showAllZoneOutlines = false;
 
 	// Marker drag state
 	private draggingMarker: MapMarker | null = null;
@@ -209,6 +228,17 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		this.svgOverlay = createSvg('svg', { cls: 'ttrpgmap-svg-overlay' });
 		this.mapContainer.appendChild(this.svgOverlay);
+
+		// Zone polygons paint before measurement lines, so lines stay readable on top
+		this.zoneLayer = createSvg('g', { cls: 'ttrpgmap-zone-layer' });
+		this.svgOverlay.appendChild(this.zoneLayer);
+		this.zoneDraw = new ZoneDrawController({
+			surface: this.mapContainer,
+			svgOverlay: this.svgOverlay,
+			interaction: this.interaction,
+			screenToMap: (e) => this.screenToMapPoint(e),
+			getImageScale: () => this.getImageScale(),
+		});
 
 		// Marker overlay sits outside the scaled container for crisp rendering
 		this.markerOverlay = this.wrapper.createDiv({ cls: 'ttrpgmap-marker-overlay' });
@@ -771,18 +801,24 @@ export class MapRenderer extends MarkdownRenderChild {
 			// Mini icon preview
 			const preview = row.createDiv({ cls: 'ttrpgmap-marker-list-preview' });
 			const shape = marker.shape ?? 'pin';
-			createPinElement(preview, {
-				pinClass: 'ttrpgmap-marker-list-pin',
-				svgClass: 'ttrpgmap-pin-svg',
-				color: marker.color ?? '#ffffff',
-				transparency: marker.transparency ?? 0,
-				icon: marker.icon,
-				iconColor: marker.iconColor ?? '#000000',
-				iconRotation: marker.iconRotation ?? 0,
-				iconClass: 'ttrpgmap-marker-list-icon',
-				useBaseMarker: marker.useBaseMarker ?? true,
-				shape,
-			});
+			if (isZone(marker)) {
+				// Show the zone's actual outline rather than a generic glyph: a viewBox
+				// set to its bounding box scales any polygon to fit the swatch.
+				appendZoneListPreview(preview, marker);
+			} else {
+				createPinElement(preview, {
+					pinClass: 'ttrpgmap-marker-list-pin',
+					svgClass: 'ttrpgmap-pin-svg',
+					color: marker.color ?? '#ffffff',
+					transparency: marker.transparency ?? 0,
+					icon: marker.icon,
+					iconColor: marker.iconColor ?? '#000000',
+					iconRotation: marker.iconRotation ?? 0,
+					iconClass: 'ttrpgmap-marker-list-icon',
+					useBaseMarker: marker.useBaseMarker ?? true,
+					shape,
+				});
+			}
 
 			// Name
 			const name = displayTitle(marker.note, marker.alias) || 'Unnamed';
@@ -1649,6 +1685,17 @@ export class MapRenderer extends MarkdownRenderChild {
 		return scaleToZoom ? baseScale : baseScale * (this.zoom / 100);
 	}
 
+	/** Convert a mouse event to natural image pixel coords. */
+	private screenToMapPoint(e: MouseEvent): MapPoint {
+		const rect = this.mapContainer.getBoundingClientRect();
+		const scale = this.zoom / 100;
+		const { sx, sy } = this.getImageScale();
+		return {
+			x: (e.clientX - rect.left) / scale / sx,
+			y: (e.clientY - rect.top) / scale / sy,
+		};
+	}
+
 	/** Convert natural image coords to display coords (image-space, before zoom/pan transform) */
 	private toDisplayCoords(natX: number, natY: number): { x: number; y: number } {
 		const { sx, sy } = this.getImageScale();
@@ -1697,6 +1744,7 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Differential viewport render: add markers entering the viewport, remove those leaving */
 	private syncViewportMarkers(updateScales = false): void {
 		if (!this.state) return;
+		this.renderZones();
 		const { sx, sy } = this.getImageScale();
 		const scale = this.zoom / 100;
 		const vp = this.getViewportBounds();
@@ -1707,6 +1755,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		// Collect all viewport-visible marker IDs
 		const visibleIds = new Set<string>();
 		for (const marker of this.state.markers) {
+			if (marker.shape === 'area') continue;
 			if (this.isMarkerVisible(marker) && this.isInViewport(marker, sx, sy, scale, vp)) {
 				visibleIds.add(marker.id);
 			}
@@ -1780,8 +1829,137 @@ export class MapRenderer extends MarkdownRenderChild {
 		}
 	}
 
+	/**
+	 * Render every hot zone into the transformed SVG overlay.
+	 *
+	 * Zones are map geometry, so keeping both the polygon and its label inside
+	 * the zoom/pan transform means they need no screen-coordinate bookkeeping --
+	 * unlike pins, which live in a separate overlay to stay crisp. Zones are
+	 * rebuilt wholesale rather than diffed; there are few of them and the
+	 * geometry changes rarely.
+	 */
+	private renderZones(): void {
+		// Standard DOM APIs here: Obsidian's element helpers (empty/addClass/
+		// toggleClass) are HTMLElement extensions and don't exist on SVG nodes.
+		while (this.zoneLayer.firstChild) this.zoneLayer.removeChild(this.zoneLayer.firstChild);
+		if (!this.state) return;
+
+		const { sx, sy } = this.getImageScale();
+		const scale = this.zoom / 100;
+
+		// Largest first, so a zone nested inside another paints on top and stays
+		// clickable. SVG has no z-index -- document order decides.
+		const zones = this.state.markers
+			.filter((m) => isZone(m) && this.isMarkerVisible(m))
+			.map((m) => ({ marker: m, points: resolveZonePoints(m) }))
+			.sort((a, b) => zoneArea(b.points) - zoneArea(a.points));
+
+		this.zoneLayer.classList.toggle('ttrpgmap-zone-layer--show-all', this.showAllZoneOutlines);
+
+		for (const { marker, points } of zones) {
+			const fill = marker.color ?? '#ffffff';
+			const group = createSvg('g', { cls: 'ttrpgmap-zone' });
+			group.dataset.markerId = marker.id;
+
+			const polygon = createSvg('polygon', { cls: 'ttrpgmap-zone-shape' });
+			polygon.setAttribute('points', zonePointsAttr(points, sx, sy));
+			polygon.setAttribute('fill', fill);
+			polygon.setAttribute('fill-opacity', String(1 - Math.min(100, Math.max(0, marker.transparency ?? 0)) / 100));
+			polygon.setAttribute('stroke', darkenHex(fill));
+			// Keep the outline a constant on-screen width regardless of zoom
+			polygon.setAttribute('stroke-width', String(2 / scale));
+			group.appendChild(polygon);
+
+			this.appendZoneLabel(group, marker, points, sx, sy, scale);
+			this.zoneLayer.appendChild(group);
+			this.attachZoneEvents(marker, group, polygon);
+		}
+	}
+
+	/** Zone label as SVG text at the centroid, above or below the shape. */
+	private appendZoneLabel(
+		group: SVGGElement,
+		marker: MapMarker,
+		points: MapPoint[],
+		sx: number,
+		sy: number,
+		scale: number,
+	): void {
+		const textVis = marker.textVisibility ?? this.plugin.settings.defaultTextVisibility ?? 'visible';
+		if (textVis === 'hidden') return;
+
+		const title = displayTitle(marker.note, marker.alias);
+		const text = title || marker.description;
+		if (!text) return;
+
+		const centroid = zoneCentroid(points);
+		// Divide by scale so the label keeps a constant on-screen size
+		const fontSize = 14 / scale;
+		const below = marker.textPlacement === 'below';
+		const offset = (below ? 1 : -1) * (fontSize * 0.6);
+
+		const label = createSvg('text', {
+			cls: textVis === 'hover' ? 'ttrpgmap-zone-label ttrpgmap-zone-label--hover' : 'ttrpgmap-zone-label',
+		});
+		label.setAttribute('x', String(centroid.x * sx));
+		label.setAttribute('y', String(centroid.y * sy + offset));
+		label.setAttribute('font-size', String(fontSize));
+		label.setAttribute('stroke-width', String(3 / scale));
+		label.setAttribute('text-anchor', 'middle');
+		label.setAttribute('dominant-baseline', below ? 'hanging' : 'auto');
+		const fontStack = this.getMarkerFont(marker);
+		if (fontStack) label.setAttribute('font-family', fontStack);
+		label.textContent = text;
+		group.appendChild(label);
+	}
+
+	/**
+	 * Zone interaction. The polygon is the hit target so the whole fill is
+	 * clickable, and hovering re-appends the group to promote it above overlapping
+	 * zones (the SVG equivalent of the pin overlay's z-index bump).
+	 */
+	private attachZoneEvents(marker: MapMarker, group: SVGGElement, polygon: SVGPolygonElement): void {
+		const promote = () => {
+			this.zoneLayer.appendChild(group);
+		};
+
+		polygon.addEventListener('mouseenter', () => {
+			group.classList.add('ttrpgmap-zone--hover');
+			promote();
+		});
+		polygon.addEventListener('mouseleave', () => {
+			group.classList.remove('ttrpgmap-zone--hover');
+		});
+
+		this.attachMarkerNavigation(marker, polygon);
+		this.attachMarkerHoverPreview(marker, polygon, promote);
+
+		polygon.addEventListener('contextmenu', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const menu = new Menu();
+			menu.addItem((item) => {
+				item.setTitle('Edit hot zone');
+				item.setIcon('pencil');
+				item.onClick(() => this.editZone(marker));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Redraw shape');
+				item.setIcon('pen-tool');
+				item.onClick(() => this.redrawZone(marker));
+			});
+			menu.addItem((item) => {
+				item.setTitle('Delete');
+				item.setIcon('trash-2');
+				item.onClick(() => this.deleteMarker(marker));
+			});
+			menu.showAtMouseEvent(e);
+		});
+	}
+
 	private renderMarkers(): void {
 		if (!this.state) return;
+		this.renderZones();
 		this.markerZCounter = 0;
 		this.resizeHandleEl = null;
 		this.markerOverlay.querySelectorAll('.ttrpgmap-marker').forEach((el) => el.remove());
@@ -1797,6 +1975,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		const maxMarkers = this.maxRenderedMarkers;
 		const visibleMarkers: MapMarker[] = [];
 		for (const marker of this.state.markers) {
+			// Hot zones render in the SVG overlay via renderZones(), not here
+			if (marker.shape === 'area') continue;
 			if (!this.isMarkerVisible(marker) || !this.isInViewport(marker, sx, sy, scale, vp)) continue;
 			visibleMarkers.push(marker);
 		}
@@ -1916,12 +2096,25 @@ export class MapRenderer extends MarkdownRenderChild {
 
 	private attachMarkerEvents(marker: MapMarker, markerEl: HTMLElement): void {
 		this.attachMarkerNavigation(marker, markerEl);
-		this.attachMarkerHoverPreview(marker, markerEl);
+		this.attachMarkerHoverPreview(marker, markerEl, () => this.promoteMarkerEl(markerEl));
 		this.attachMarkerDrag(marker, markerEl);
 		this.attachMarkerContextMenu(marker, markerEl);
 	}
 
-	private attachMarkerNavigation(marker: MapMarker, markerEl: HTMLElement): void {
+	/** Raise a marker element above every previously hovered one. */
+	private promoteMarkerEl(markerEl: HTMLElement): void {
+		if (this.markerZCounter >= 2_000_000_000) {
+			this.markerZCounter = 0;
+			this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
+				el.setCssStyles({ zIndex: '' });
+			});
+		}
+		this.markerZCounter++;
+		markerEl.setCssStyles({ zIndex: String(this.markerZCounter) });
+	}
+
+	// Takes an Element rather than HTMLElement so hot zone polygons can reuse it.
+	private attachMarkerNavigation(marker: MapMarker, markerEl: Element): void {
 		if (!marker.note) return;
 		const navPath = linkPath(marker.note);
 		markerEl.addEventListener('click', (e) => {
@@ -1934,7 +2127,12 @@ export class MapRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	private attachMarkerHoverPreview(marker: MapMarker, markerEl: HTMLElement): void {
+	/**
+	 * Hover preview. `markerEl` is an Element (not HTMLElement) so hot zone
+	 * polygons can reuse this, and promotion is injected because SVG has no
+	 * z-index -- zones promote by re-appending instead.
+	 */
+	private attachMarkerHoverPreview(marker: MapMarker, markerEl: Element, promote: () => void): void {
 		let hoverTimeout: number | null = null;
 		let hoverSuppressed = false;
 		// Hover parent with intercepted setter: auto-hides popover if suppressed
@@ -1968,16 +2166,11 @@ export class MapRenderer extends MarkdownRenderChild {
 			}
 		};
 
-		markerEl.addEventListener('mouseenter', (e) => {
-			// Promote this marker above all previously hovered markers
-			if (this.markerZCounter >= 2_000_000_000) {
-				this.markerZCounter = 0;
-				this.markerOverlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-					el.setCssStyles({ zIndex: '' });
-				});
-			}
-			this.markerZCounter++;
-			markerEl.setCssStyles({ zIndex: String(this.markerZCounter) });
+		markerEl.addEventListener('mouseenter', (evt) => {
+			// Typed as Event because this attaches to both HTML markers and SVG zones
+			const e = evt as MouseEvent;
+			// Promote this marker above all previously hovered ones
+			promote();
 			if (!this.draggingMarker && this.interaction.current !== 'panning') hoverSuppressed = false;
 			this.dismissActiveHover = dismissPopover;
 			if (this.draggingMarker || this.interaction.current === 'panning' || e.altKey || !this.showHoverPreview) return;
@@ -2132,6 +2325,87 @@ export class MapRenderer extends MarkdownRenderChild {
 			},
 			true,
 		).open();
+	}
+
+	/** Enter draw mode, then create a hot zone from the drawn outline. */
+	private startZoneDraw(layerId: string | null = null): void {
+		this.measurement.cancelDrawing();
+		if (this.resizingMarker) this.commitResize();
+		this.zoneDraw.start((absolute) => this.createZone(absolute, layerId));
+	}
+
+	private createZone(absolute: MapPoint[], layerId: string | null): void {
+		if (!this.state) return;
+		const { anchor, points } = anchorZonePoints(absolute);
+
+		const marker: MapMarker = {
+			id: generateMarkerId(),
+			// Zones carry no template. An empty id means template applies skip them,
+			// and leaves room to assign one when zone templates arrive.
+			templateId: '',
+			x: anchor.x,
+			y: anchor.y,
+			layerId,
+			note: null,
+			alias: null,
+			previewNote: null,
+			description: null,
+			direction: null,
+			textPlacement: 'above',
+			color: '#3b82f6',
+			transparency: 40,
+			icon: null,
+			iconColor: null,
+			iconRotation: null,
+			useBaseMarker: null,
+			shape: 'area',
+			points,
+			scale: null,
+			scaleToZoom: null,
+			textScale: null,
+			textScaleToZoom: null,
+			font: null,
+			textVisibility: null,
+		};
+
+		this.state.markers.push(marker);
+		this.plugin.dataManager.saveMapState(this.config.id, this.state);
+		this.renderMarkers();
+		this.refreshMarkerList();
+		this.editZone(marker, true);
+	}
+
+	private editZone(marker: MapMarker, isNew = false): void {
+		new ZoneEditModal(
+			this.plugin.app,
+			this.plugin,
+			marker,
+			this.state?.layers ?? [],
+			(updated) => {
+				if (!this.state) return;
+				Object.assign(marker, updated);
+				this.plugin.dataManager.saveMapState(this.config.id, this.state);
+				this.renderMarkers();
+				this.refreshMarkerList();
+			},
+			() => this.redrawZone(marker),
+			isNew,
+		).open();
+	}
+
+	/** Replace an existing zone's outline, keeping all its other settings. */
+	private redrawZone(marker: MapMarker): void {
+		this.measurement.cancelDrawing();
+		this.zoneDraw.start((absolute) => {
+			if (!this.state) return;
+			const { anchor, points } = anchorZonePoints(absolute);
+			marker.x = anchor.x;
+			marker.y = anchor.y;
+			marker.points = points;
+			this.plugin.dataManager.saveMapState(this.config.id, this.state);
+			this.renderMarkers();
+			this.refreshMarkerList();
+		});
 	}
 
 	private editMarker(marker: MapMarker): void {
@@ -2368,6 +2642,23 @@ export class MapRenderer extends MarkdownRenderChild {
 			layers: this.state.layers,
 			onPlace: (templateId, layerId) => this.placeMarker(mapX, mapY, templateId, layerId),
 		});
+
+		menu.addSeparator();
+		menu.addItem((item) => {
+			item.setTitle('Place hot zone');
+			item.setIcon('pen-tool');
+			item.onClick(() => this.startZoneDraw());
+		});
+		if (this.state.markers.some((m) => m.shape === 'area')) {
+			menu.addItem((item) => {
+				item.setTitle(this.showAllZoneOutlines ? 'Hide all zone outlines' : 'Show all zone outlines');
+				item.setIcon('eye');
+				item.onClick(() => {
+					this.showAllZoneOutlines = !this.showAllZoneOutlines;
+					this.renderZones();
+				});
+			});
+		}
 
 		menu.addSeparator();
 		menu.addItem((item) => {

@@ -30,6 +30,13 @@ export interface TemplateFolder {
 	name: string;
 }
 
+/**
+ * Marker shapes. `area` is a hot zone: a user-drawn polygon whose geometry
+ * lives on the marker (see `MapMarker.points`) rather than in a template, so
+ * templates deliberately cannot be `area`.
+ */
+export type MarkerShape = 'pin' | 'circle' | 'hotspot' | 'area';
+
 /** A reusable preset for marker styling */
 export interface MarkerTemplate {
 	id: string;
@@ -70,7 +77,13 @@ export interface MapMarker {
 	iconColor: string | null;
 	iconRotation: number | null;
 	useBaseMarker: boolean | null;
-	shape: 'pin' | 'circle' | 'hotspot' | null;
+	shape: MarkerShape | null;
+	/**
+	 * Hot zone geometry, only present when `shape === 'area'`. Points are stored
+	 * relative to the marker's `x`/`y` anchor (its centroid at creation) in
+	 * natural image pixels, so moving a zone only has to update `x`/`y`.
+	 */
+	points?: MapPoint[];
 	scale: number | null;
 	scaleToZoom: boolean | null;
 	textScale: number | null;

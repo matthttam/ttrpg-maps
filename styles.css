@@ -1796,6 +1796,93 @@ button.ttrpgmap-btn-warning:disabled {
 	text-align: center;
 }
 
+/* ===== Hot zones (area markers) ===== */
+/* Zone polygons live inside the zoom/pan transform, so they scale with the map
+   for free. The outline is hidden until hover (or when "show all" is on) so
+   zones can sit invisibly over the map. */
+.ttrpgmap-zone-shape {
+	stroke-opacity: 0;
+	transition: stroke-opacity 0.12s ease;
+	cursor: pointer;
+}
+
+.ttrpgmap-zone--hover .ttrpgmap-zone-shape,
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone-shape {
+	stroke-opacity: 1;
+}
+
+/* Dashed outlines while revealing every zone, to distinguish from a real hover */
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone-shape {
+	stroke-dasharray: 6 4;
+}
+
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone--hover .ttrpgmap-zone-shape {
+	stroke-dasharray: none;
+}
+
+/* Label is SVG text so it stays inside the transform with its polygon. The
+   stroke behind the glyphs keeps it readable over any map. */
+.ttrpgmap-zone-label {
+	fill: #ffffff;
+	stroke: rgba(0, 0, 0, 0.85);
+	paint-order: stroke;
+	stroke-linejoin: round;
+	pointer-events: none;
+	user-select: none;
+}
+
+.ttrpgmap-zone-label--hover {
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.ttrpgmap-zone--hover .ttrpgmap-zone-label--hover {
+	opacity: 1;
+}
+
+/* ── Drawing preview ── */
+.ttrpgmap-zone-draw-shape {
+	fill: var(--interactive-accent);
+	fill-opacity: 0.25;
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-rubber {
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	stroke-dasharray: 5 4;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-dot {
+	fill: var(--background-primary);
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-dot--first {
+	fill: var(--interactive-accent);
+}
+
+/* ── Previews (marker list + edit modal) ── */
+.ttrpgmap-zone-list-preview {
+	width: 100%;
+	height: 100%;
+}
+
+.ttrpgmap-zone-preview-svg {
+	width: 120px;
+	height: 120px;
+}
+
+.ttrpgmap-zone-preview-meta {
+	text-align: center;
+	font-size: var(--font-ui-smaller);
+}
+
 /* ===== Description textarea ===== */
 .ttrpgmap-description-input {
 	width: 100%;

@@ -9,6 +9,7 @@ import {
 	MarkerLayer,
 	DEFAULT_LAYER_ID,
 	MarkerFont,
+	MarkerShape,
 	getMarkerFontStack,
 } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
@@ -45,7 +46,7 @@ export class MarkerEditModal extends Modal {
 		iconColor: string | null;
 		iconRotation: number | null;
 		useBaseMarker: boolean | null;
-		shape: 'pin' | 'circle' | 'hotspot' | null;
+		shape: MarkerShape | null;
 		scale: number | null;
 		scaleToZoom: boolean | null;
 		textScale: number | null;
@@ -100,7 +101,8 @@ export class MarkerEditModal extends Modal {
 			color: this.marker.color ?? '#ffffff',
 			transparency: this.marker.transparency ?? 0,
 			useBaseMarker: this.marker.useBaseMarker ?? true,
-			shape: this.marker.shape ?? 'pin',
+			// Hot zones use ZoneEditModal, so 'area' never reaches these shared fields
+			shape: this.marker.shape === 'area' ? 'pin' : (this.marker.shape ?? 'pin'),
 		};
 	}
 

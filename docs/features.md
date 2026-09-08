@@ -243,6 +243,7 @@ Next to the pin color is a **transparency** slider (0-100%), with a matching num
 - Transparency applies to the **pin shape only** - the icon inside stays fully opaque. At 100% the shape disappears and leaves just the icon.
 - It can be set on a template (so every marker created from it inherits the value) and overridden per marker, exactly like pin color.
 - The value is shown live in the marker and template edit previews, and applies everywhere a marker is drawn: on the map, in the template list, in the marker list panel, and on the drag ghost.
+- The slider and number box stay in step, and the box snaps to the allowed range - typing a value above 100 or below 0 lands on 100 or 0.
 
 ### Labels
 

@@ -22,7 +22,7 @@ npx vitest run --coverage
 
 The build has a required pre-step: `scripts/build-icons.mjs` reads icon data from the `@iconify-json/fa6-solid` and `@iconify-json/game-icons` npm packages and produces `src/generated/fa-icons.ts` (FA icons bundled inline + GI search index) and `gi-icons.json` (GI icon data loaded at runtime). These files are gitignored and must be generated before building or testing.
 
-**The build does not install the plugin anywhere** -- it only writes `main.js` to the repo root. Obsidian loads the copy inside a vault's `.obsidian/plugins/ttrpg-maps/`, so a rebuild alone changes nothing in the app. `scripts/deploy.mjs` copies the four files Obsidian actually needs (`main.js`, `manifest.json`, `styles.css`, `gi-icons.json`) into one or more vault plugin folders, then the plugin must be reloaded (toggle it off/on, or Ctrl+R) -- Obsidian caches `styles.css` until reload, so CSS changes will appear stale otherwise. Deploy targets come from a gitignored `.deploy-target` file (one vault plugin folder per line) or the `VAULT_PLUGIN_DIR` env var, so no personal path is ever committed.
+**The build does not install the plugin anywhere** -- it only writes `main.js` to the repo root. Obsidian loads the copy inside a vault's `.obsidian/plugins/ttrpg-maps/`, so a rebuild alone changes nothing in the app. `scripts/deploy.mjs` copies the four files Obsidian actually needs (`main.js`, `manifest.json`, `styles.css`, `gi-icons.json`) into one or more vault plugin folders, then the plugin must be reloaded (toggle it off/on, or Ctrl+R) -- Obsidian caches `styles.css` until reload, so CSS changes will appear stale otherwise. Deploy targets come from a gitignored `.deploy-target` file (one vault plugin folder per line) or the `VAULT_PLUGIN_DIR` env var, so no personal path is ever committed. Every target's *parent* must already exist before anything is copied: the plugin folder itself is created on a first deploy, but `mkdirSync(..., { recursive: true })` would otherwise build a whole tree from a mistyped vault path and report a successful deploy into a folder Obsidian never reads.
 
 ## Architecture
 
@@ -40,7 +40,12 @@ Markers reference a template by name. On creation, template values are copied di
 
 Markers can use a pin shape (FA `location-dot` SVG with an icon inside) or standalone mode (icon renders directly at full size). The `useBaseMarker` boolean controls this.
 
-An optional `transparency` field (0-100%, 0 = opaque) exists on both templates and markers. `createPinElement()` converts it to a `--pin-opacity` CSS custom property on the pin element, which `.ttrpgmap-pin .ttrpgmap-pin-svg` consumes. Because every render path goes through `createPinElement()`, setting it there covers map markers, both edit previews, the template list, the marker list, and the drag ghost at once. It fades the pin shape only -- the icon stays opaque. The field is optional, so pre-existing templates/markers read as `0` via `?? 0` and need no migration.
+An optional `transparency` field (0-100%, 0 = opaque) exists on both templates and markers. `createPinElement()` converts it to a `--pin-opacity` CSS custom property on the pin element, which `.ttrpgmap-pin .ttrpgmap-pin-svg` consumes. Because every render path goes through `createPinElement()`, setting it there covers map markers, both edit previews, the template list, the marker list, and the drag ghost at once. It fades the pin shape only -- the icon stays opaque.
+
+Being optional means it reads as `0` via `?? 0` and needs no migration, but that also makes `undefined` and `0` two spellings of the same value, which two places must reconcile:
+
+- `placeMarker()` copies every templated field onto a new marker by hand. Any field missing from that literal silently stops being inherited -- `transparency` was, and new markers ignored their template until it was added. `tests/map/MapRenderer.placeMarker.test.ts` asserts all nine fields to catch the next one.
+- `TemplateEditModal`'s dirty tracking compares snapshot to draft with `!==`, so a legacy `undefined` against a slider-written `0` would read as changed forever. The constructor normalizes `transparency` into the draft *and* takes the snapshot from that normalized draft.
 
 ### Rendering approach
 
@@ -53,6 +58,8 @@ Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/g
 ### Settings navigation
 
 `src/utils/settingsNav.ts` jumps from a modal into the plugin's own settings tab and pulse-highlights a target with the shared `ttrpgmap-setting-highlight` animation. `openPluginSettingsSection()` finds a section by heading text; `openTemplateInSettings()` finds a template row by its `data-template-id` (set in `renderTemplateManager`) and expands the containing folder first by *clicking the folder header*, so the manager's own collapsed-folder `WeakMap` state stays in sync. Both are used by the marker edit modal.
+
+`pulseHighlight()` is exported and is the single implementation -- `MapSettingsModal.scrollToSetting()` calls it too, rather than keeping its own copy. **It must not rely on `animationend` alone:** under `prefers-reduced-motion: reduce` styles.css sets `animation: none` on the highlight class, so that event never fires and the class (and the grey background it paints) would stick forever. It clears on whichever comes first, the animation ending or a fallback timer sized to `HIGHLIGHT_DURATION_MS`, keeping both in sync with the 2.4s animation in styles.css. jsdom runs no CSS animations either, so `tests/utils/settingsNav.test.ts` covers exactly the reduced-motion path.
 
 ### Plugin refresh system
 

@@ -47,6 +47,20 @@ Being optional means it reads as `0` via `?? 0` and needs no migration, but that
 - `placeMarker()` copies every templated field onto a new marker by hand. Any field missing from that literal silently stops being inherited -- `transparency` was, and new markers ignored their template until it was added. `tests/map/MapRenderer.placeMarker.test.ts` asserts all nine fields to catch the next one.
 - `TemplateEditModal`'s dirty tracking compares snapshot to draft with `!==`, so a legacy `undefined` against a slider-written `0` would read as changed forever. The constructor normalizes `transparency` into the draft *and* takes the snapshot from that normalized draft.
 
+### Hot zones (area markers)
+
+A hot zone is a marker with `shape: 'area'` plus a `points` array: a user-drawn polygon acting as one clickable region. Key decisions, all load-bearing:
+
+- **Geometry lives on the marker, never a template.** `MarkerTemplate.shape` deliberately excludes `'area'` (the `MarkerShape` union is wider than the template's field), because a polygon is specific to one place on one map and there is nothing reusable to share. Zones are created with `templateId: ''`, and `applyToMarkers()` *also* skips `shape === 'area'`. Both guards matter: without the second, a zone that somehow acquired a real template id would have its fill overwritten and its `shape` rewritten into a pin, silently destroying the polygon. `tests/modals/TemplateEditModal.test.ts` covers both paths.
+- **`points` are relative to the marker's `x`/`y` anchor** (its centroid at creation), in natural image pixels. That means moving a zone only updates the anchor rather than rewriting every vertex. `resolveZonePoints()` converts back to absolute; `anchorZonePoints()` splits absolute input into anchor + relative.
+- **Zones render inside the transformed SVG overlay, not the marker overlay.** Pins sit in a separate screen-space overlay to stay crisp, and need `toScreenCoords()` bookkeeping on every pan/zoom. A zone is map geometry, so putting its polygon *and* its label in a `<g>` inside the zoom/pan transform means pan and zoom come free with zero position code. The tradeoff is that stroke width and label font-size must be divided by the zoom scale to stay a constant on-screen size, and `renderZones()` re-runs when zoom settles.
+- **Overlap order is explicit.** SVG has no `z-index`, so paint order is document order. Zones sort largest-area-first each render, otherwise a zone nested inside a bigger one would be permanently unclickable. Hover promotes by re-appending the group, which is the SVG equivalent of the pin overlay's `z-index` bump.
+- **The outline is derived, not stored.** `darkenHex()` darkens the fill; CSS hides it until `:hover` (or when the zone layer has `--show-all`). It ignores the fill's transparency so a fully transparent zone still outlines on hover.
+- **Shared event helpers take `Element`, not `HTMLElement`.** `attachMarkerNavigation()` and `attachMarkerHoverPreview()` were widened, and z-promotion was extracted into an injected callback, so zone polygons get note links and Obsidian's hover preview without duplicating that logic.
+- **Use standard DOM APIs on SVG nodes.** Obsidian's `addClass`/`removeClass`/`empty` are HTMLElement extensions and silently do not exist on SVG elements — use `classList` and manual child removal. Getting this wrong broke 34 unrelated tests, because `renderZones()` threw before markers rendered.
+
+`ZoneDrawController` does click-to-place drawing under a `'drawing-zone'` interaction mode. `ZoneEditModal` is deliberately separate from `MarkerEditModal`: a zone has no pin shape, direction, icon, or scale overrides, so sharing that modal would mean hiding most of it. Geometry editing is redraw-only; dragging a whole zone is not wired up yet (drag is HTMLElement-bound), though the relative-points model is already ready for it.
+
 ### Rendering approach
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.
@@ -68,6 +82,8 @@ Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/g
 ### Test environment
 
 Tests live in `tests/` (outside `src/` so the Obsidian review bot doesn't scan them). Tests run in jsdom. `tests/__mocks__/obsidian.ts` mocks the Obsidian API classes. `tests/__mocks__/obsidian-dom.ts` polyfills Obsidian's custom HTMLElement methods (`createDiv`, `createEl`, `empty`, `addClass`, `setText`). Coverage is scoped to `src/utils/`, `src/map/`, `src/types.ts`, `src/distance.ts`, and `src/DataManager.ts`.
+
+When adding tests for a guard, confirm they actually fail if the guard is removed. The hot zone suites were checked that way: deleting the `shape === 'area'` skip in `applyToMarkers` fails 3 tests, dropping the largest-first zone sort fails 1, and allowing under-three-point shapes fails 1.
 
 ## Obsidian community plugin guidelines
 

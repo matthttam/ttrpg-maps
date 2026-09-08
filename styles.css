@@ -1800,15 +1800,28 @@ button.ttrpgmap-btn-warning:disabled {
 /* Zone polygons live inside the zoom/pan transform, so they scale with the map
    for free. The outline is hidden until hover (or when "show all" is on) so
    zones can sit invisibly over the map. */
+/* The SVG overlay sets pointer-events: none so measurement lines never block
+   the map; zone shapes must opt back in to be hoverable and clickable. */
 .ttrpgmap-zone-shape {
+	pointer-events: auto;
 	stroke-opacity: 0;
-	transition: stroke-opacity 0.12s ease;
 	cursor: pointer;
+	transition:
+		stroke-opacity 0.12s ease,
+		fill-opacity 0.12s ease,
+		filter 0.12s ease;
 }
 
 .ttrpgmap-zone--hover .ttrpgmap-zone-shape,
 .ttrpgmap-zone-layer--show-all .ttrpgmap-zone-shape {
 	stroke-opacity: 1;
+}
+
+/* Tint the fill on hover, relative to the zone's own transparency, so even a
+   fully transparent zone gives feedback when the cursor is over it. */
+.ttrpgmap-zone--hover .ttrpgmap-zone-shape {
+	fill-opacity: min(1, calc(var(--zone-fill-opacity, 1) + 0.18));
+	filter: brightness(1.15);
 }
 
 /* Dashed outlines while revealing every zone, to distinguish from a real hover */

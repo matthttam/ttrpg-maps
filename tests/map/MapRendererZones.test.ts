@@ -326,3 +326,34 @@ describe('MapRenderer hot zone labels', () => {
 		expect(Number(label.getAttribute('y'))).toBeLessThan(200);
 	});
 });
+
+describe('MapRenderer hot zone hover feedback', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	it('exposes the base fill opacity as a variable for the hover tint', async () => {
+		await render([createZone({ transparency: 40 })], container);
+
+		const group = container.querySelector('.ttrpgmap-zone') as SVGGElement;
+		expect(group.style.getPropertyValue('--zone-fill-opacity')).toBe('0.6');
+	});
+
+	it('exposes a variable even for a fully transparent zone', async () => {
+		await render([createZone({ transparency: 100 })], container);
+
+		const group = container.querySelector('.ttrpgmap-zone') as SVGGElement;
+		// Hover still has something to tint relative to
+		expect(group.style.getPropertyValue('--zone-fill-opacity')).toBe('0');
+	});
+
+	it('keeps the variable in step with the rendered fill-opacity', async () => {
+		await render([createZone({ transparency: 25 })], container);
+
+		const group = container.querySelector('.ttrpgmap-zone') as SVGGElement;
+		const polygon = container.querySelector('.ttrpgmap-zone-shape')!;
+		expect(group.style.getPropertyValue('--zone-fill-opacity')).toBe(polygon.getAttribute('fill-opacity'));
+	});
+});

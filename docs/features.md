@@ -1,5 +1,3 @@
-| **Place hot zone**         | Starts drawing a polygon hot zone                                            |
-| **Show all zone outlines** | Reveals every zone outline (only shown when the map has zones)                |
 # Detailed Feature List
 
 A comprehensive reference for every feature in the TTRPG Maps plugin.
@@ -340,12 +338,15 @@ Right-click the map and choose **Place hot zone**, then click to place each corn
 | ------------------------------------------ | ----------------------------------- |
 | **Click**                                  | Place a vertex                      |
 | **Click the first vertex** (or within 12px) | Close the shape and finish          |
-| **Double-click**                           | Finish the shape                    |
 | **Enter**                                  | Finish the shape                    |
+| **Right-click**                            | Finish the shape                    |
+| **Double-click**                           | Finish the shape                    |
 | **Backspace**                              | Remove the last vertex              |
 | **Escape**                                 | Cancel and discard the whole shape  |
 
 A dashed rubber-band line follows the cursor from the last placed vertex, and each vertex shows as a dot (the first one is highlighted so you can see where to click to close). A zone needs at least **three** points; trying to finish with fewer shows a notice and keeps you drawing.
+
+Right-click finishes the shape rather than opening the map menu, so the menu stays out of the way while drawing.
 
 When you finish, the zone is created and its edit modal opens. New zones default to a blue fill at 40% transparency.
 
@@ -381,6 +382,7 @@ Geometry editing is currently **redraw-only** - there are no draggable vertex ha
 - **Always scales with the map** - a zone is map geometry, so it pans and zooms with the image. There are no marker-size or scale-to-zoom options for zones (they would be meaningless). The outline width and label size compensate for zoom so both stay a constant on-screen size.
 - **The whole fill is clickable**, not just the outline. Clicking a zone with a linked note opens that note, and hovering shows Obsidian's page preview, exactly like a pin.
 - **Overlapping zones** - larger zones are drawn first so a smaller zone nested inside a bigger one stays reachable. Hovering a zone brings it to the front, the same way overlapping pins behave.
+- **Hovering** a zone tints its fill slightly and brightens it, in addition to revealing the outline, so even a fully transparent zone gives feedback under the cursor.
 - **Labels** sit at the zone's centroid, above or below, with a dark outline behind the text so they stay readable over any map.
 
 ### Finding invisible zones

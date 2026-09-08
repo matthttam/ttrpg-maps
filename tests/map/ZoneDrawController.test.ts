@@ -332,3 +332,60 @@ describe('ZoneDrawController: completing a shape', () => {
 		expect(second.mock.calls[0][0]).toHaveLength(3);
 	});
 });
+
+describe('ZoneDrawController: right-click to finish', () => {
+	function rightClick(surface: HTMLElement, x: number, y: number): void {
+		surface.dispatchEvent(
+			new MouseEvent('contextmenu', { clientX: x, clientY: y, bubbles: true, cancelable: true, button: 2 }),
+		);
+	}
+
+	it('finishes the shape on right-click', () => {
+		const { controller, surface } = createHarness();
+		const onFinish = vi.fn();
+		controller.start(onFinish);
+		drawTriangle(surface);
+
+		rightClick(surface, 120, 120);
+
+		expect(onFinish).toHaveBeenCalledTimes(1);
+		expect(onFinish.mock.calls[0][0]).toHaveLength(3);
+		expect(controller.isDrawing).toBe(false);
+	});
+
+	it('suppresses the browser context menu while drawing', () => {
+		const { controller, surface } = createHarness();
+		controller.start(vi.fn());
+		drawTriangle(surface);
+
+		const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
+		surface.dispatchEvent(e);
+
+		expect(e.defaultPrevented).toBe(true);
+	});
+
+	it('does not finish on right-click with too few points', () => {
+		const { controller, surface } = createHarness();
+		const onFinish = vi.fn();
+		controller.start(onFinish);
+		click(surface, 0, 0);
+		click(surface, 10, 10);
+
+		rightClick(surface, 20, 20);
+
+		expect(onFinish).not.toHaveBeenCalled();
+		expect(controller.isDrawing).toBe(true);
+	});
+
+	it('leaves the context menu alone once drawing has finished', () => {
+		const { controller, surface } = createHarness();
+		controller.start(vi.fn());
+		drawTriangle(surface);
+		press('Enter');
+
+		const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
+		surface.dispatchEvent(e);
+
+		expect(e.defaultPrevented).toBe(false);
+	});
+});

@@ -1861,10 +1861,14 @@ export class MapRenderer extends MarkdownRenderChild {
 			const group = createSvg('g', { cls: 'ttrpgmap-zone' });
 			group.dataset.markerId = marker.id;
 
+			const fillOpacity = 1 - Math.min(100, Math.max(0, marker.transparency ?? 0)) / 100;
+			// Exposed as a variable so the hover rule can tint relative to the base
+			group.style.setProperty('--zone-fill-opacity', String(fillOpacity));
+
 			const polygon = createSvg('polygon', { cls: 'ttrpgmap-zone-shape' });
 			polygon.setAttribute('points', zonePointsAttr(points, sx, sy));
 			polygon.setAttribute('fill', fill);
-			polygon.setAttribute('fill-opacity', String(1 - Math.min(100, Math.max(0, marker.transparency ?? 0)) / 100));
+			polygon.setAttribute('fill-opacity', String(fillOpacity));
 			polygon.setAttribute('stroke', darkenHex(fill));
 			// Keep the outline a constant on-screen width regardless of zoom
 			polygon.setAttribute('stroke-width', String(2 / scale));
@@ -2409,6 +2413,13 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	private editMarker(marker: MapMarker): void {
+		// Route hot zones to their own editor. Checked on `shape` rather than
+		// isZone() so a zone with broken geometry still opens the zone editor,
+		// where it can be redrawn, instead of the pin editor.
+		if (marker.shape === 'area') {
+			this.editZone(marker);
+			return;
+		}
 		if (this.resizingMarker) this.commitResize();
 		new MarkerEditModal(this.plugin.app, this.plugin, marker, this.state?.layers ?? [], (updated) => {
 			if (!this.state) return;
@@ -2612,6 +2623,9 @@ export class MapRenderer extends MarkdownRenderChild {
 	private onContextMenu(e: MouseEvent): void {
 		e.preventDefault();
 
+		// Right-click during zone drawing finishes the shape (handled in the
+		// controller's capture listener); never open the map menu over it.
+		if (this.zoneDraw.isDrawing) return;
 		this.measurement.cancelDrawing();
 		// Close any active resize handle when opening map context menu
 		if (this.resizingMarker) this.commitResize();

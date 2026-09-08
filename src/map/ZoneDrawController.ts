@@ -40,6 +40,7 @@ export class ZoneDrawController {
 	private readonly onClick = (e: MouseEvent) => this.handleClick(e);
 	private readonly onMove = (e: MouseEvent) => this.handleMove(e);
 	private readonly onDblClick = (e: MouseEvent) => this.handleDblClick(e);
+	private readonly onContextMenu = (e: MouseEvent) => this.handleContextMenu(e);
 	private readonly onKeyDown = (e: KeyboardEvent) => this.handleKeyDown(e);
 
 	constructor(ctx: ZoneDrawContext) {
@@ -73,9 +74,13 @@ export class ZoneDrawController {
 		this.ctx.surface.addEventListener('click', this.onClick, true);
 		this.ctx.surface.addEventListener('mousemove', this.onMove);
 		this.ctx.surface.addEventListener('dblclick', this.onDblClick, true);
+		// Capture phase so this beats the map's own context menu handler
+		this.ctx.surface.addEventListener('contextmenu', this.onContextMenu, true);
 		activeDocument.addEventListener('keydown', this.onKeyDown, true);
 
-		new Notice('Click to place points. Press enter or click the first point to finish, or escape to cancel.');
+		new Notice(
+			'Click to place points. Press enter, right-click, double-click, or click the first point to finish. Escape cancels.',
+		);
 		return true;
 	}
 
@@ -99,6 +104,7 @@ export class ZoneDrawController {
 		this.ctx.surface.removeEventListener('click', this.onClick, true);
 		this.ctx.surface.removeEventListener('mousemove', this.onMove);
 		this.ctx.surface.removeEventListener('dblclick', this.onDblClick, true);
+		this.ctx.surface.removeEventListener('contextmenu', this.onContextMenu, true);
 		activeDocument.removeEventListener('keydown', this.onKeyDown, true);
 
 		this.ctx.interaction.exit();
@@ -137,6 +143,14 @@ export class ZoneDrawController {
 		e.preventDefault();
 		e.stopPropagation();
 		// The dblclick follows two clicks, so the vertex is already placed.
+		this.finish();
+	}
+
+	private handleContextMenu(e: MouseEvent): void {
+		if (!this.active) return;
+		// Right-click finishes the shape rather than opening the map menu
+		e.preventDefault();
+		e.stopPropagation();
 		this.finish();
 	}
 

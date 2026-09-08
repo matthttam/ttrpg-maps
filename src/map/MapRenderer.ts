@@ -1925,7 +1925,9 @@ export class MapRenderer extends MarkdownRenderChild {
 		const offset = (below ? 1 : -1) * (fontSize * 0.6);
 
 		const label = createSvg('text', {
-			cls: textVis === 'hover' ? 'ttrpgmap-zone-label ttrpgmap-zone-label--hover' : 'ttrpgmap-zone-label',
+			// Array, not a space-separated string: createSvg passes cls to
+			// classList.add, which rejects tokens containing whitespace.
+			cls: textVis === 'hover' ? ['ttrpgmap-zone-label', 'ttrpgmap-zone-label--hover'] : ['ttrpgmap-zone-label'],
 		});
 		label.setAttribute('x', String(centroid.x * sx));
 		label.setAttribute('y', String(centroid.y * sy + offset));
@@ -2434,6 +2436,9 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.plugin.dataManager.saveMapState(this.config.id, this.state);
 			this.renderMarkers();
 			this.refreshMarkerList();
+			// Hand the user back to the editor they came from, so a redraw is a
+			// round trip rather than dumping them back on the map.
+			this.editZone(marker);
 		});
 		// Another interaction owns the map: un-hide rather than leaving it invisible
 		if (!started) {

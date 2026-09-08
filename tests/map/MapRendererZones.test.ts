@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MapRenderer } from '../../src/map/MapRenderer';
 import { MapConfig, MapState, MapMarker, MapPoint, DEFAULT_SETTINGS, DEFAULT_LAYER } from '../../src/types';
 import { darkenHex } from '../../src/utils/zoneGeometry';
+import { ZoneEditModal } from '../../src/modals/ZoneEditModal';
 import { App } from 'obsidian';
 
 function createMockPlugin(mapState?: Partial<MapState>) {
@@ -445,5 +446,82 @@ describe('MapRenderer zone drawing suppresses existing markers', () => {
 		priv(renderer).redrawZone(zone);
 
 		expect(container.querySelector('.ttrpgmap-zone')).not.toBeNull();
+	});
+});
+
+describe('MapRenderer redraw round trip', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const priv = (r: MapRenderer) => r as any;
+
+	/** Drive the drawing surface the way the controller listens for it. */
+	function drawTriangleOn(container: HTMLElement): void {
+		const surface = container.querySelector('.ttrpgmap-container') as HTMLElement;
+		for (const [x, y] of [
+			[10, 10],
+			[80, 10],
+			[80, 80],
+		]) {
+			surface.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+		}
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+	}
+
+	it('reopens the zone editor after a redraw completes', async () => {
+		const zone = createZone({ id: 'zone_rt' });
+		const renderer = await render([zone], container);
+		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+
+		priv(renderer).redrawZone(zone);
+		drawTriangleOn(container);
+
+		expect(opened).toHaveBeenCalledTimes(1);
+		opened.mockRestore();
+	});
+
+	it('stores the redrawn geometry before reopening', async () => {
+		const zone = createZone({ id: 'zone_rt' });
+		const renderer = await render([zone], container);
+		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+
+		priv(renderer).redrawZone(zone);
+		drawTriangleOn(container);
+
+		// Centroid of the drawn triangle becomes the anchor, points go relative
+		expect(zone.points).toHaveLength(3);
+		expect(zone.x).toBeCloseTo((10 + 80 + 80) / 3);
+		expect(zone.y).toBeCloseTo((10 + 10 + 80) / 3);
+		opened.mockRestore();
+	});
+
+	it('makes the redrawn zone visible again once finished', async () => {
+		const zone = createZone({ id: 'zone_rt' });
+		const renderer = await render([zone], container);
+		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+
+		priv(renderer).redrawZone(zone);
+		expect(container.querySelector('.ttrpgmap-zone')).toBeNull();
+		drawTriangleOn(container);
+
+		expect(container.querySelector('.ttrpgmap-zone')).not.toBeNull();
+		expect(priv(renderer).redrawingZoneId).toBeNull();
+		opened.mockRestore();
+	});
+
+	it('does not reopen the editor when the redraw is cancelled', async () => {
+		const zone = createZone({ id: 'zone_rt' });
+		const renderer = await render([zone], container);
+		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+
+		priv(renderer).redrawZone(zone);
+		priv(renderer).zoneDraw.cancel();
+
+		expect(opened).not.toHaveBeenCalled();
+		opened.mockRestore();
 	});
 });

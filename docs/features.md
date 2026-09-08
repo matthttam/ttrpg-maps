@@ -357,7 +357,7 @@ When you finish, the zone is created and its edit modal opens. New zones default
 Right-click a zone for:
 
 - **Edit hot zone** - opens the zone editor
-- **Redraw shape** - discard the outline and draw a new one, keeping every other setting
+- **Redraw shape** - discard the outline and draw a new one, keeping every other setting. The editor reopens once the new outline is finished
 - **Delete**
 
 The zone editor has:

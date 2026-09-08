@@ -200,7 +200,8 @@ export class ZoneDrawController {
 		for (const dot of this.vertexDots) dot.remove();
 		this.vertexDots = this.points.map((p, i) => {
 			const dot = createSvg('circle', {
-				cls: i === 0 ? 'ttrpgmap-zone-draw-dot ttrpgmap-zone-draw-dot--first' : 'ttrpgmap-zone-draw-dot',
+				// Array, not a space-separated string (see createSvg / classList.add)
+				cls: i === 0 ? ['ttrpgmap-zone-draw-dot', 'ttrpgmap-zone-draw-dot--first'] : ['ttrpgmap-zone-draw-dot'],
 			});
 			dot.setAttribute('cx', String(p.x * sx));
 			dot.setAttribute('cy', String(p.y * sy));

@@ -61,6 +61,20 @@ A hot zone is a marker with `shape: 'area'` plus a `points` array: a user-drawn 
 
 `ZoneDrawController` does click-to-place drawing under a `'drawing-zone'` interaction mode. `ZoneEditModal` is deliberately separate from `MarkerEditModal`: a zone has no pin shape, direction, icon, or scale overrides, so sharing that modal would mean hiding most of it. Geometry editing is redraw-only; dragging a whole zone is not wired up yet (drag is HTMLElement-bound), though the relative-points model is already ready for it.
 
+Zone shapes must set `pointer-events: auto`. The SVG overlay sets `pointer-events: none` so measurement lines never block the map, and anything added to that overlay inherits it — which silently cost zones both click and hover handling.
+
+### Inert markers during map-wide drawing
+
+Whenever a drawing mode owns the map surface, existing markers must not be able to swallow clicks meant for the drawing. `MapRenderer.markersInert` is the single source of truth (true while measuring **or** drawing a zone) and drives three things:
+
+- Pins get `ttrpgmap-marker-inert` (dimmed, `pointer-events: none`) and, importantly, have **no events attached at all** — `pointer-events` alone is not relied on.
+- Zones get the same via `ttrpgmap-zone-layer--inert` on the layer, and skip `attachZoneEvents`.
+- `ZoneDrawController` calls an `onDrawStateChange` hook when drawing starts and stops; that re-render is what applies and releases the state, so a new drawing mode must fire it or markers will stay stuck dim.
+
+The zone being redrawn is a special case: it is **excluded from the render entirely** (`redrawingZoneId`), not merely dimmed, because a visible old outline sits exactly where its replacement is being drawn. That id is cleared when drawing ends (cancel included) and is never set if `start()` was refused.
+
+Note `MeasurementController.updateMeasureMode()` toggles the same `ttrpgmap-marker-inert` class directly as a fast path instead of re-rendering, so the class name is shared between the two files — rename it in both.
+
 ### Rendering approach
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.

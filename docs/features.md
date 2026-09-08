@@ -348,6 +348,8 @@ A dashed rubber-band line follows the cursor from the last placed vertex, and ea
 
 Right-click finishes the shape rather than opening the map menu, so the menu stays out of the way while drawing.
 
+While you are drawing, every existing marker and zone **dims and stops taking clicks**, so nothing can swallow a click meant for a vertex or send you off to a linked note. This is the same behavior as measuring mode. When you are **redrawing** an existing zone, that zone is hidden entirely rather than dimmed, since its old outline would otherwise sit right where the replacement is being drawn. It reappears if you cancel.
+
 When you finish, the zone is created and its edit modal opens. New zones default to a blue fill at 40% transparency.
 
 ### Editing a zone
@@ -384,6 +386,7 @@ Geometry editing is currently **redraw-only** - there are no draggable vertex ha
 - **Overlapping zones** - larger zones are drawn first so a smaller zone nested inside a bigger one stays reachable. Hovering a zone brings it to the front, the same way overlapping pins behave.
 - **Hovering** a zone tints its fill slightly and brightens it, in addition to revealing the outline, so even a fully transparent zone gives feedback under the cursor.
 - **Labels** sit at the zone's centroid, above or below, with a dark outline behind the text so they stay readable over any map.
+- **Inert while measuring or drawing** - like pins, zones dim and become click-through whenever a measurement or a zone drawing is in progress, so they never intercept those clicks.
 
 ### Finding invisible zones
 

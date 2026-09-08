@@ -9,6 +9,7 @@ import {
 	zoneBounds,
 	zoneCentroid,
 	zonePointsAttr,
+	appendZoneListPreview,
 } from '../../src/utils/zoneGeometry';
 import type { MapMarker, MapPoint } from '../../src/types';
 
@@ -163,5 +164,85 @@ describe('darkenHex', () => {
 	it('falls back to black for unparseable input', () => {
 		expect(darkenHex('rgb(1,2,3)')).toBe('#000000');
 		expect(darkenHex('#fff')).toBe('#000000');
+	});
+});
+
+describe('appendZoneListPreview', () => {
+	function zoneMarker(overrides?: Partial<MapMarker>): MapMarker {
+		return {
+			id: 'z1',
+			templateId: '',
+			x: 100,
+			y: 200,
+			layerId: null,
+			note: null,
+			alias: null,
+			previewNote: null,
+			description: null,
+			direction: null,
+			textPlacement: 'above',
+			color: '#ff0000',
+			transparency: 0,
+			icon: null,
+			iconColor: null,
+			iconRotation: null,
+			useBaseMarker: null,
+			shape: 'area',
+			points: SQUARE.map((p) => ({ x: p.x - 5, y: p.y - 5 })),
+			scale: null,
+			scaleToZoom: null,
+			textScale: null,
+			textScaleToZoom: null,
+			font: null,
+			textVisibility: null,
+			...overrides,
+		} as MapMarker;
+	}
+
+	it('renders the real outline, not a generic glyph', () => {
+		const container = document.createElement('div');
+		appendZoneListPreview(container, zoneMarker());
+
+		const polygon = container.querySelector('polygon');
+		expect(polygon).not.toBeNull();
+		// Absolute points: anchor (100,200) plus each relative point
+		expect(polygon!.getAttribute('points')).toBe('95,195 105,195 105,205 95,205');
+	});
+
+	it('sizes the viewBox to the bounding box so any shape scales to fit', () => {
+		const container = document.createElement('div');
+		appendZoneListPreview(container, zoneMarker());
+
+		const viewBox = container.querySelector('svg')!.getAttribute('viewBox')!;
+		const [minX, minY, w, h] = viewBox.split(' ').map(Number);
+		// Padded box around the 10x10 square at (95,195)
+		expect(minX).toBeLessThan(95);
+		expect(minY).toBeLessThan(195);
+		expect(w).toBeGreaterThan(10);
+		expect(h).toBeGreaterThan(10);
+		expect(w).toBe(h);
+	});
+
+	it('shows the fill color and derives the outline from it', () => {
+		const container = document.createElement('div');
+		appendZoneListPreview(container, zoneMarker({ color: '#ff0000' }));
+
+		const polygon = container.querySelector('polygon')!;
+		expect(polygon.getAttribute('fill')).toBe('#ff0000');
+		expect(polygon.getAttribute('stroke')).toBe(darkenHex('#ff0000'));
+	});
+
+	it('reflects transparency in the swatch', () => {
+		const container = document.createElement('div');
+		appendZoneListPreview(container, zoneMarker({ transparency: 25 }));
+
+		expect(container.querySelector('polygon')!.getAttribute('fill-opacity')).toBe('0.75');
+	});
+
+	it('renders nothing when the zone has no geometry', () => {
+		const container = document.createElement('div');
+		appendZoneListPreview(container, zoneMarker({ points: undefined }));
+
+		expect(container.querySelector('svg')).toBeNull();
 	});
 });

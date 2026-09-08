@@ -357,3 +357,93 @@ describe('MapRenderer hot zone hover feedback', () => {
 		expect(group.style.getPropertyValue('--zone-fill-opacity')).toBe(polygon.getAttribute('fill-opacity'));
 	});
 });
+
+describe('MapRenderer zone drawing suppresses existing markers', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	/** Reach the private zone-draw entry points the context menu uses. */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const priv = (r: MapRenderer) => r as any;
+
+	it('marks pins inert and strips their events while drawing', async () => {
+		const renderer = await render([createPin()], container);
+
+		priv(renderer).startZoneDraw();
+
+		const markerEl = container.querySelector('.ttrpgmap-marker')!;
+		expect(markerEl.classList.contains('ttrpgmap-marker-inert')).toBe(true);
+	});
+
+	it('marks the zone layer inert while drawing', async () => {
+		const renderer = await render([createZone()], container);
+		const layer = container.querySelector('.ttrpgmap-zone-layer')!;
+		expect(layer.classList.contains('ttrpgmap-zone-layer--inert')).toBe(false);
+
+		priv(renderer).startZoneDraw();
+
+		expect(layer.classList.contains('ttrpgmap-zone-layer--inert')).toBe(true);
+	});
+
+	it('restores interactivity once drawing is cancelled', async () => {
+		const renderer = await render([createZone(), createPin()], container);
+
+		priv(renderer).startZoneDraw();
+		priv(renderer).zoneDraw.cancel();
+
+		const layer = container.querySelector('.ttrpgmap-zone-layer')!;
+		const markerEl = container.querySelector('.ttrpgmap-marker')!;
+		expect(layer.classList.contains('ttrpgmap-zone-layer--inert')).toBe(false);
+		expect(markerEl.classList.contains('ttrpgmap-marker-inert')).toBe(false);
+	});
+
+	it('hides the zone being redrawn so it cannot block drawing over it', async () => {
+		const zone = createZone({ id: 'zone_redraw' });
+		const renderer = await render([zone], container);
+		expect(container.querySelectorAll('.ttrpgmap-zone').length).toBe(1);
+
+		priv(renderer).redrawZone(zone);
+
+		// Hidden entirely rather than dimmed
+		expect(container.querySelector('.ttrpgmap-zone')).toBeNull();
+	});
+
+	it('keeps other zones visible while one is being redrawn', async () => {
+		const target = createZone({ id: 'target', points: square(30) });
+		const other = createZone({ id: 'other', points: square(10) });
+		const renderer = await render([target, other], container);
+
+		priv(renderer).redrawZone(target);
+
+		const ids = Array.from(container.querySelectorAll('.ttrpgmap-zone')).map((el) =>
+			el.getAttribute('data-marker-id'),
+		);
+		expect(ids).toEqual(['other']);
+	});
+
+	it('brings the redrawn zone back after the redraw is cancelled', async () => {
+		const zone = createZone({ id: 'zone_redraw' });
+		const renderer = await render([zone], container);
+
+		priv(renderer).redrawZone(zone);
+		priv(renderer).zoneDraw.cancel();
+
+		const group = container.querySelector('.ttrpgmap-zone');
+		expect(group).not.toBeNull();
+		expect(group!.getAttribute('data-marker-id')).toBe('zone_redraw');
+	});
+
+	it('does not hide the zone if drawing could not start', async () => {
+		const zone = createZone({ id: 'zone_redraw' });
+		const renderer = await render([zone], container);
+		// Another interaction owns the map, so start() is refused
+		priv(renderer).interaction.tryEnter('panning');
+
+		priv(renderer).redrawZone(zone);
+
+		expect(container.querySelector('.ttrpgmap-zone')).not.toBeNull();
+	});
+});

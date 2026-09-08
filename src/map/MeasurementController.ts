@@ -440,11 +440,11 @@ export class MeasurementController {
 	private updateMeasureMode(): void {
 		const isMeasuring = this.mode !== 'pan';
 		this.ctx.wrapper.toggleClass('ttrpgmap-measuring', isMeasuring);
-		// Toggle measuring class on existing markers instead of full re-render
+		// Toggle the inert class on existing markers instead of a full re-render
 		const overlay = this.ctx.wrapper.querySelector('.ttrpgmap-marker-overlay');
 		if (overlay) {
 			overlay.querySelectorAll<HTMLElement>('.ttrpgmap-marker').forEach((el) => {
-				el.toggleClass('ttrpgmap-marker-measuring', isMeasuring);
+				el.toggleClass('ttrpgmap-marker-inert', isMeasuring);
 			});
 		}
 	}

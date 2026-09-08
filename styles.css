@@ -333,13 +333,13 @@
 	cursor: crosshair;
 }
 
-.ttrpgmap-marker.ttrpgmap-marker-measuring {
+.ttrpgmap-marker.ttrpgmap-marker-inert {
 	pointer-events: none;
 	opacity: 0.3;
 	transition: opacity 0.15s ease;
 }
 
-.ttrpgmap-marker.ttrpgmap-marker-measuring .ttrpgmap-marker-label {
+.ttrpgmap-marker.ttrpgmap-marker-inert .ttrpgmap-marker-label {
 	pointer-events: none;
 }
 
@@ -1822,6 +1822,18 @@ button.ttrpgmap-btn-warning:disabled {
 .ttrpgmap-zone--hover .ttrpgmap-zone-shape {
 	fill-opacity: min(1, calc(var(--zone-fill-opacity, 1) + 0.18));
 	filter: brightness(1.15);
+}
+
+/* While measuring or drawing, existing zones dim and stop taking clicks, so
+   they cannot swallow input meant for the drawing. Mirrors pin behavior. */
+.ttrpgmap-zone-layer--inert {
+	opacity: 0.3;
+	transition: opacity 0.15s ease;
+}
+
+.ttrpgmap-zone-layer--inert .ttrpgmap-zone-shape {
+	pointer-events: none;
+	cursor: inherit;
 }
 
 /* Dashed outlines while revealing every zone, to distinguish from a real hover */

@@ -83,6 +83,8 @@ export class MapRenderer extends MarkdownRenderChild {
 	private zoneDraw!: ZoneDrawController;
 	/** Authoring aid: reveal every zone outline, not just the hovered one. */
 	private showAllZoneOutlines = false;
+	/** Zone currently being redrawn: hidden so it cannot block drawing over it. */
+	private redrawingZoneId: string | null = null;
 
 	// Marker drag state
 	private draggingMarker: MapMarker | null = null;
@@ -238,6 +240,12 @@ export class MapRenderer extends MarkdownRenderChild {
 			interaction: this.interaction,
 			screenToMap: (e) => this.screenToMapPoint(e),
 			getImageScale: () => this.getImageScale(),
+			onDrawStateChange: () => {
+				// Drawing began or ended: drop any redraw hide and re-render so markers
+				// and zones pick up or release the inert state.
+				if (!this.zoneDraw.isDrawing) this.redrawingZoneId = null;
+				this.renderMarkers();
+			},
 		});
 
 		// Marker overlay sits outside the scaled container for crisp rendering
@@ -1686,6 +1694,15 @@ export class MapRenderer extends MarkdownRenderChild {
 	}
 
 	/** Convert a mouse event to natural image pixel coords. */
+	/**
+	 * True while a map-wide drawing mode owns the surface (measuring or zone
+	 * drawing). Existing markers and zones are dimmed and made click-through so
+	 * they cannot swallow clicks meant for the drawing.
+	 */
+	private get markersInert(): boolean {
+		return this.measurement.mode !== 'pan' || (this.zoneDraw?.isDrawing ?? false);
+	}
+
 	private screenToMapPoint(e: MouseEvent): MapPoint {
 		const rect = this.mapContainer.getBoundingClientRect();
 		const scale = this.zoom / 100;
@@ -1748,7 +1765,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		const { sx, sy } = this.getImageScale();
 		const scale = this.zoom / 100;
 		const vp = this.getViewportBounds();
-		const isMeasuring = this.measurement.mode !== 'pan';
+		const inert = this.markersInert;
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
 
@@ -1822,8 +1839,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			const fragment = createFragment();
 			for (const marker of this.state.markers) {
 				if (!visibleIds.has(marker.id)) continue;
-				const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
-				if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
+				const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, inert, fragment);
+				if (!inert) this.attachMarkerEvents(marker, markerEl);
 			}
 			this.markerOverlay.appendChild(fragment);
 		}
@@ -1850,11 +1867,16 @@ export class MapRenderer extends MarkdownRenderChild {
 		// Largest first, so a zone nested inside another paints on top and stays
 		// clickable. SVG has no z-index -- document order decides.
 		const zones = this.state.markers
-			.filter((m) => isZone(m) && this.isMarkerVisible(m))
+			// The zone being redrawn is hidden entirely, not dimmed: a visible old
+			// outline would sit on top of exactly where you are trying to draw.
+			.filter((m) => isZone(m) && m.id !== this.redrawingZoneId && this.isMarkerVisible(m))
 			.map((m) => ({ marker: m, points: resolveZonePoints(m) }))
 			.sort((a, b) => zoneArea(b.points) - zoneArea(a.points));
 
+		const inert = this.markersInert;
 		this.zoneLayer.classList.toggle('ttrpgmap-zone-layer--show-all', this.showAllZoneOutlines);
+		// Dimmed and click-through while measuring or drawing, matching pins
+		this.zoneLayer.classList.toggle('ttrpgmap-zone-layer--inert', inert);
 
 		for (const { marker, points } of zones) {
 			const fill = marker.color ?? '#ffffff';
@@ -1876,7 +1898,7 @@ export class MapRenderer extends MarkdownRenderChild {
 
 			this.appendZoneLabel(group, marker, points, sx, sy, scale);
 			this.zoneLayer.appendChild(group);
-			this.attachZoneEvents(marker, group, polygon);
+			if (!inert) this.attachZoneEvents(marker, group, polygon);
 		}
 	}
 
@@ -1973,7 +1995,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		const vp = this.getViewportBounds();
 		const mapScaleToZoom = this.getMarkerScaleToZoom();
 		const mapTextScaleToZoom = this.getTextScaleToZoom();
-		const isMeasuring = this.measurement.mode !== 'pan';
+		const inert = this.markersInert;
 
 		// Collect visible markers
 		const maxMarkers = this.maxRenderedMarkers;
@@ -2002,8 +2024,8 @@ export class MapRenderer extends MarkdownRenderChild {
 
 		const fragment = createFragment();
 		for (const marker of visibleMarkers) {
-			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, isMeasuring, fragment);
-			if (!isMeasuring) this.attachMarkerEvents(marker, markerEl);
+			const markerEl = this.createMarkerElement(marker, mapScaleToZoom, mapTextScaleToZoom, inert, fragment);
+			if (!inert) this.attachMarkerEvents(marker, markerEl);
 		}
 		this.markerOverlay.appendChild(fragment);
 
@@ -2024,7 +2046,7 @@ export class MapRenderer extends MarkdownRenderChild {
 		marker: MapMarker,
 		mapScaleToZoom: boolean,
 		mapTextScaleToZoom: boolean,
-		isMeasuring: boolean,
+		inert: boolean,
 		parent?: DocumentFragment,
 	): HTMLElement {
 		const color = marker.color ?? '#ffffff';
@@ -2069,8 +2091,8 @@ export class MapRenderer extends MarkdownRenderChild {
 		const fontStack = this.getMarkerFont(marker);
 		if (fontStack) markerEl.style.setProperty('--marker-font', fontStack);
 
-		if (isMeasuring) {
-			markerEl.addClass('ttrpgmap-marker-measuring');
+		if (inert) {
+			markerEl.addClass('ttrpgmap-marker-inert');
 		}
 
 		createPinElement(markerEl, {
@@ -2400,7 +2422,10 @@ export class MapRenderer extends MarkdownRenderChild {
 	/** Replace an existing zone's outline, keeping all its other settings. */
 	private redrawZone(marker: MapMarker): void {
 		this.measurement.cancelDrawing();
-		this.zoneDraw.start((absolute) => {
+		// Hide the existing outline while its replacement is drawn: a visible old
+		// shape would sit over exactly where the new one is being placed.
+		this.redrawingZoneId = marker.id;
+		const started = this.zoneDraw.start((absolute) => {
 			if (!this.state) return;
 			const { anchor, points } = anchorZonePoints(absolute);
 			marker.x = anchor.x;
@@ -2410,6 +2435,11 @@ export class MapRenderer extends MarkdownRenderChild {
 			this.renderMarkers();
 			this.refreshMarkerList();
 		});
+		// Another interaction owns the map: un-hide rather than leaving it invisible
+		if (!started) {
+			this.redrawingZoneId = null;
+			this.renderZones();
+		}
 	}
 
 	private editMarker(marker: MapMarker): void {

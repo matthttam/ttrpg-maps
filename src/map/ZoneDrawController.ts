@@ -16,6 +16,8 @@ export interface ZoneDrawContext {
 	screenToMap: (e: MouseEvent) => MapPoint;
 	/** Display-to-natural scale factors. */
 	getImageScale: () => { sx: number; sy: number };
+	/** Called when drawing starts and stops, so the map can re-render around it. */
+	onDrawStateChange?: () => void;
 }
 
 /**
@@ -78,6 +80,9 @@ export class ZoneDrawController {
 		this.ctx.surface.addEventListener('contextmenu', this.onContextMenu, true);
 		activeDocument.addEventListener('keydown', this.onKeyDown, true);
 
+		// Let the map dim and disable existing markers while drawing
+		this.ctx.onDrawStateChange?.();
+
 		new Notice(
 			'Click to place points. Press enter, right-click, double-click, or click the first point to finish. Escape cancels.',
 		);
@@ -108,6 +113,7 @@ export class ZoneDrawController {
 		activeDocument.removeEventListener('keydown', this.onKeyDown, true);
 
 		this.ctx.interaction.exit();
+		this.ctx.onDrawStateChange?.();
 	}
 
 	private handleClick(e: MouseEvent): void {

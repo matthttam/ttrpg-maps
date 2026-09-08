@@ -357,8 +357,10 @@ When you finish, the zone is created and its edit modal opens. New zones default
 Right-click a zone for:
 
 - **Edit hot zone** - opens the zone editor
-- **Redraw shape** - discard the outline and draw a new one, keeping every other setting. The editor reopens once the new outline is finished
+- **Redraw shape** - discard the outline and draw a new one, keeping every other setting. Any edits you had open in the editor are carried through, and the editor reopens once the new outline is finished
 - **Delete**
+
+Like a new pin, a newly drawn zone is only saved when you click **Save** in the editor; **Cancel** on a brand-new zone discards it. Edits to an existing zone (including a redraw) are likewise only committed on **Save**, so **Cancel** reverts them.
 
 The zone editor has:
 

@@ -64,6 +64,10 @@ A hot zone is a marker with `shape: 'area'` plus a `points` array: a user-drawn 
 
 Zone shapes must set `pointer-events: auto`. The SVG overlay sets `pointer-events: none` so measurement lines never block the map, and anything added to that overlay inherits it — which silently cost zones both click and hover handling.
 
+**Zones persist only on save, like pins.** `createZone` builds the marker but does not push it; `commitZone` (the editor's onSave) pushes a new one or `Object.assign`s onto the existing one, matching by **id** rather than reference because a redraw hands over a detached copy. So Cancel on a new zone discards it, and Cancel on an edit reverts. Redraw carries the editor's working copy (pending field edits included) into `redrawZone`, which reopens the editor on a copy with the new geometry — again committing nothing until save. Do not go back to mutating the state marker eagerly in `createZone`/`redrawZone`; that was the original bug (a cancelled new zone stayed, and a redraw dropped pending edits).
+
+Zones have no drag handler, so a mousedown on one bubbles to the map and starts a pan. Panning therefore sets `hasDragged` (reset on pan start, set on pan move) so the trailing click is ignored — otherwise panning by grabbing a large zone would open its linked note on release. Pins don't need this because their own mousedown starts a marker-drag instead of a pan.
+
 Text visibility resolves through three levels for every marker, zones included: the marker's own value, then the per-map setting (`MapState.textVisibility`), then the global default. `MapRenderer.getTextVisibility()` is the single resolver — pins and zones must both use it. Zone labels once skipped the per-map level, so an "Inherit" zone silently ignored the map setting. The zone editor is passed the resolved value so its "Text visibility" description can show what "Inherit" currently means (the pin editor and map-settings modal do the same).
 
 ### Inert markers during map-wide drawing

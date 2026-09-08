@@ -449,6 +449,100 @@ describe('MapRenderer zone drawing suppresses existing markers', () => {
 	});
 });
 
+describe('MapRenderer zone persistence', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const priv = (r: MapRenderer) => r as any;
+
+	/**
+	 * Capture the zone editor instance without building its UI, so tests can read
+	 * the working copy it is editing and drive its save/redraw callbacks.
+	 */
+	function captureEditor() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let modal: any = null;
+		const spy = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(function (
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: any,
+		) {
+			modal = this;
+		});
+		return { get: () => modal, restore: () => spy.mockRestore() };
+	}
+
+	/** Drive the drawing surface the way the controller listens for it. */
+	function drawTriangleOn(el: HTMLElement): void {
+		const surface = el.querySelector('.ttrpgmap-container') as HTMLElement;
+		for (const [x, y] of [
+			[10, 10],
+			[80, 10],
+			[80, 80],
+		]) {
+			surface.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+		}
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+	}
+
+	it('does not persist a new zone until it is saved', async () => {
+		const renderer = await render([], container);
+		const editor = captureEditor();
+
+		// Draw a new zone; the editor opens but nothing is committed yet
+		priv(renderer).createZone(
+			[
+				{ x: 0, y: 0 },
+				{ x: 20, y: 0 },
+				{ x: 20, y: 20 },
+			],
+			null,
+		);
+
+		expect(priv(renderer).state.markers).toHaveLength(0);
+		expect(container.querySelector('.ttrpgmap-zone')).toBeNull();
+		editor.restore();
+	});
+
+	it('persists a new zone once the editor saves', async () => {
+		const renderer = await render([], container);
+		const editor = captureEditor();
+		priv(renderer).createZone(
+			[
+				{ x: 0, y: 0 },
+				{ x: 20, y: 0 },
+				{ x: 20, y: 20 },
+			],
+			null,
+		);
+
+		editor.get().onSave(editor.get().marker);
+
+		expect(priv(renderer).state.markers).toHaveLength(1);
+		expect(priv(renderer).state.markers[0].shape).toBe('area');
+		expect(container.querySelector('.ttrpgmap-zone')).not.toBeNull();
+		editor.restore();
+	});
+
+	it('does not mutate the on-map zone until an edit is saved', async () => {
+		const zone = createZone({ id: 'zone_e', color: '#ff0000' });
+		const renderer = await render([zone], container);
+		const editor = captureEditor();
+
+		priv(renderer).editZone(zone);
+		editor.get().marker.color = '#00ff00';
+		// No save: the real marker keeps its old color
+		expect(zone.color).toBe('#ff0000');
+
+		editor.get().onSave(editor.get().marker);
+		expect(zone.color).toBe('#00ff00');
+		editor.restore();
+	});
+});
+
 describe('MapRenderer redraw round trip', () => {
 	let container: HTMLElement;
 
@@ -459,9 +553,20 @@ describe('MapRenderer redraw round trip', () => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const priv = (r: MapRenderer) => r as any;
 
-	/** Drive the drawing surface the way the controller listens for it. */
-	function drawTriangleOn(container: HTMLElement): void {
-		const surface = container.querySelector('.ttrpgmap-container') as HTMLElement;
+	function captureEditor() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let modal: any = null;
+		const spy = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(function (
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: any,
+		) {
+			modal = this;
+		});
+		return { get: () => modal, restore: () => spy.mockRestore() };
+	}
+
+	function drawTriangleOn(el: HTMLElement): void {
+		const surface = el.querySelector('.ttrpgmap-container') as HTMLElement;
 		for (const [x, y] of [
 			[10, 10],
 			[80, 10],
@@ -475,54 +580,91 @@ describe('MapRenderer redraw round trip', () => {
 	it('reopens the zone editor after a redraw completes', async () => {
 		const zone = createZone({ id: 'zone_rt' });
 		const renderer = await render([zone], container);
-		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+		const editor = captureEditor();
 
-		priv(renderer).redrawZone(zone);
+		priv(renderer).redrawZone(zone, false);
 		drawTriangleOn(container);
 
-		expect(opened).toHaveBeenCalledTimes(1);
-		opened.mockRestore();
+		expect(editor.get()).not.toBeNull();
+		editor.restore();
 	});
 
-	it('stores the redrawn geometry before reopening', async () => {
+	it('carries the new geometry into the reopened editor', async () => {
 		const zone = createZone({ id: 'zone_rt' });
 		const renderer = await render([zone], container);
-		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+		const editor = captureEditor();
 
-		priv(renderer).redrawZone(zone);
+		priv(renderer).redrawZone(zone, false);
 		drawTriangleOn(container);
 
-		// Centroid of the drawn triangle becomes the anchor, points go relative
-		expect(zone.points).toHaveLength(3);
-		expect(zone.x).toBeCloseTo((10 + 80 + 80) / 3);
-		expect(zone.y).toBeCloseTo((10 + 10 + 80) / 3);
-		opened.mockRestore();
+		// The reopened editor holds the redrawn geometry in its working copy...
+		const reopened = editor.get().marker;
+		expect(reopened.points).toHaveLength(3);
+		expect(reopened.x).toBeCloseTo((10 + 80 + 80) / 3);
+		expect(reopened.y).toBeCloseTo((10 + 10 + 80) / 3);
+		// ...but the on-map marker is unchanged until that editor saves
+		expect(zone.points).toHaveLength(4);
+		editor.restore();
+	});
+
+	it('keeps pending field edits through a redraw', async () => {
+		const zone = createZone({ id: 'zone_rt', color: '#ff0000' });
+		const renderer = await render([zone], container);
+		const editor = captureEditor();
+
+		// Open the editor, change the color, then redraw with that edit pending
+		priv(renderer).editZone(zone);
+		editor.get().marker.color = '#00ff00';
+		priv(renderer).redrawZone(editor.get().marker, false);
+		drawTriangleOn(container);
+
+		// The reopened editor still has the edited color alongside new geometry
+		expect(editor.get().marker.color).toBe('#00ff00');
+		expect(editor.get().marker.points).toHaveLength(3);
+		editor.restore();
+	});
+
+	it('reverts everything when a redraw is cancelled before saving', async () => {
+		const zone = createZone({ id: 'zone_rt', color: '#ff0000' });
+		const renderer = await render([zone], container);
+		const editor = captureEditor();
+
+		priv(renderer).editZone(zone);
+		editor.get().marker.color = '#00ff00';
+		priv(renderer).redrawZone(editor.get().marker, false);
+		drawTriangleOn(container);
+		// The reopened editor is discarded without saving
+		priv(renderer).zoneDraw.cancel();
+
+		expect(zone.color).toBe('#ff0000');
+		expect(zone.points).toHaveLength(4);
+		editor.restore();
 	});
 
 	it('makes the redrawn zone visible again once finished', async () => {
 		const zone = createZone({ id: 'zone_rt' });
 		const renderer = await render([zone], container);
-		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+		const editor = captureEditor();
 
-		priv(renderer).redrawZone(zone);
+		priv(renderer).redrawZone(zone, false);
 		expect(container.querySelector('.ttrpgmap-zone')).toBeNull();
 		drawTriangleOn(container);
 
 		expect(container.querySelector('.ttrpgmap-zone')).not.toBeNull();
 		expect(priv(renderer).redrawingZoneId).toBeNull();
-		opened.mockRestore();
+		editor.restore();
 	});
 
 	it('does not reopen the editor when the redraw is cancelled', async () => {
 		const zone = createZone({ id: 'zone_rt' });
 		const renderer = await render([zone], container);
-		const opened = vi.spyOn(ZoneEditModal.prototype, 'onOpen').mockImplementation(() => {});
+		const editor = captureEditor();
 
-		priv(renderer).redrawZone(zone);
+		priv(renderer).redrawZone(zone, false);
 		priv(renderer).zoneDraw.cancel();
 
-		expect(opened).not.toHaveBeenCalled();
-		opened.mockRestore();
+		expect(editor.get()).toBeNull();
+		editor.restore();
 	});
 });
 
@@ -572,5 +714,52 @@ describe('MapRenderer zone label inheritance', () => {
 		const label = container.querySelector('.ttrpgmap-zone-label');
 		expect(label).not.toBeNull();
 		expect(label!.classList.contains('ttrpgmap-zone-label--hover')).toBe(true);
+	});
+});
+
+describe('MapRenderer zone navigation', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	function zonePolygon(el: HTMLElement): SVGPolygonElement {
+		return el.querySelector('.ttrpgmap-zone-shape') as unknown as SVGPolygonElement;
+	}
+
+	it('clicking a zone with a note opens the note', async () => {
+		const zone = createZone({ note: 'Places/Forest' });
+		const plugin = createMockPlugin({ markers: [zone] });
+		const openLinkSpy = vi.fn();
+		plugin.app.workspace.openLinkText = openLinkSpy;
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const polygon = zonePolygon(container);
+		polygon.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		expect(openLinkSpy).toHaveBeenCalledWith('Places/Forest', '', false);
+	});
+
+	it('panning that starts on a zone does not open the note on release', async () => {
+		const zone = createZone({ note: 'Places/Forest' });
+		const plugin = createMockPlugin({ markers: [zone] });
+		const openLinkSpy = vi.fn();
+		plugin.app.workspace.openLinkText = openLinkSpy;
+		const renderer = new MapRenderer(container, plugin, createConfig(), 'test.md', null);
+		await renderer.onload();
+
+		const wrapper = container.querySelector('.ttrpgmap-wrapper') as HTMLElement;
+		const polygon = zonePolygon(container);
+
+		// mousedown on the zone starts a pan (zones have no drag handler), the
+		// mouse moves, then releases -- the trailing click must not navigate.
+		polygon.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, clientX: 100, clientY: 100 }));
+		wrapper.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 140, clientY: 130 }));
+		wrapper.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+		polygon.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		expect(openLinkSpy).not.toHaveBeenCalled();
 	});
 });

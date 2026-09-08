@@ -19,7 +19,8 @@ export class ZoneEditModal extends Modal {
 	private layers: MarkerLayer[];
 	private marker: MapMarker;
 	private onSave: (marker: MapMarker) => void;
-	private onRedraw: () => void;
+	/** Receives the edited copy so pending field edits survive the redraw. */
+	private onRedraw: (marker: MapMarker) => void;
 	private isNew: boolean;
 	/** What "Inherit" text visibility resolves to for this zone (map, else global). */
 	private inheritedTextVisibility: TextVisibility;
@@ -30,7 +31,7 @@ export class ZoneEditModal extends Modal {
 		marker: MapMarker,
 		layers: MarkerLayer[],
 		onSave: (marker: MapMarker) => void,
-		onRedraw: () => void,
+		onRedraw: (marker: MapMarker) => void,
 		isNew = false,
 		inheritedTextVisibility: TextVisibility = 'visible',
 	) {
@@ -259,7 +260,8 @@ export class ZoneEditModal extends Modal {
 		redrawBtn.title = 'Discard this outline and draw a new one';
 		redrawBtn.addEventListener('click', () => {
 			this.close();
-			this.onRedraw();
+			// Pass the working copy so edits made here aren't lost in the redraw.
+			this.onRedraw(this.marker);
 		});
 
 		const cancelBtn = footer.createEl('button', { text: 'Cancel' });

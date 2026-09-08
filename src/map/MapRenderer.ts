@@ -1316,6 +1316,11 @@ export class MapRenderer extends MarkdownRenderChild {
 			return;
 		}
 		if (!this.interaction.tryEnter('panning')) return;
+		// Reset here and set true once the pan actually moves, so the click that
+		// follows a pan is ignored. Without this, panning that starts on a hot zone
+		// (which can cover most of the map) would open the zone's linked note on
+		// release. Pins avoid this because their own mousedown never starts a pan.
+		this.hasDragged = false;
 		this.panStartX = e.clientX - this.panX;
 		this.panStartY = e.clientY - this.panY;
 		this.wrapper.addClass('ttrpgmap-panning');
@@ -1412,6 +1417,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			return;
 		}
 		if (this.interaction.current !== 'panning') return;
+		// A real pan happened; suppress the click that follows so it can't navigate.
+		this.hasDragged = true;
 		this.panX = e.clientX - this.panStartX;
 		this.panY = e.clientY - this.panStartY;
 		this.applyTransform();
@@ -1987,7 +1994,8 @@ export class MapRenderer extends MarkdownRenderChild {
 			menu.addItem((item) => {
 				item.setTitle('Redraw shape');
 				item.setIcon('pen-tool');
-				item.onClick(() => this.redrawZone(marker));
+				// Existing zone from the map, so never new.
+				item.onClick(() => this.redrawZone(marker, false));
 			});
 			menu.addItem((item) => {
 				item.setTitle('Delete');
@@ -2408,27 +2416,24 @@ export class MapRenderer extends MarkdownRenderChild {
 			textVisibility: null,
 		};
 
-		this.state.markers.push(marker);
-		this.plugin.dataManager.saveMapState(this.config.id, this.state);
-		this.renderMarkers();
-		this.refreshMarkerList();
+		// Not pushed yet: like a new pin, a hot zone is only persisted when the
+		// user saves the editor, so cancelling discards it.
 		this.editZone(marker, true);
 	}
 
+	/**
+	 * Open the zone editor on a working copy. Nothing is mutated on the map until
+	 * `commitZone` runs on save, so Cancel always reverts — including after a
+	 * redraw, which carries the pending field edits forward in the copy.
+	 */
 	private editZone(marker: MapMarker, isNew = false): void {
 		new ZoneEditModal(
 			this.plugin.app,
 			this.plugin,
 			marker,
 			this.state?.layers ?? [],
-			(updated) => {
-				if (!this.state) return;
-				Object.assign(marker, updated);
-				this.plugin.dataManager.saveMapState(this.config.id, this.state);
-				this.renderMarkers();
-				this.refreshMarkerList();
-			},
-			() => this.redrawZone(marker),
+			(updated) => this.commitZone(updated),
+			(edited) => this.redrawZone(edited, isNew),
 			isNew,
 			// What Inherit resolves to for this zone: the per-map override, else
 			// the global default. Computed here because the modal has neither.
@@ -2436,24 +2441,34 @@ export class MapRenderer extends MarkdownRenderChild {
 		).open();
 	}
 
-	/** Replace an existing zone's outline, keeping all its other settings. */
-	private redrawZone(marker: MapMarker): void {
+	/** Persist an edited zone: assign onto the existing marker, or add a new one. */
+	private commitZone(zone: MapMarker): void {
+		if (!this.state) return;
+		// Match by id rather than reference: a redraw hands us a detached copy.
+		const existing = this.state.markers.find((m) => m.id === zone.id);
+		if (existing) {
+			Object.assign(existing, zone);
+		} else {
+			this.state.markers.push({ ...zone });
+		}
+		this.plugin.dataManager.saveMapState(this.config.id, this.state);
+		this.renderMarkers();
+		this.refreshMarkerList();
+	}
+
+	/**
+	 * Redraw a zone's outline, keeping its other settings (including edits still
+	 * pending in the editor). Reopens the editor on a copy carrying the new
+	 * geometry; nothing is committed until the user saves there.
+	 */
+	private redrawZone(marker: MapMarker, isNew: boolean): void {
 		this.measurement.cancelDrawing();
-		// Hide the existing outline while its replacement is drawn: a visible old
-		// shape would sit over exactly where the new one is being placed.
+		// Hide the on-map original while its replacement is drawn: the old outline
+		// would otherwise sit over exactly where the new one is being placed.
 		this.redrawingZoneId = marker.id;
 		const started = this.zoneDraw.start((absolute) => {
-			if (!this.state) return;
 			const { anchor, points } = anchorZonePoints(absolute);
-			marker.x = anchor.x;
-			marker.y = anchor.y;
-			marker.points = points;
-			this.plugin.dataManager.saveMapState(this.config.id, this.state);
-			this.renderMarkers();
-			this.refreshMarkerList();
-			// Hand the user back to the editor they came from, so a redraw is a
-			// round trip rather than dumping them back on the map.
-			this.editZone(marker);
+			this.editZone({ ...marker, x: anchor.x, y: anchor.y, points }, isNew);
 		});
 		// Another interaction owns the map: un-hide rather than leaving it invisible
 		if (!started) {

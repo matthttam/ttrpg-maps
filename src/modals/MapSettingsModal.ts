@@ -16,6 +16,7 @@ import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
+import { pulseHighlight } from '../utils/settingsNav';
 import type { MeasurementUnit, ConversionMode } from '../units';
 import { getUnitsForSystem } from '../units';
 
@@ -251,17 +252,7 @@ export class MapSettingsModal extends Modal {
 		// Prefer the matched setting row; fall back to collapsible for section headings
 		const highlightEl = target.closest('.ttrpgmap-collapsible-content') ? target : (collapsible ?? target);
 
-		const scrollAndHighlight = () => {
-			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			highlightEl.addClass('ttrpgmap-setting-highlight');
-			highlightEl.addEventListener(
-				'animationend',
-				() => {
-					highlightEl.removeClass('ttrpgmap-setting-highlight');
-				},
-				{ once: true },
-			);
-		};
+		const scrollAndHighlight = () => pulseHighlight(highlightEl);
 
 		if (collapsible && collapsible.hasClass('is-collapsed')) {
 			collapsible.addEventListener('transitionend', scrollAndHighlight, { once: true });

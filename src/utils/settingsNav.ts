@@ -11,17 +11,24 @@ function settingsRoot(): HTMLElement {
 	return activeDocument.querySelector<HTMLElement>('.modal.mod-settings') ?? activeDocument.body;
 }
 
+/** Duration of the ttrpgmap-highlight-flash animation in styles.css. Keep in sync. */
+const HIGHLIGHT_DURATION_MS = 2400;
+
 /** Scroll an element into view and flash it. */
-function pulseHighlight(el: HTMLElement): void {
+export function pulseHighlight(el: HTMLElement): void {
 	el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 	el.addClass('ttrpgmap-setting-highlight');
-	el.addEventListener(
-		'animationend',
-		() => {
-			el.removeClass('ttrpgmap-setting-highlight');
-		},
-		{ once: true },
-	);
+
+	// Under `prefers-reduced-motion: reduce` the stylesheet sets `animation: none`,
+	// so `animationend` never fires and the highlight would stick forever. Clear on
+	// whichever comes first: the animation ending, or a timer sized to match it.
+	const clear = () => {
+		activeWindow.clearTimeout(timer);
+		el.removeEventListener('animationend', clear);
+		el.removeClass('ttrpgmap-setting-highlight');
+	};
+	const timer = activeWindow.setTimeout(clear, HIGHLIGHT_DURATION_MS + 100);
+	el.addEventListener('animationend', clear);
 }
 
 function openPluginTab(app: App, pluginId: string): void {

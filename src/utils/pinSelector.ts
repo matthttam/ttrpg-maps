@@ -25,12 +25,10 @@ export interface PinSelectorOpts {
 
 /**
  * Renders a pin selector: [None] [↓] [↑] [←] [→] + color circle + transparency.
- * Returns functions to update the color and transparency controls.
+ * The controls are self-contained -- callers that need to change these values
+ * externally re-render the whole modal, so nothing is returned.
  */
-export function createPinSelector(opts: PinSelectorOpts): {
-	updateColor: (color: string) => void;
-	updateTransparency: (transparency: number) => void;
-} {
+export function createPinSelector(opts: PinSelectorOpts): void {
 	const row = opts.container.createDiv({ cls: 'ttrpgmap-pin-selector' });
 
 	// Button group wrapper so :first-child/:last-child work
@@ -39,7 +37,6 @@ export function createPinSelector(opts: PinSelectorOpts): {
 	const ICON_COLOR = 'var(--text-muted)';
 
 	const buttons: HTMLElement[] = [];
-	let currentColor = opts.color;
 
 	for (const sel of SELECTIONS) {
 		const label =
@@ -76,13 +73,10 @@ export function createPinSelector(opts: PinSelectorOpts): {
 	const colorWrap = row.createDiv({ cls: 'ttrpgmap-pin-selector-color-wrap' });
 	colorWrap.createSpan({ cls: 'ttrpgmap-pin-selector-color-label', text: 'Color:' });
 	// Same shared component (and therefore the same class/styling) as the icon color
-	const colorPicker = createColorPicker({
+	createColorPicker({
 		container: colorWrap,
-		value: currentColor,
-		onChange: (hex) => {
-			currentColor = hex;
-			opts.onColorChange(hex);
-		},
+		value: opts.color,
+		onChange: (hex) => opts.onColorChange(hex),
 	});
 
 	// Transparency (0 = fully opaque)
@@ -112,19 +106,10 @@ export function createPinSelector(opts: PinSelectorOpts): {
 		const v = parseInt(transpInput.value, 10);
 		if (isNaN(v)) return;
 		const clamped = clampTransparency(v);
+		// Snap the box itself to the range too, so it can't display a value the
+		// marker doesn't have (typing 150 shows 100).
+		if (v !== clamped) transpInput.value = String(clamped);
 		transpSlider.value = String(clamped);
 		opts.onTransparencyChange(clamped);
 	});
-
-	return {
-		updateColor: (color: string) => {
-			currentColor = color;
-			colorPicker.setValue(color);
-		},
-		updateTransparency: (transparency: number) => {
-			const clamped = clampTransparency(transparency);
-			transpSlider.value = String(clamped);
-			transpInput.value = String(clamped);
-		},
-	};
 }

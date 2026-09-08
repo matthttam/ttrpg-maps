@@ -56,13 +56,16 @@ export class TemplateEditModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 		this.original = template;
-		this.draft = { ...template };
+		// `transparency` is optional, so templates saved before it existed read as
+		// undefined. Normalize once here: otherwise the slider writes a numeric 0
+		// and the dirty check below sees `undefined !== 0` as a change forever.
+		this.draft = { ...template, transparency: template.transparency ?? 0 };
 		this.onSaved = onSaved;
 		this.isNew = isNew;
-		// Snapshot original values for dirty tracking
+		// Snapshot original values for dirty tracking (from the normalized draft)
 		this.snapshot = {};
 		for (const key of APPLY_FIELDS) {
-			this.snapshot[key] = template[key];
+			this.snapshot[key] = this.draft[key];
 		}
 	}
 

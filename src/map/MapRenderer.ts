@@ -2103,6 +2103,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			direction: template?.direction ?? 'down',
 			textPlacement: template?.textPlacement ?? 'above',
 			color: template?.color ?? '#ffffff',
+			transparency: template?.transparency ?? 0,
 			icon: template?.icon ?? null,
 			iconColor: template?.iconColor ?? '#000000',
 			iconRotation: template?.iconRotation ?? 0,

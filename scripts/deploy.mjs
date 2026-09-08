@@ -56,6 +56,22 @@ if (missing.length) {
 	process.exit(1);
 }
 
+// Validate every target before copying anything. `mkdirSync(..., {recursive:true})`
+// would happily build a whole tree from a mistyped vault path, and the deploy would
+// then report success into a folder Obsidian never reads. The plugin folder itself
+// may legitimately not exist yet (first deploy), but its parent must.
+const badTargets = targets.filter((t) => !existsSync(dirname(t)));
+if (badTargets.length) {
+	console.error('Deploy target does not look like a vault plugin folder — its parent is missing:\n');
+	for (const t of badTargets) {
+		console.error(`  ${t}`);
+		console.error(`    (no such directory: ${dirname(t)})`);
+	}
+	console.error('\nCheck the path in .deploy-target (or VAULT_PLUGIN_DIR) for a typo.');
+	console.error('It should end in <YourVault>/.obsidian/plugins/ttrpg-maps');
+	process.exit(1);
+}
+
 for (const target of targets) {
 	mkdirSync(target, { recursive: true });
 	for (const f of FILES) {

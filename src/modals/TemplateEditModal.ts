@@ -10,6 +10,7 @@ const APPLY_FIELDS: (keyof MarkerTemplate)[] = [
 	'direction',
 	'textPlacement',
 	'color',
+	'transparency',
 	'icon',
 	'iconColor',
 	'iconRotation',
@@ -22,6 +23,7 @@ const FIELD_LABELS: Record<string, string> = {
 	direction: 'Pin direction',
 	textPlacement: 'Text placement',
 	color: 'Pin color',
+	transparency: 'Pin transparency',
 	icon: 'Icon',
 	iconColor: 'Icon color',
 	iconRotation: 'Icon rotation',
@@ -54,13 +56,16 @@ export class TemplateEditModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 		this.original = template;
-		this.draft = { ...template };
+		// `transparency` is optional, so templates saved before it existed read as
+		// undefined. Normalize once here: otherwise the slider writes a numeric 0
+		// and the dirty check below sees `undefined !== 0` as a change forever.
+		this.draft = { ...template, transparency: template.transparency ?? 0 };
 		this.onSaved = onSaved;
 		this.isNew = isNew;
-		// Snapshot original values for dirty tracking
+		// Snapshot original values for dirty tracking (from the normalized draft)
 		this.snapshot = {};
 		for (const key of APPLY_FIELDS) {
-			this.snapshot[key] = template[key];
+			this.snapshot[key] = this.draft[key];
 		}
 	}
 
@@ -85,6 +90,7 @@ export class TemplateEditModal extends Modal {
 			pinClass: 'ttrpgmap-edit-preview-pin',
 			svgClass: 'ttrpgmap-pin-svg',
 			color: this.draft.color,
+			transparency: this.draft.transparency ?? 0,
 			icon: this.draft.icon,
 			iconColor: this.draft.iconColor,
 			iconRotation: this.draft.iconRotation,
@@ -195,7 +201,7 @@ export class TemplateEditModal extends Modal {
 		this.addDirtyIndicator(tpSetting, 'textPlacement');
 
 		const pinSetting = buildPinSelectorField(ctx);
-		this.addDirtyIndicator(pinSetting, 'direction', 'color', 'useBaseMarker', 'shape');
+		this.addDirtyIndicator(pinSetting, 'direction', 'color', 'transparency', 'useBaseMarker', 'shape');
 
 		const { setting: iconSetting } = buildIconField(ctx);
 		this.addDirtyIndicator(iconSetting, 'icon', 'iconColor', 'iconRotation');
@@ -203,7 +209,7 @@ export class TemplateEditModal extends Modal {
 		// ── Actions ──
 		const footer = mainCol.createDiv({ cls: 'modal-button-container ttrpgmap-action-row' });
 		if (!this.isNew) {
-			const updateBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Save & update markers' });
+			const updateBtn = footer.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Save & update markers' });
 			updateBtn.addEventListener('click', () => this.saveAndUpdateMarkers());
 		}
 		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
@@ -233,15 +239,15 @@ export class TemplateEditModal extends Modal {
 			return;
 		}
 		const changed = getChangedFields(this.snapshot, this.draft);
-		if (changed.length === 0) {
-			new Notice('No changes to apply.');
-			return;
-		}
+		// With no pending edits this still re-syncs markers to the template: you
+		// may have saved a change earlier and only now decided to push it out, so
+		// fall back to every templated field rather than refusing to do anything.
+		const fields = changed.length > 0 ? changed : [...APPLY_FIELDS];
 		new ConfirmApplyModal(
 			this.app,
 			this.draft.name,
-			changed.map((f) => FIELD_LABELS[f] || f),
-			() => this.applyToMarkers(changed),
+			fields.map((f) => FIELD_LABELS[f] || f),
+			() => this.applyToMarkers(fields),
 		).open();
 	}
 
@@ -318,7 +324,7 @@ class ConfirmApplyModal extends Modal {
 		const applyFooter = contentEl.createDiv({ cls: 'modal-button-container' });
 		const applyCancelBtn = applyFooter.createEl('button', { text: 'Cancel' });
 		applyCancelBtn.addEventListener('click', () => this.close());
-		const applyBtn = applyFooter.createEl('button', { cls: 'mod-warning', text: 'Yes, apply' });
+		const applyBtn = applyFooter.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Yes, apply' });
 		applyBtn.addEventListener('click', () => {
 			void this.onConfirm();
 			this.close();

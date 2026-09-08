@@ -40,6 +40,8 @@ export interface MarkerTemplate {
 	direction: MarkerDirection;
 	textPlacement: TextPlacement;
 	color: string;
+	/** Pin transparency as a percentage: 0 = fully opaque, 100 = invisible. */
+	transparency?: number;
 	icon: string | null;
 	iconColor: string;
 	iconRotation: number;
@@ -62,6 +64,8 @@ export interface MapMarker {
 	direction: MarkerDirection | null;
 	textPlacement: TextPlacement | null;
 	color: string | null;
+	/** Pin transparency as a percentage: 0 = fully opaque, 100 = invisible. */
+	transparency?: number | null;
 	icon: string | null;
 	iconColor: string | null;
 	iconRotation: number | null;
@@ -280,6 +284,7 @@ export const DEFAULT_SETTINGS: TTRPGMapsSettings = {
 			direction: 'down',
 			textPlacement: 'above',
 			color: '#ffffff',
+			transparency: 0,
 			icon: null,
 			iconColor: '#000000',
 			iconRotation: 0,

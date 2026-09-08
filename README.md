@@ -11,9 +11,9 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 ## Features
 
 - **Interactive maps** - Embed any image as a pannable, zoomable map inside a note with lock zoom/pan and fit-to-screen controls. Viewport-only rendering and CSS-transform panning keep large maps smooth
-- **Customizable markers** - Place markers with custom colors, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
+- **Customizable markers** - Place markers with custom colors, pin transparency, icons (with rotation), shapes, and linked notes. Drag to reposition, right-click to edit, copy, or resize
 - **Hover preview** - Hover a marker to see Obsidian's page preview of the linked note (or a custom preview note with `#heading` and `#^block` support)
-- **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically
+- **Reusable templates** - Create, duplicate, import, and export marker templates with collapsible folders. All sorted alphabetically. Jump straight from a marker to its template in settings
 - **Distance measurement** - Calibrate a scale, then measure point-to-point (with live preview) or freehand distances with unit conversion (auto-convert or fixed), configurable rounding, decimal places, and raw value display
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (1,400+) and Game Icons (4,100+) with live search and rotation

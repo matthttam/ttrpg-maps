@@ -887,6 +887,8 @@
 	width: 100%;
 	height: 100%;
 	overflow: visible;
+	/* Pin transparency (0-100% in the UI) resolves to --pin-opacity on the pin */
+	opacity: var(--pin-opacity, 1);
 }
 
 .ttrpgmap-pin-icon {
@@ -1538,6 +1540,8 @@
 	display: flex;
 	align-items: center;
 	gap: 4px;
+	/* Keep the swatch's hover ring from being clipped by this short row */
+	overflow: visible;
 }
 
 .ttrpgmap-icon-color-label {
@@ -1548,6 +1552,26 @@
 /* Action row with gap between buttons */
 .ttrpgmap-action-row {
 	gap: 12px;
+}
+
+/* Warning buttons: Obsidian's .mod-warning red reads very dark in most themes,
+   so lighten it to the theme's base red. The `button` prefix raises specificity
+   above .mod-warning so this wins regardless of stylesheet order, and the class
+   is only applied to this plugin's own buttons (never core Obsidian dialogs). */
+button.ttrpgmap-btn-warning {
+	background-color: var(--color-red, #e93147);
+	border-color: transparent;
+	color: var(--text-on-accent, #ffffff);
+}
+
+button.ttrpgmap-btn-warning:hover:not(:disabled) {
+	background-color: var(--color-red, #e93147);
+	filter: brightness(1.12);
+}
+
+button.ttrpgmap-btn-warning:disabled {
+	filter: none;
+	opacity: 0.5;
 }
 
 /* ===== Marker edit preview ===== */
@@ -1747,6 +1771,8 @@
 	align-items: center;
 	gap: 4px;
 	margin-left: 4px;
+	/* Keep the swatch's hover ring from being clipped by this short row */
+	overflow: visible;
 }
 
 .ttrpgmap-pin-selector-color-label {
@@ -1754,25 +1780,20 @@
 	color: var(--text-muted);
 }
 
-.ttrpgmap-pin-selector-color {
-	width: 32px;
-	height: 32px;
-	padding: 0;
-	border: 2px solid var(--background-modifier-border);
-	border-radius: 50%;
-	cursor: pointer;
-	background: none;
-	-webkit-appearance: none;
-	appearance: none;
+.ttrpgmap-pin-selector-transparency-wrap {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 4px;
 }
 
-.ttrpgmap-pin-selector-color::-webkit-color-swatch-wrapper {
-	padding: 0;
+.ttrpgmap-pin-transparency-slider {
+	width: 80px;
 }
 
-.ttrpgmap-pin-selector-color::-webkit-color-swatch {
-	border: none;
-	border-radius: 50%;
+.ttrpgmap-pin-transparency-input {
+	width: 45px;
+	text-align: center;
 }
 
 /* ===== Description textarea ===== */
@@ -1788,25 +1809,60 @@
 }
 
 /* ===== Color picker ===== */
-.ttrpgmap-color-swatch {
+/* Pin color and icon color swatches.
+   Obsidian core styles `input[type="color"]` and its ::-webkit-color-swatch with
+   attribute-selector specificity, so these rules must qualify with
+   input[type='color'] to win. Core also sizes the host input wider than the
+   swatch (`width: calc(var(--swatch-width) + 4px)`), so a ring on the host
+   renders as an oblong. All hover styling therefore lives on the swatch
+   pseudo-element -- the actual circle -- giving exactly one circular glow.
+   Size/shape are set through core's own --swatch-* variables. */
+input[type='color'].ttrpgmap-color-swatch {
+	--swatch-width: 22px;
+	--swatch-height: 22px;
+	--swatch-radius: 50%;
+	box-sizing: border-box;
+	/* An <input> clips its own shadow-DOM content, so the hover ring (which sits
+	   on ::-webkit-color-swatch) can never overflow the host -- ancestor
+	   overflow/margin/padding can't rescue it. Core only leaves 2px of slack
+	   (host width = swatch + 4px, wrapper padding 2px), which clipped the 3px
+	   ring. So size the host explicitly and pad the wrapper to reserve room:
+	   32px box - 2x5px padding = the 22px swatch, with 5px for the ring. */
 	width: 32px;
 	height: 32px;
+	margin: 0;
 	padding: 0;
-	border: 2px solid var(--background-modifier-border);
-	border-radius: 4px;
-	cursor: pointer;
-	background: none;
-	-webkit-appearance: none;
-	appearance: none;
-}
-
-.ttrpgmap-color-swatch::-webkit-color-swatch-wrapper {
-	padding: 1px;
-}
-
-.ttrpgmap-color-swatch::-webkit-color-swatch {
 	border: none;
-	border-radius: 2px;
+	box-shadow: none;
+	background: none;
+	cursor: pointer;
+}
+
+input[type='color'].ttrpgmap-color-swatch::-webkit-color-swatch-wrapper {
+	padding: 5px;
+}
+
+/* One circular glow, whether the pointer is over the host padding or the swatch.
+   Core's own ring lives on ::-webkit-color-swatch:hover, so it must be overridden
+   here rather than added to -- otherwise you get two rings. */
+input[type='color'].ttrpgmap-color-swatch:hover::-webkit-color-swatch,
+input[type='color'].ttrpgmap-color-swatch::-webkit-color-swatch:hover {
+	border: none;
+	box-shadow: 0 0 0 3px var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+
+input[type='color'].ttrpgmap-color-swatch:focus-visible::-webkit-color-swatch {
+	box-shadow: 0 0 0 3px var(--interactive-accent);
+}
+
+input[type='color'].ttrpgmap-color-swatch:focus-visible {
+	outline: none;
+}
+
+/* Controls that have no effect yet (e.g. icon rotation/color with no icon) */
+.ttrpgmap-field-disabled {
+	opacity: 0.45;
+	pointer-events: none;
 }
 
 /* Scale percentage input: compact number field next to slider */

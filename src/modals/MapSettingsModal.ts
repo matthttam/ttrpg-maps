@@ -16,6 +16,7 @@ import { ImageSuggest } from '../suggests/ImageSuggest';
 import { LayerEditModal } from './LayerEditModal';
 import { buildScaleSlider, buildPercentSlider, buildFontDropdown } from './sharedFields';
 import { exportMap } from '../utils/mapExport';
+import { pulseHighlight } from '../utils/settingsNav';
 import type { MeasurementUnit, ConversionMode } from '../units';
 import { getUnitsForSystem } from '../units';
 
@@ -126,7 +127,7 @@ export class MapSettingsModal extends Modal {
 		const footer = confirmModal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
 		cancelBtn.addEventListener('click', () => confirmModal.close());
-		const discardBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Discard' });
+		const discardBtn = footer.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Discard' });
 		discardBtn.addEventListener('click', () => {
 			confirmModal.close();
 			this.saved = true;
@@ -197,7 +198,7 @@ export class MapSettingsModal extends Modal {
 		copyBtn.addEventListener('click', () => executeIdChange('copy'));
 		const orphanBtn = idFooter.createEl('button', { text: 'Orphan' });
 		orphanBtn.addEventListener('click', () => executeIdChange('orphan'));
-		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning', text: 'Delete' });
+		const deleteBtn = idFooter.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Delete' });
 		deleteBtn.addEventListener('click', () => executeIdChange('delete'));
 		const idCancelBtn = idFooter.createEl('button', { text: 'Cancel' });
 		idCancelBtn.addEventListener('click', () => modal.close());
@@ -251,17 +252,7 @@ export class MapSettingsModal extends Modal {
 		// Prefer the matched setting row; fall back to collapsible for section headings
 		const highlightEl = target.closest('.ttrpgmap-collapsible-content') ? target : (collapsible ?? target);
 
-		const scrollAndHighlight = () => {
-			highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			highlightEl.addClass('ttrpgmap-setting-highlight');
-			highlightEl.addEventListener(
-				'animationend',
-				() => {
-					highlightEl.removeClass('ttrpgmap-setting-highlight');
-				},
-				{ once: true },
-			);
-		};
+		const scrollAndHighlight = () => pulseHighlight(highlightEl);
 
 		if (collapsible && collapsible.hasClass('is-collapsed')) {
 			collapsible.addEventListener('transitionend', scrollAndHighlight, { once: true });
@@ -891,7 +882,7 @@ export class MapSettingsModal extends Modal {
 
 	private buildFooter(contentEl: HTMLElement): void {
 		const footer = contentEl.createDiv({ cls: 'modal-button-container' });
-		const exportBtn = footer.createEl('button', { cls: 'mod-warning', text: 'Export map' });
+		const exportBtn = footer.createEl('button', { cls: 'mod-warning ttrpgmap-btn-warning', text: 'Export map' });
 		exportBtn.addEventListener('click', () => {
 			void exportMap(this.app, this.plugin, this.config, this.state);
 		});

@@ -4,6 +4,7 @@ import {
 	createCircleSvg,
 	createHotspotSvg,
 	createPinElement,
+	transparencyToOpacity,
 	PIN_PATH,
 	PIN_VIEWBOX,
 } from '../../src/utils/markerPin';
@@ -203,5 +204,58 @@ describe('createPinElement', () => {
 		// Standalone uses a different icon wrapper class
 		const standaloneIcon = pin.querySelector('.ttrpgmap-pin-standalone-icon');
 		expect(standaloneIcon).not.toBeNull();
+	});
+});
+
+describe('transparencyToOpacity', () => {
+	it('maps 0% transparency to fully opaque', () => {
+		expect(transparencyToOpacity(0)).toBe(1);
+	});
+
+	it('maps 100% transparency to fully invisible', () => {
+		expect(transparencyToOpacity(100)).toBe(0);
+	});
+
+	it('maps intermediate values', () => {
+		expect(transparencyToOpacity(25)).toBeCloseTo(0.75);
+		expect(transparencyToOpacity(50)).toBeCloseTo(0.5);
+	});
+
+	it('defaults to opaque when unset', () => {
+		expect(transparencyToOpacity(undefined)).toBe(1);
+		expect(transparencyToOpacity(null)).toBe(1);
+	});
+
+	it('clamps out-of-range values', () => {
+		expect(transparencyToOpacity(-20)).toBe(1);
+		expect(transparencyToOpacity(160)).toBe(0);
+	});
+});
+
+describe('createPinElement transparency', () => {
+	it('sets --pin-opacity when transparency is above zero', () => {
+		const container = document.createElement('div');
+		const pin = createPinElement(container, {
+			pinClass: 'my-pin',
+			svgClass: 'my-svg',
+			color: '#ff0000',
+			transparency: 40,
+			iconClass: 'my-icon',
+		});
+
+		expect(pin.style.getPropertyValue('--pin-opacity')).toBe('0.6');
+	});
+
+	it('leaves --pin-opacity unset when fully opaque', () => {
+		const container = document.createElement('div');
+		const pin = createPinElement(container, {
+			pinClass: 'my-pin',
+			svgClass: 'my-svg',
+			color: '#ff0000',
+			transparency: 0,
+			iconClass: 'my-icon',
+		});
+
+		expect(pin.style.getPropertyValue('--pin-opacity')).toBe('');
 	});
 });

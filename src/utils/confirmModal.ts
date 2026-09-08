@@ -24,7 +24,7 @@ export function confirmAction(
 		const footer = modal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
 		cancelBtn.addEventListener('click', () => finish(false));
-		const actionBtn = footer.createEl('button', { cls: warning ? 'mod-warning' : 'mod-cta', text: actionText });
+		const actionBtn = footer.createEl('button', { cls: warning ? 'mod-warning ttrpgmap-btn-warning' : 'mod-cta', text: actionText });
 		actionBtn.addEventListener('click', () => finish(true));
 		const origOnClose = modal.onClose.bind(modal);
 		modal.onClose = () => {

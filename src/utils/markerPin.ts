@@ -67,6 +67,8 @@ export interface PinElementOpts {
 	pinClass: string;
 	svgClass: string;
 	color: string;
+	/** Pin transparency percentage: 0 = fully opaque (default), 100 = invisible. */
+	transparency?: number | null;
 	icon?: string | null;
 	iconColor?: string;
 	iconRotation?: number;
@@ -76,10 +78,17 @@ export interface PinElementOpts {
 	shape?: 'pin' | 'circle' | 'hotspot';
 }
 
+/** Convert a 0-100 transparency percentage into a 0-1 opacity, clamped. */
+export function transparencyToOpacity(transparency?: number | null): number {
+	const t = Math.min(100, Math.max(0, transparency ?? 0));
+	return 1 - t / 100;
+}
+
 /** Create a full pin element: pin shape, circle shape, or standalone icon */
 export function createPinElement(container: HTMLElement, opts: PinElementOpts): HTMLElement {
 	const useBase = opts.useBaseMarker ?? true;
 	const shape = opts.shape ?? 'pin';
+	const pinOpacity = transparencyToOpacity(opts.transparency);
 
 	if (shape === 'hotspot') {
 		const cls = `ttrpgmap-pin ttrpgmap-pin--hotspot ${opts.pinClass}`;
@@ -91,6 +100,7 @@ export function createPinElement(container: HTMLElement, opts: PinElementOpts): 
 	if (useBase || !opts.icon) {
 		const cls = `ttrpgmap-pin ${opts.pinClass}` + (shape === 'circle' ? ' ttrpgmap-pin--circle' : '');
 		const pin = container.createDiv({ cls });
+		if (pinOpacity < 1) pin.style.setProperty('--pin-opacity', String(pinOpacity));
 		pin.appendChild(
 			shape === 'circle' ? createCircleSvg(opts.color, opts.svgClass) : createPinSvg(opts.color, opts.svgClass),
 		);

@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/matthttam/ttrpg-maps/compare/1.4.3...1.5.0) (2026-09-08)
+
+
+### Features
+
+* pin transparency, template navigation, and swatch/button polish ([#10](https://github.com/matthttam/ttrpg-maps/issues/10)) ([c009384](https://github.com/matthttam/ttrpg-maps/commit/c009384315e19e111b0746214b752210ed29a870))
+
 ## [1.4.3](https://github.com/matthttam/ttrpg-maps/compare/1.4.2...1.4.3) (2026-05-23)
 
 

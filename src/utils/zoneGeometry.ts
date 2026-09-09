@@ -115,21 +115,26 @@ export function zonePointsAttr(points: MapPoint[], sx: number, sy: number): stri
 	return points.map((p) => `${p.x * sx},${p.y * sy}`).join(' ');
 }
 
+/** Convert a zone's 0-100 transparency into an SVG fill-opacity (0-1), clamped. */
+export function zoneFillOpacity(transparency?: number | null): number {
+	return 1 - Math.min(100, Math.max(0, transparency ?? 0)) / 100;
+}
+
 /**
- * Render a zone's real outline into a small preview swatch.
- *
- * Setting the viewBox to the polygon's bounding box makes any shape scale to
- * fit, so the list shows the actual drawn outline rather than a generic glyph.
+ * Build an SVG preview of a zone's real outline, scaled to fit via a
+ * bounding-box viewBox so any shape fills the swatch. Returns null when the
+ * zone has no usable geometry. Shared by the marker-list swatch and the zone
+ * editor preview so their appearance can't drift apart.
  */
-export function appendZoneListPreview(container: HTMLElement, marker: MapMarker): void {
+export function buildZonePreviewSvg(marker: MapMarker, svgCls: string): SVGSVGElement | null {
 	const absolute = resolveZonePoints(marker);
-	if (absolute.length === 0) return;
+	if (absolute.length === 0) return null;
 	const b = zoneBounds(absolute);
-	const pad = Math.max(b.width, b.height) * 0.08 + 1;
+	const pad = Math.max(b.width, b.height) * 0.08 + 2;
 	const fill = marker.color ?? '#ffffff';
 
 	const svg = createSvg('svg', {
-		cls: 'ttrpgmap-zone-list-preview',
+		cls: svgCls,
 		attr: {
 			viewBox: `${b.minX - pad} ${b.minY - pad} ${b.width + pad * 2} ${b.height + pad * 2}`,
 			preserveAspectRatio: 'xMidYMid meet',
@@ -139,13 +144,19 @@ export function appendZoneListPreview(container: HTMLElement, marker: MapMarker)
 		attr: {
 			points: zonePointsAttr(absolute, 1, 1),
 			fill,
-			'fill-opacity': String(1 - Math.min(100, Math.max(0, marker.transparency ?? 0)) / 100),
+			'fill-opacity': String(zoneFillOpacity(marker.transparency)),
 			stroke: darkenHex(fill),
-			'stroke-width': String(Math.max(1, Math.max(b.width, b.height) * 0.03)),
+			'stroke-width': String(Math.max(1, Math.max(b.width, b.height) * 0.02)),
 		},
 	});
 	svg.appendChild(polygon);
-	container.appendChild(svg);
+	return svg;
+}
+
+/** Render a zone's real outline into a marker-list swatch. */
+export function appendZoneListPreview(container: HTMLElement, marker: MapMarker): void {
+	const svg = buildZonePreviewSvg(marker, 'ttrpgmap-zone-list-preview');
+	if (svg) container.appendChild(svg);
 }
 
 /**

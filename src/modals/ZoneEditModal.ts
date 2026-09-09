@@ -4,7 +4,7 @@ import { MapMarker, MarkerLayer, DEFAULT_LAYER_ID, TextVisibility } from '../typ
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createColorPicker } from '../utils/colorPicker';
 import { buildFontDropdown } from './sharedFields';
-import { resolveZonePoints, zoneBounds, zonePointsAttr, darkenHex } from '../utils/zoneGeometry';
+import { buildZonePreviewSvg } from '../utils/zoneGeometry';
 
 /**
  * Editor for hot zones (markers with `shape === 'area'`).
@@ -53,38 +53,16 @@ export class ZoneEditModal extends Modal {
 	/** Draw the zone's real outline, scaled to fit the preview box. */
 	private renderPreview(container: HTMLElement): void {
 		container.empty();
-		const absolute = resolveZonePoints(this.marker);
-		if (absolute.length === 0) {
+		const svg = buildZonePreviewSvg(this.marker, 'ttrpgmap-zone-preview-svg');
+		if (!svg) {
 			container.createSpan({ text: 'No shape drawn', cls: 'ttrpgmap-muted' });
 			return;
 		}
-
-		const b = zoneBounds(absolute);
-		// Pad the viewBox so the stroke isn't clipped at the edges.
-		const pad = Math.max(b.width, b.height) * 0.06 + 2;
-		const svg = createSvg('svg', {
-			cls: 'ttrpgmap-zone-preview-svg',
-			attr: {
-				viewBox: `${b.minX - pad} ${b.minY - pad} ${b.width + pad * 2} ${b.height + pad * 2}`,
-				preserveAspectRatio: 'xMidYMid meet',
-			},
-		});
-		const fill = this.marker.color ?? '#ffffff';
-		const polygon = createSvg('polygon', {
-			attr: {
-				points: zonePointsAttr(absolute, 1, 1),
-				fill,
-				'fill-opacity': String(1 - Math.min(100, Math.max(0, this.marker.transparency ?? 0)) / 100),
-				stroke: darkenHex(fill),
-				'stroke-width': String(Math.max(1, Math.max(b.width, b.height) * 0.01)),
-			},
-		});
-		svg.appendChild(polygon);
 		container.appendChild(svg);
 
 		container.createDiv({
 			cls: 'ttrpgmap-muted ttrpgmap-zone-preview-meta',
-			text: `${absolute.length} points`,
+			text: `${this.marker.points?.length ?? 0} points`,
 		});
 	}
 

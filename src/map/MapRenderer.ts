@@ -27,6 +27,7 @@ import {
 	resolveZonePoints,
 	zoneArea,
 	zoneCentroid,
+	zoneFillOpacity,
 	zonePointsAttr,
 } from '../utils/zoneGeometry';
 import { LayerEditModal } from '../modals/LayerEditModal';
@@ -1903,7 +1904,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			const group = createSvg('g', { cls: 'ttrpgmap-zone' });
 			group.dataset.markerId = marker.id;
 
-			const fillOpacity = 1 - Math.min(100, Math.max(0, marker.transparency ?? 0)) / 100;
+			const fillOpacity = zoneFillOpacity(marker.transparency);
 			// Exposed as a variable so the hover rule can tint relative to the base
 			group.style.setProperty('--zone-fill-opacity', String(fillOpacity));
 

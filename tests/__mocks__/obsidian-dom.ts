@@ -135,15 +135,18 @@ function createEl(this: HTMLElement, tag: string, opts?: CreateElOpts): HTMLElem
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 interface CreateSvgOpts {
-	cls?: string;
+	cls?: string | string[];
 	attr?: Record<string, string>;
 }
 
 function applySvgOpts(el: SVGElement, opts?: CreateSvgOpts): void {
 	if (opts?.cls) {
-		for (const c of opts.cls.split(' ')) {
-			if (c) el.classList.add(c);
-		}
+		// Obsidian's real createSvg hands `cls` straight to classList.add, which
+		// throws on a token containing whitespace -- multiple classes must be
+		// passed as an array. Do NOT split strings here: this mock used to, which
+		// silently hid a crash that only reproduced in the real app.
+		const cls = opts.cls;
+		el.classList.add(...(Array.isArray(cls) ? cls : [cls]));
 	}
 	if (opts?.attr) {
 		for (const [k, v] of Object.entries(opts.attr)) {

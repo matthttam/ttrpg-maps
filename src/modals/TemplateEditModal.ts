@@ -263,6 +263,10 @@ export class TemplateEditModal extends Modal {
 				let stateChanged = false;
 				for (const marker of state.markers) {
 					if (marker.templateId !== this.draft.id) continue;
+					// Hot zones carry their own geometry and no template. Applying a
+					// template here would overwrite their color/transparency and, worse,
+					// rewrite `shape` and turn the polygon into a pin.
+					if (marker.shape === 'area') continue;
 					for (const field of changed) {
 						(marker as unknown as Record<string, unknown>)[field] = this.draft[field];
 					}

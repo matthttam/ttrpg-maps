@@ -7,6 +7,8 @@ export type Interaction =
 	| 'measuring'
 	| 'freehand'
 	| 'drawing-freehand'
+	| 'drawing-zone'
+	| 'dragging-zone-label'
 	| 'resizing-marker'
 	| 'dragging-handle'
 	| 'edge-resize'
@@ -23,6 +25,8 @@ const TRANSITIONS: Record<Interaction, Set<Interaction>> = {
 		'resizing-marker',
 		'edge-resize',
 		'copying',
+		'drawing-zone',
+		'dragging-zone-label',
 	]),
 	panning: new Set<Interaction>(['idle']),
 	'dragging-marker': new Set<Interaction>(['idle', 'panning']),
@@ -34,6 +38,8 @@ const TRANSITIONS: Record<Interaction, Set<Interaction>> = {
 	'dragging-handle': new Set<Interaction>(['resizing-marker']),
 	'edge-resize': new Set<Interaction>(['idle']),
 	copying: new Set<Interaction>(['idle']),
+	'drawing-zone': new Set<Interaction>(['idle']),
+	'dragging-zone-label': new Set<Interaction>(['idle']),
 };
 
 const MEASURING_MODES = new Set<Interaction>(['calibrating', 'measuring', 'freehand', 'drawing-freehand']);

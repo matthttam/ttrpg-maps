@@ -333,13 +333,13 @@
 	cursor: crosshair;
 }
 
-.ttrpgmap-marker.ttrpgmap-marker-measuring {
+.ttrpgmap-marker.ttrpgmap-marker-inert {
 	pointer-events: none;
 	opacity: 0.3;
 	transition: opacity 0.15s ease;
 }
 
-.ttrpgmap-marker.ttrpgmap-marker-measuring .ttrpgmap-marker-label {
+.ttrpgmap-marker.ttrpgmap-marker-inert .ttrpgmap-marker-label {
 	pointer-events: none;
 }
 
@@ -1794,6 +1794,125 @@ button.ttrpgmap-btn-warning:disabled {
 .ttrpgmap-pin-transparency-input {
 	width: 45px;
 	text-align: center;
+}
+
+/* ===== Hot zones (area markers) ===== */
+/* Zone polygons live inside the zoom/pan transform, so they scale with the map
+   for free. The outline is hidden until hover (or when "show all" is on) so
+   zones can sit invisibly over the map. */
+/* The SVG overlay sets pointer-events: none so measurement lines never block
+   the map; zone shapes must opt back in to be hoverable and clickable. */
+.ttrpgmap-zone-shape {
+	pointer-events: auto;
+	stroke-opacity: 0;
+	cursor: pointer;
+	transition:
+		stroke-opacity 0.12s ease,
+		fill-opacity 0.12s ease,
+		filter 0.12s ease;
+}
+
+.ttrpgmap-zone--hover .ttrpgmap-zone-shape,
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone-shape {
+	stroke-opacity: 1;
+}
+
+/* Tint the fill on hover, relative to the zone's own transparency, so even a
+   fully transparent zone gives feedback when the cursor is over it. */
+.ttrpgmap-zone--hover .ttrpgmap-zone-shape {
+	fill-opacity: min(1, calc(var(--zone-fill-opacity, 1) + 0.18));
+	filter: brightness(1.15);
+}
+
+/* While measuring or drawing, existing zones dim and stop taking clicks, so
+   they cannot swallow input meant for the drawing. Mirrors pin behavior. */
+.ttrpgmap-zone-layer--inert {
+	opacity: 0.3;
+	transition: opacity 0.15s ease;
+}
+
+.ttrpgmap-zone-layer--inert .ttrpgmap-zone-shape {
+	pointer-events: none;
+	cursor: inherit;
+}
+
+/* Dashed outlines while revealing every zone, to distinguish from a real hover */
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone-shape {
+	stroke-dasharray: 6 4;
+}
+
+.ttrpgmap-zone-layer--show-all .ttrpgmap-zone--hover .ttrpgmap-zone-shape {
+	stroke-dasharray: none;
+}
+
+/* Label is SVG text so it stays inside the transform with its polygon. The
+   stroke behind the glyphs keeps it readable over any map. */
+.ttrpgmap-zone-label {
+	fill: #ffffff;
+	stroke: rgba(0, 0, 0, 0.85);
+	paint-order: stroke;
+	stroke-linejoin: round;
+	pointer-events: none;
+	user-select: none;
+}
+
+.ttrpgmap-zone-label--hover {
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.ttrpgmap-zone--hover .ttrpgmap-zone-label--hover {
+	opacity: 1;
+}
+
+/* A custom-placed label is a drag handle, so it opts back into pointer events
+   (the base label sets none so it never blocks the fill's clicks). */
+.ttrpgmap-zone-label--draggable {
+	pointer-events: auto;
+	cursor: move;
+}
+
+/* ── Drawing preview ── */
+.ttrpgmap-zone-draw-shape {
+	fill: var(--interactive-accent);
+	fill-opacity: 0.25;
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-rubber {
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	stroke-dasharray: 5 4;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-dot {
+	fill: var(--background-primary);
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	pointer-events: none;
+}
+
+.ttrpgmap-zone-draw-dot--first {
+	fill: var(--interactive-accent);
+}
+
+/* ── Previews (marker list + edit modal) ── */
+.ttrpgmap-zone-list-preview {
+	width: 100%;
+	height: 100%;
+}
+
+.ttrpgmap-zone-preview-svg {
+	width: 120px;
+	height: 120px;
+}
+
+.ttrpgmap-zone-preview-meta {
+	text-align: center;
+	font-size: var(--font-ui-smaller);
 }
 
 /* ===== Description textarea ===== */

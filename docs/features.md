@@ -20,6 +20,10 @@ A comprehensive reference for every feature in the TTRPG Maps plugin.
   - [Direction](#direction)
   - [Scale and Zoom Behavior](#scale-and-zoom-behavior)
   - [Label Fonts](#label-fonts)
+- [Hot Zones](#hot-zones)
+  - [Drawing a zone](#drawing-a-zone)
+  - [Editing a zone](#editing-a-zone)
+  - [Zones and templates](#zones-and-templates)
 - [Marker Templates](#marker-templates)
   - [Managing Templates](#managing-templates)
   - [Template Folders](#template-folders)
@@ -317,6 +321,99 @@ There are 12 available fonts. The plugin detects which fonts are installed on th
 The first three (Serif, Monospace, System) use generic CSS stacks and are always available. The remaining nine are tested with `document.fonts.check()` and hidden if not installed. Each font stack includes cross-platform fallbacks ending with a generic CSS family.
 
 ---
+
+---
+
+## Hot Zones
+
+A **hot zone** is a marker whose shape you draw yourself: a polygon covering a region of the map (a forest, a district, a dungeon wing) that behaves as one clickable area. It has a fill color and transparency, can link to a note, and shows its outline when you hover it.
+
+Zones are a different kind of marker to pins, so they get their own placement command and their own editor rather than being squeezed into the pin controls.
+
+### Drawing a zone
+
+Right-click the map and choose **Place hot zone**, then click to place each corner:
+
+| Action                                     | Result                              |
+| ------------------------------------------ | ----------------------------------- |
+| **Click**                                  | Place a vertex                      |
+| **Click the first vertex** (or within 12px) | Close the shape and finish          |
+| **Enter**                                  | Finish the shape                    |
+| **Right-click**                            | Finish the shape                    |
+| **Double-click**                           | Finish the shape                    |
+| **Backspace**                              | Remove the last vertex              |
+| **Escape**                                 | Cancel and discard the whole shape  |
+
+A dashed rubber-band line follows the cursor from the last placed vertex, and each vertex shows as a dot (the first one is highlighted so you can see where to click to close). A zone needs at least **three** points; trying to finish with fewer shows a notice and keeps you drawing.
+
+Right-click finishes the shape rather than opening the map menu, so the menu stays out of the way while drawing.
+
+While you are drawing, every existing marker and zone **dims and stops taking clicks**, so nothing can swallow a click meant for a vertex or send you off to a linked note. This is the same behavior as measuring mode. When you are **redrawing** an existing zone, that zone is hidden entirely rather than dimmed, since its old outline would otherwise sit right where the replacement is being drawn. It reappears if you cancel.
+
+When you finish, the zone is created and its edit modal opens. New zones default to a blue fill at 40% transparency.
+
+### Editing a zone
+
+Right-click a zone for:
+
+- **Edit hot zone** - opens the zone editor
+- **Redraw shape** - discard the outline and draw a new one, keeping every other setting. Any edits you had open in the editor are carried through, and the editor reopens once the new outline is finished
+- **Delete**
+
+Like a new pin, a newly drawn zone is only saved when you click **Save** in the editor; **Cancel** on a brand-new zone discards it. Edits to an existing zone (including a redraw) are likewise only committed on **Save**, so **Cancel** reverts them.
+
+The zone editor's main fields:
+
+| Field                | Description                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Layer**            | Assign to a visibility layer (only shown if multiple layers exist)                  |
+| **Note**             | Link to a note (supports `#headings` and `#^block-ids`)                             |
+| **Fill color**       | The zone's fill. The outline is derived from it                                      |
+| **Transparency**     | 0% is fully opaque, 100% is invisible until hovered                                  |
+| **Label placement**  | **Centered** on the zone, or **Custom** - drag the label anywhere on the map (after saving) |
+
+An **Additional options** section (collapsible) holds the rest, matching the marker editor:
+
+| Field                | Description                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Alias**            | Display name shown instead of the note filename                                     |
+| **Preview note**     | Alternate note shown in hover preview (blank uses the linked note)                  |
+| **Description**      | Additional text shown below the note name                                           |
+| **Label font**       | Inherit / Default, plus any installed fonts                                         |
+| **Text visibility**  | Inherit / Always visible / Mouseover only / Hidden. **Inherit** uses this map's text visibility setting, falling back to the global default; the dropdown description shows the resolved value |
+| **Text size**        | Toggle on to override the label size for this zone (10-1000%)                        |
+
+A live preview shows the zone's real outline, scaled to fit, along with its point count.
+
+**Moving the label**: set **Label placement** to **Custom** and save, then drag the label directly on the map to position it anywhere. Centered labels sit at the zone's centroid and aren't draggable. Label size stays constant on screen as you zoom (adjust it with **Text size**).
+
+Geometry editing is currently **redraw-only** - there are no draggable vertex handles, and dragging a whole zone to move it is not yet supported. Use **Redraw shape** to reposition or reshape.
+
+### Appearance and behavior
+
+- **Fill and outline** - the outline color is derived automatically by darkening the fill, and is **hidden until you hover** the zone. It ignores the fill's transparency, so even a fully transparent zone still outlines on hover.
+- **Always scales with the map** - a zone is map geometry, so it pans and zooms with the image. There are no marker-size or scale-to-zoom options for zones (they would be meaningless). The outline width and label size compensate for zoom so both stay a constant on-screen size.
+- **The whole fill is clickable**, not just the outline. Clicking a zone with a linked note opens that note, and hovering shows Obsidian's page preview, exactly like a pin.
+- **Overlapping zones** - larger zones are drawn first so a smaller zone nested inside a bigger one stays reachable. Hovering a zone brings it to the front, the same way overlapping pins behave.
+- **Hovering** a zone tints its fill slightly and brightens it, in addition to revealing the outline, so even a fully transparent zone gives feedback under the cursor.
+- **Labels** sit at the zone's centroid, above or below, with a dark outline behind the text so they stay readable over any map.
+- **Inert while measuring or drawing** - like pins, zones dim and become click-through whenever a measurement or a zone drawing is in progress, so they never intercept those clicks.
+
+### Finding invisible zones
+
+A zone with a transparent fill and a hover-only outline is invisible until your cursor crosses it, which is useful for players but awkward while you are building a map. Right-click the map and choose **Show all zone outlines** to reveal every zone as a dashed outline; choose **Hide all zone outlines** to turn it back off. The option only appears once the map has at least one zone, and the setting is per-session rather than saved.
+
+### Zones and templates
+
+Zones deliberately **do not use templates**. A polygon is specific to one place on one map, so there is nothing reusable to share, and templates only carry properties that can be copied between markers.
+
+This means zone geometry is safe from template operations. **Save & update markers** skips hot zones entirely, so pushing a template change can never overwrite a zone's fill or transparency, and can never rewrite its shape back into a pin.
+
+Zones do still participate in everything else markers get: visibility layers, note links, hover previews, the marker list panel, sidecar persistence, and map ZIP export/import.
+
+### Zones in the marker list
+
+Zones appear in the marker list alongside pins. Instead of a generic glyph, the list shows the zone's **actual outline** in its real fill color, scaled down to fit the swatch.
 
 ## Marker Templates
 
@@ -712,6 +809,8 @@ Keys are case-insensitive. Lines starting with `#` are treated as comments. Chan
 | **Place Marker**           | Places a marker using the default template                                   |
 | _Template name_            | Places a marker using that template                                          |
 | _Folder name_ > _Template_ | Templates in folders appear as submenus                                      |
+| **Place hot zone**         | Starts drawing a polygon hot zone                                            |
+| **Show all zone outlines** | Reveals every zone outline (only shown when the map has zones)               |
 | **Edit Templates**         | Opens plugin settings to the template manager                                |
 | **Edit Map**               | Opens the map settings modal (only shown when the settings button is hidden) |
 
@@ -728,6 +827,14 @@ When the map has multiple layers, each template entry expands into a submenu to 
 | **Resize Marker** | Enter interactive marker resize mode |
 | **Resize Text**   | Enter interactive text resize mode   |
 | **Delete**        | Remove the marker immediately        |
+
+Right-clicking a **hot zone** shows a different menu, since resizing and copying do not apply to a drawn shape:
+
+| Item              | Action                                            |
+| ----------------- | ------------------------------------------------- |
+| **Edit hot zone** | Open the zone editor                              |
+| **Redraw shape**  | Draw a new outline, keeping all other settings    |
+| **Delete**        | Remove the zone immediately                       |
 
 ---
 
@@ -761,6 +868,9 @@ When the map has multiple layers, each template entry expands into a submenu to 
 | **Escape**  | Resize mode       | Cancel resize and revert to original scale |
 | **Escape**  | Copy mode         | Cancel copy mode                           |
 | **Any key** | Copy mode         | Cancel copy mode                           |
+| **Enter**   | Drawing a hot zone | Finish the shape                          |
+| **Backspace** | Drawing a hot zone | Remove the last placed vertex           |
+| **Escape**  | Drawing a hot zone | Discard the whole shape                   |
 
 ---
 
@@ -803,6 +913,7 @@ Static map configuration: image path, dimensions, zoom settings. The plugin writ
 Mutable per-map state, including:
 
 - All marker positions and properties
+- Hot zone geometry (`points`, stored relative to the marker anchor)
 - Distance scale calibration (unit system, unit, and label)
 - Unit conversion settings (mode, display unit, excluded units)
 - Rounding mode, multiple, raw toggle, and decimal places

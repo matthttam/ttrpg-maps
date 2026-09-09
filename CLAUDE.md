@@ -47,6 +47,43 @@ Being optional means it reads as `0` via `?? 0` and needs no migration, but that
 - `placeMarker()` copies every templated field onto a new marker by hand. Any field missing from that literal silently stops being inherited -- `transparency` was, and new markers ignored their template until it was added. `tests/map/MapRenderer.placeMarker.test.ts` asserts all nine fields to catch the next one.
 - `TemplateEditModal`'s dirty tracking compares snapshot to draft with `!==`, so a legacy `undefined` against a slider-written `0` would read as changed forever. The constructor normalizes `transparency` into the draft *and* takes the snapshot from that normalized draft.
 
+### Hot zones (area markers)
+
+A hot zone is a marker with `shape: 'area'` plus a `points` array: a user-drawn polygon acting as one clickable region. Key decisions, all load-bearing:
+
+- **Geometry lives on the marker, never a template.** `MarkerTemplate.shape` deliberately excludes `'area'` (the `MarkerShape` union is wider than the template's field), because a polygon is specific to one place on one map and there is nothing reusable to share. Zones are created with `templateId: ''`, and `applyToMarkers()` *also* skips `shape === 'area'`. Both guards matter: without the second, a zone that somehow acquired a real template id would have its fill overwritten and its `shape` rewritten into a pin, silently destroying the polygon. `tests/modals/TemplateEditModal.test.ts` covers both paths.
+- **`points` are relative to the marker's `x`/`y` anchor** (its centroid at creation), in natural image pixels. That means moving a zone only updates the anchor rather than rewriting every vertex. `resolveZonePoints()` converts back to absolute; `anchorZonePoints()` splits absolute input into anchor + relative.
+- **Zones render inside the transformed SVG overlay, not the marker overlay.** Pins sit in a separate screen-space overlay to stay crisp, and need `toScreenCoords()` bookkeeping on every pan/zoom. A zone is map geometry, so putting its polygon *and* its label in a `<g>` inside the zoom/pan transform means pan and zoom come free with zero position code. The tradeoff is that stroke width and label font-size must be divided by the zoom scale to stay a constant on-screen size, and `renderZones()` re-runs when zoom settles.
+- **Overlap order is explicit.** SVG has no `z-index`, so paint order is document order. Zones sort largest-area-first each render, otherwise a zone nested inside a bigger one would be permanently unclickable. Hover promotes by re-appending the group, which is the SVG equivalent of the pin overlay's `z-index` bump.
+- **The outline is derived, not stored.** `darkenHex()` darkens the fill; CSS hides it until `:hover` (or when the zone layer has `--show-all`). It ignores the fill's transparency so a fully transparent zone still outlines on hover.
+- **Shared event helpers take `Element`, not `HTMLElement`.** `attachMarkerNavigation()` and `attachMarkerHoverPreview()` were widened, and z-promotion was extracted into an injected callback, so zone polygons get note links and Obsidian's hover preview without duplicating that logic.
+- **Use standard DOM APIs on SVG nodes.** Obsidian's `addClass`/`removeClass`/`empty` are HTMLElement extensions and silently do not exist on SVG elements — use `classList` and manual child removal. Getting this wrong broke 34 unrelated tests, because `renderZones()` threw before markers rendered.
+- **`createSvg` takes multiple classes as an array, never a space-separated string.** It passes `cls` straight to `classList.add`, which throws `InvalidCharacterError` on a token containing whitespace — unlike `createDiv`/`createEl`, which accept `"a b"` happily. So `cls: ['a', 'b']`, not `cls: 'a b'`. `MeasurementController` has a `splitClasses()` helper for call sites that receive a string. This crashed zone rendering in the real app while every test passed, because `tests/__mocks__/obsidian-dom.ts` used to split the string itself; the mock now mirrors the real behavior and throws, so this class of bug fails a test instead of only appearing in Obsidian. Keep the mock strict.
+
+`ZoneDrawController` does click-to-place drawing under a `'drawing-zone'` interaction mode. `ZoneEditModal` is deliberately separate from `MarkerEditModal`: a zone has no pin shape, direction, icon, or scale overrides, so sharing that modal would mean hiding most of it. Geometry editing is redraw-only; dragging a whole zone is not wired up yet (drag is HTMLElement-bound), though the relative-points model is already ready for it.
+
+Zone shapes must set `pointer-events: auto`. The SVG overlay sets `pointer-events: none` so measurement lines never block the map, and anything added to that overlay inherits it — which silently cost zones both click and hover handling.
+
+**Zones persist only on save, like pins.** `createZone` builds the marker but does not push it; `commitZone` (the editor's onSave) pushes a new one or `Object.assign`s onto the existing one, matching by **id** rather than reference because a redraw hands over a detached copy. So Cancel on a new zone discards it, and Cancel on an edit reverts. Redraw carries the editor's working copy (pending field edits included) into `redrawZone`, which reopens the editor on a copy with the new geometry — again committing nothing until save. Do not go back to mutating the state marker eagerly in `createZone`/`redrawZone`; that was the original bug (a cancelled new zone stayed, and a redraw dropped pending edits).
+
+Zone labels are centred by default (`labelOffset` absent) or custom-placed (`labelOffset` set, relative to the anchor in natural px, seeded from the centroid so switching doesn't jump). A custom label opts back into pointer events (`ttrpgmap-zone-label--draggable`) and is a drag handle: dragging it runs under the `dragging-zone-label` interaction mode and persists the offset on release — a direct map gesture like a pin drag, committed immediately, not through the editor's save. Text size is the per-zone `textScale` (label font-size is `14 * textScale / zoom`, constant on screen). Both live in the editor's collapsible "Additional options" alongside alias, preview note, description, font, and text visibility. `zoneGeometry` owns the shared pieces: `zoneLabelPosition`, `zoneCentroidOffset`, `zoneFillOpacity`, and `buildZonePreviewSvg` (used by both the marker-list swatch and the editor preview so they can't drift).
+
+The polygon's mousedown still bubbles to the map and starts a pan (zones have no shape drag handler). Panning therefore sets `hasDragged` (reset on pan start, set on pan move) so the trailing click is ignored — otherwise panning by grabbing a large zone would open its linked note on release. Pins don't need this because their own mousedown starts a marker-drag instead of a pan.
+
+Text visibility resolves through three levels for every marker, zones included: the marker's own value, then the per-map setting (`MapState.textVisibility`), then the global default. `MapRenderer.getTextVisibility()` is the single resolver — pins and zones must both use it. Zone labels once skipped the per-map level, so an "Inherit" zone silently ignored the map setting. The zone editor is passed the resolved value so its "Text visibility" description can show what "Inherit" currently means (the pin editor and map-settings modal do the same).
+
+### Inert markers during map-wide drawing
+
+Whenever a drawing mode owns the map surface, existing markers must not be able to swallow clicks meant for the drawing. `MapRenderer.markersInert` is the single source of truth (true while measuring **or** drawing a zone) and drives three things:
+
+- Pins get `ttrpgmap-marker-inert` (dimmed, `pointer-events: none`) and, importantly, have **no events attached at all** — `pointer-events` alone is not relied on.
+- Zones get the same via `ttrpgmap-zone-layer--inert` on the layer, and skip `attachZoneEvents`.
+- `ZoneDrawController` calls an `onDrawStateChange` hook when drawing starts and stops; that re-render is what applies and releases the state, so a new drawing mode must fire it or markers will stay stuck dim.
+
+The zone being redrawn is a special case: it is **excluded from the render entirely** (`redrawingZoneId`), not merely dimmed, because a visible old outline sits exactly where its replacement is being drawn. That id is cleared when drawing ends (cancel included) and is never set if `start()` was refused.
+
+Note `MeasurementController.updateMeasureMode()` toggles the same `ttrpgmap-marker-inert` class directly as a fast path instead of re-rendering, so the class name is shared between the two files — rename it in both.
+
 ### Rendering approach
 
 `MapRenderer` extends `MarkdownRenderChild`. The map image and SVG overlay (for distance lines) live inside a CSS-transformed container (`translate + scale`). Markers render in a **separate overlay div** outside the scaled container to stay crisp at all zoom levels. Marker positions are calculated in screen coordinates via `toScreenCoords()` and updated on every pan/zoom change.
@@ -68,6 +105,8 @@ Icons are sourced from npm packages (`@iconify-json/fa6-solid`, `@iconify-json/g
 ### Test environment
 
 Tests live in `tests/` (outside `src/` so the Obsidian review bot doesn't scan them). Tests run in jsdom. `tests/__mocks__/obsidian.ts` mocks the Obsidian API classes. `tests/__mocks__/obsidian-dom.ts` polyfills Obsidian's custom HTMLElement methods (`createDiv`, `createEl`, `empty`, `addClass`, `setText`). Coverage is scoped to `src/utils/`, `src/map/`, `src/types.ts`, `src/distance.ts`, and `src/DataManager.ts`.
+
+When adding tests for a guard, confirm they actually fail if the guard is removed. The hot zone suites were checked that way: deleting the `shape === 'area'` skip in `applyToMarkers` fails 3 tests, dropping the largest-first zone sort fails 1, and allowing under-three-point shapes fails 1.
 
 ## Obsidian community plugin guidelines
 

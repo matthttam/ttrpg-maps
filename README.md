@@ -18,6 +18,7 @@ An [Obsidian](https://obsidian.md/) plugin for tabletop RPG game masters who wan
 - **Visibility layers** - Assign markers to zoom-based layers with a visual dual-handle range slider. Markers fade smoothly when crossing layer boundaries
 - **5,500+ icons** - Choose from Font Awesome (1,400+) and Game Icons (4,100+) with live search and rotation
 - **Four marker shapes** - Pin (directional teardrop), circle, hotspot (invisible until hovered), or standalone icon
+- **Hot zones** - Draw a polygon over any region of the map to make it a clickable area with its own fill color and transparency. Scales with the map, links to a note, and shows its outline on hover
 - **Label fonts** - Choose from 12 font families (with runtime availability detection) at the global, per-map, or per-marker level
 - **Per-map and per-marker settings** - Override scale, zoom behavior, text visibility, label placement, font, navigation mode, and hover preview at every level
 - **Control visibility and opacity** - Show or hide zoom controls, measurement tools, marker list, layer list, and settings button globally or per-map. Adjust resting opacity of UI controls

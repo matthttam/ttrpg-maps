@@ -108,6 +108,25 @@ export function isZone(marker: Pick<MapMarker, 'shape' | 'points'>): boolean {
 }
 
 /**
+ * Absolute position of a zone's label in natural image pixels: the custom
+ * `labelOffset` from the anchor when set, otherwise the polygon centroid.
+ */
+export function zoneLabelPosition(marker: Pick<MapMarker, 'x' | 'y' | 'points' | 'labelOffset'>): MapPoint {
+	if (marker.labelOffset) {
+		return { x: marker.x + marker.labelOffset.x, y: marker.y + marker.labelOffset.y };
+	}
+	return zoneCentroid(resolveZonePoints(marker));
+}
+
+/**
+ * The label offset (from the anchor) that keeps the label where it currently
+ * sits — used to seed custom placement so switching to it doesn't jump.
+ */
+export function zoneCentroidOffset(marker: Pick<MapMarker, 'points'>): MapPoint {
+	return zoneCentroid(marker.points ?? []);
+}
+
+/**
  * Format points for an SVG `points` attribute, scaled from natural image
  * pixels into the overlay's display coordinates.
  */

@@ -302,29 +302,41 @@ describe('MapRenderer hot zone labels', () => {
 		expect(label.classList.contains('ttrpgmap-zone-label--hover')).toBe(true);
 	});
 
-	it('anchors the label at the zone centroid', async () => {
+	it('centres the label on the zone by default', async () => {
 		await render([createZone({ alias: 'Centred' })], container);
 
 		const label = container.querySelector('.ttrpgmap-zone-label')!;
 		// Square centred on the anchor, so the centroid is the anchor itself
 		expect(label.getAttribute('x')).toBe('100');
+		expect(label.getAttribute('y')).toBe('200');
 		expect(label.getAttribute('text-anchor')).toBe('middle');
+		expect(label.getAttribute('dominant-baseline')).toBe('central');
 	});
 
-	it('places the label below the centroid when asked', async () => {
-		await render([createZone({ alias: 'Below', textPlacement: 'below' })], container);
+	it('places a custom label at its offset from the anchor', async () => {
+		await render([createZone({ alias: 'Custom', labelOffset: { x: 30, y: -40 } })], container);
 
 		const label = container.querySelector('.ttrpgmap-zone-label')!;
-		expect(label.getAttribute('dominant-baseline')).toBe('hanging');
-		expect(Number(label.getAttribute('y'))).toBeGreaterThan(200);
+		expect(label.getAttribute('x')).toBe('130'); // anchor 100 + 30
+		expect(label.getAttribute('y')).toBe('160'); // anchor 200 - 40
 	});
 
-	it('places the label above the centroid by default', async () => {
-		await render([createZone({ alias: 'Above' })], container);
-
+	it('scales the label with the text size override', async () => {
+		await render([createZone({ alias: 'Big', textScale: 2 })], container);
 		const label = container.querySelector('.ttrpgmap-zone-label')!;
-		expect(label.getAttribute('dominant-baseline')).toBe('auto');
-		expect(Number(label.getAttribute('y'))).toBeLessThan(200);
+		// Base 14 * textScale 2 / zoom scale 1
+		expect(label.getAttribute('font-size')).toBe('28');
+	});
+
+	it('marks a custom label draggable but a centred one not', async () => {
+		await render([createZone({ id: 'centred', alias: 'C' })], container);
+		expect(
+			container.querySelector('.ttrpgmap-zone-label')!.classList.contains('ttrpgmap-zone-label--draggable'),
+		).toBe(false);
+
+		const c2 = document.createElement('div');
+		await render([createZone({ id: 'custom', alias: 'C', labelOffset: { x: 5, y: 5 } })], c2);
+		expect(c2.querySelector('.ttrpgmap-zone-label')!.classList.contains('ttrpgmap-zone-label--draggable')).toBe(true);
 	});
 });
 
@@ -761,5 +773,63 @@ describe('MapRenderer zone navigation', () => {
 		polygon.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 		expect(openLinkSpy).not.toHaveBeenCalled();
+	});
+});
+
+describe('MapRenderer custom label drag', () => {
+	let container: HTMLElement;
+
+	beforeEach(() => {
+		container = document.createElement('div');
+	});
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const priv = (r: MapRenderer) => r as any;
+
+	function labelEl(el: HTMLElement): SVGTextElement {
+		return el.querySelector('.ttrpgmap-zone-label') as unknown as SVGTextElement;
+	}
+
+	it('moves the label and stores the new offset on drop', async () => {
+		const zone = createZone({ alias: 'Drag me', labelOffset: { x: 0, y: 0 } });
+		const renderer = await render([zone], container);
+		const saveSpy = priv(renderer).plugin.dataManager.saveMapState as ReturnType<typeof vi.fn>;
+		saveSpy.mockClear();
+
+		const label = labelEl(container);
+		label.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, clientX: 100, clientY: 200 }));
+		window.dispatchEvent(new MouseEvent('mousemove', { clientX: 130, clientY: 175 }));
+		window.dispatchEvent(new MouseEvent('mouseup', {}));
+
+		// sx/sy default to 1 in jsdom, zoom 100% -> offset moves by the raw delta
+		expect(zone.labelOffset).toEqual({ x: 30, y: -25 });
+		expect(saveSpy).toHaveBeenCalled();
+	});
+
+	it('uses the interaction manager so it cannot run during another drag', async () => {
+		const zone = createZone({ alias: 'Drag me', labelOffset: { x: 0, y: 0 } });
+		const renderer = await render([zone], container);
+		// Something else owns the map
+		priv(renderer).interaction.tryEnter('panning');
+
+		const label = labelEl(container);
+		label.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, clientX: 100, clientY: 200 }));
+		window.dispatchEvent(new MouseEvent('mousemove', { clientX: 130, clientY: 175 }));
+		window.dispatchEvent(new MouseEvent('mouseup', {}));
+
+		// Drag was refused, so the offset is untouched
+		expect(zone.labelOffset).toEqual({ x: 0, y: 0 });
+		expect(priv(renderer).interaction.current).toBe('panning');
+	});
+
+	it('returns to idle after the drag ends', async () => {
+		const zone = createZone({ alias: 'Drag me', labelOffset: { x: 0, y: 0 } });
+		const renderer = await render([zone], container);
+
+		const label = labelEl(container);
+		label.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, clientX: 100, clientY: 200 }));
+		expect(priv(renderer).interaction.current).toBe('dragging-zone-label');
+		window.dispatchEvent(new MouseEvent('mouseup', {}));
+		expect(priv(renderer).interaction.current).toBe('idle');
 	});
 });

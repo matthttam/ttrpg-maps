@@ -362,21 +362,30 @@ Right-click a zone for:
 
 Like a new pin, a newly drawn zone is only saved when you click **Save** in the editor; **Cancel** on a brand-new zone discards it. Edits to an existing zone (including a redraw) are likewise only committed on **Save**, so **Cancel** reverts them.
 
-The zone editor has:
+The zone editor's main fields:
 
 | Field                | Description                                                                         |
 | -------------------- | ----------------------------------------------------------------------------------- |
 | **Layer**            | Assign to a visibility layer (only shown if multiple layers exist)                  |
 | **Note**             | Link to a note (supports `#headings` and `#^block-ids`)                             |
-| **Alias**            | Display name shown instead of the note filename                                     |
-| **Description**      | Additional text shown below the note name                                           |
 | **Fill color**       | The zone's fill. The outline is derived from it                                      |
 | **Transparency**     | 0% is fully opaque, 100% is invisible until hovered                                  |
-| **Label placement**  | Above or below the zone's center                                                    |
-| **Text visibility**  | Inherit / Always visible / Mouseover only / Hidden. **Inherit** uses this map's text visibility setting, falling back to the global default; the dropdown description shows the resolved value |
+| **Label placement**  | **Centered** on the zone, or **Custom** - drag the label anywhere on the map (after saving) |
+
+An **Additional options** section (collapsible) holds the rest, matching the marker editor:
+
+| Field                | Description                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Alias**            | Display name shown instead of the note filename                                     |
+| **Preview note**     | Alternate note shown in hover preview (blank uses the linked note)                  |
+| **Description**      | Additional text shown below the note name                                           |
 | **Label font**       | Inherit / Default, plus any installed fonts                                         |
+| **Text visibility**  | Inherit / Always visible / Mouseover only / Hidden. **Inherit** uses this map's text visibility setting, falling back to the global default; the dropdown description shows the resolved value |
+| **Text size**        | Toggle on to override the label size for this zone (10-1000%)                        |
 
 A live preview shows the zone's real outline, scaled to fit, along with its point count.
+
+**Moving the label**: set **Label placement** to **Custom** and save, then drag the label directly on the map to position it anywhere. Centered labels sit at the zone's centroid and aren't draggable. Label size stays constant on screen as you zoom (adjust it with **Text size**).
 
 Geometry editing is currently **redraw-only** - there are no draggable vertex handles, and dragging a whole zone to move it is not yet supported. Use **Redraw shape** to reposition or reshape.
 

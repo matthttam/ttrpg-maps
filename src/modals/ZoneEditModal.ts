@@ -1,10 +1,13 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, setIcon } from 'obsidian';
 import type TTRPGMapsPlugin from '../main';
 import { MapMarker, MarkerLayer, DEFAULT_LAYER_ID, TextVisibility } from '../types';
 import { NoteLinkSuggest } from '../suggests/NoteLinkSuggest';
 import { createColorPicker } from '../utils/colorPicker';
-import { buildFontDropdown } from './sharedFields';
-import { buildZonePreviewSvg } from '../utils/zoneGeometry';
+import { buildFontDropdown, buildScaleSlider } from './sharedFields';
+import { buildZonePreviewSvg, zoneCentroidOffset } from '../utils/zoneGeometry';
+
+/** Remembers whether the collapsible section is open, per app (matches MarkerEditModal). */
+const additionalOptionsExpanded = new WeakMap<App, boolean>();
 
 /**
  * Editor for hot zones (markers with `shape === 'area'`).
@@ -79,11 +82,13 @@ export class ZoneEditModal extends Modal {
 		this.renderPreview(previewContainer);
 
 		const items = mainCol.createDiv({ cls: 'setting-items' });
-		this.buildFields(items, previewContainer);
+		this.buildMainFields(items, previewContainer);
+		this.buildAdditionalOptions(mainCol);
 		this.buildFooter(contentEl);
 	}
 
-	private buildFields(container: HTMLElement, previewContainer: HTMLElement): void {
+	/** Core fields: note link, fill, transparency, label placement. */
+	private buildMainFields(container: HTMLElement, previewContainer: HTMLElement): void {
 		if (this.layers.length > 1) {
 			new Setting(container)
 				.setName('Layer')
@@ -114,30 +119,6 @@ export class ZoneEditModal extends Modal {
 				});
 			});
 
-		new Setting(container)
-			.setName('Alias')
-			.setDesc('Display name shown instead of the note filename')
-			.addText((text) => {
-				text
-					.setPlaceholder('Display name...')
-					.setValue(this.marker.alias ?? '')
-					.onChange((value) => {
-						this.marker.alias = value || null;
-					});
-			});
-
-		new Setting(container)
-			.setName('Description')
-			.setDesc('Additional text shown below the note name')
-			.addTextArea((textArea) => {
-				textArea.setValue(this.marker.description ?? '').onChange((value) => {
-					this.marker.description = value || null;
-				});
-				textArea.inputEl.addClass('ttrpgmap-description-input');
-				textArea.inputEl.rows = 3;
-			});
-
-		// ── Appearance ──
 		const fillSetting = new Setting(container)
 			.setName('Fill color')
 			.setDesc('Outline is derived from this color and shown on hover');
@@ -188,20 +169,93 @@ export class ZoneEditModal extends Modal {
 			applyTransparency(v);
 		});
 
-		// ── Label ──
 		new Setting(container)
 			.setName('Label placement')
-			.setDesc('Where the label sits relative to the zone center')
+			.setDesc('Centred on the zone, or custom — drag the label on the map to position it after saving')
 			.addDropdown((dropdown) => {
-				dropdown.addOption('above', 'Above');
-				dropdown.addOption('below', 'Below');
-				dropdown.setValue(this.marker.textPlacement === 'below' ? 'below' : 'above');
+				dropdown.addOption('centered', 'Centered');
+				dropdown.addOption('custom', 'Custom');
+				dropdown.setValue(this.marker.labelOffset ? 'custom' : 'centered');
 				dropdown.onChange((value) => {
-					this.marker.textPlacement = value === 'below' ? 'below' : 'above';
+					// Seed custom placement with the current centre so it doesn't jump.
+					this.marker.labelOffset = value === 'custom' ? zoneCentroidOffset(this.marker) : null;
+				});
+			});
+	}
+
+	/** Collapsible section: alias, preview note, description, font, visibility, size. */
+	private buildAdditionalOptions(container: HTMLElement): void {
+		const group = container.createDiv({ cls: 'setting-group' });
+		const expanded = additionalOptionsExpanded.get(this.app) ?? false;
+
+		const heading = new Setting(group).setName('').setHeading();
+		const nameRow = heading.nameEl.createDiv({ cls: 'ttrpgmap-collapsible-heading' });
+		const chevron = nameRow.createSpan({ cls: 'ttrpgmap-folder-chevron' });
+		setIcon(chevron, 'chevron-down');
+		nameRow.createSpan({ text: 'Additional options' });
+		heading.settingEl.setCssStyles({ cursor: 'pointer' });
+
+		const items = group.createDiv({ cls: 'setting-items ttrpgmap-collapsible-content' });
+		if (!expanded) {
+			items.addClass('is-collapsed');
+			chevron.addClass('is-collapsed');
+		}
+		heading.settingEl.addEventListener('click', () => {
+			const expanding = items.hasClass('is-collapsed');
+			items.toggleClass('is-collapsed', !expanding);
+			chevron.toggleClass('is-collapsed', !expanding);
+			additionalOptionsExpanded.set(this.app, expanding);
+		});
+
+		new Setting(items)
+			.setName('Alias')
+			.setDesc('Display name shown instead of the note filename')
+			.addText((text) => {
+				text
+					.setPlaceholder('Display name...')
+					.setValue(this.marker.alias ?? '')
+					.onChange((value) => {
+						this.marker.alias = value || null;
+					});
+			});
+
+		new Setting(items)
+			.setName('Preview note')
+			.setDesc('Note shown on hover preview (blank uses the linked note)')
+			.addText((text) => {
+				text
+					.setPlaceholder('Search for a note...')
+					.setValue(this.marker.previewNote ?? '')
+					.onChange((value) => {
+						this.marker.previewNote = value || null;
+					});
+				new NoteLinkSuggest(this.app, text.inputEl, (value) => {
+					this.marker.previewNote = value || null;
 				});
 			});
 
-		new Setting(container)
+		new Setting(items)
+			.setName('Description')
+			.setDesc('Additional text shown below the note name')
+			.addTextArea((textArea) => {
+				textArea.setValue(this.marker.description ?? '').onChange((value) => {
+					this.marker.description = value || null;
+				});
+				textArea.inputEl.addClass('ttrpgmap-description-input');
+				textArea.inputEl.rows = 3;
+			});
+
+		const fontSetting = new Setting(items).setName('Label font').setDesc("Font family for this zone's label");
+		buildFontDropdown({
+			setting: fontSetting,
+			value: this.marker.font ?? 'inherit',
+			includeInherit: true,
+			onChange: (value) => {
+				this.marker.font = value === 'inherit' ? null : value;
+			},
+		});
+
+		new Setting(items)
 			.setName('Text visibility')
 			.setDesc(
 				`Whether the zone label is shown. Inherit uses this map's setting (currently ${ZoneEditModal.visibilityLabel(
@@ -220,14 +274,23 @@ export class ZoneEditModal extends Modal {
 					});
 			});
 
-		const fontSetting = new Setting(container).setName('Label font').setDesc("Font family for this zone's label");
-		buildFontDropdown({
-			setting: fontSetting,
-			value: this.marker.font ?? 'inherit',
-			includeInherit: true,
+		// Text size: an optional per-zone override, matching the marker editor.
+		const hasTextScale = this.marker.textScale != null;
+		const textSizeSetting = new Setting(items).setName('Text size').setDesc('Override the label size for this zone');
+		const textScaleControls = buildScaleSlider({
+			setting: textSizeSetting,
+			value: this.marker.textScale ?? 1.0,
 			onChange: (value) => {
-				this.marker.font = value === 'inherit' ? null : value;
+				this.marker.textScale = value;
 			},
+			disabled: !hasTextScale,
+		});
+		textSizeSetting.addToggle((toggle) => {
+			toggle.setValue(hasTextScale).onChange((enabled) => {
+				textScaleControls.setDisabled(!enabled);
+				textScaleControls.setValue(1.0);
+				this.marker.textScale = enabled ? 1.0 : null;
+			});
 		});
 	}
 

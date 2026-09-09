@@ -26,8 +26,9 @@ import {
 	isZone,
 	resolveZonePoints,
 	zoneArea,
-	zoneCentroid,
+	zoneCentroidOffset,
 	zoneFillOpacity,
+	zoneLabelPosition,
 	zonePointsAttr,
 } from '../utils/zoneGeometry';
 import { LayerEditModal } from '../modals/LayerEditModal';
@@ -1917,7 +1918,7 @@ export class MapRenderer extends MarkdownRenderChild {
 			polygon.setAttribute('stroke-width', String(2 / scale));
 			group.appendChild(polygon);
 
-			this.appendZoneLabel(group, marker, points, sx, sy, scale);
+			this.appendZoneLabel(group, marker, sx, sy, scale, inert);
 			this.zoneLayer.appendChild(group);
 			if (!inert) this.attachZoneEvents(marker, group, polygon);
 		}
@@ -1927,10 +1928,10 @@ export class MapRenderer extends MarkdownRenderChild {
 	private appendZoneLabel(
 		group: SVGGElement,
 		marker: MapMarker,
-		points: MapPoint[],
 		sx: number,
 		sy: number,
 		scale: number,
+		inert: boolean,
 	): void {
 		const textVis = this.getTextVisibility(marker);
 		if (textVis === 'hidden') return;
@@ -1939,27 +1940,71 @@ export class MapRenderer extends MarkdownRenderChild {
 		const text = title || marker.description;
 		if (!text) return;
 
-		const centroid = zoneCentroid(points);
-		// Divide by scale so the label keeps a constant on-screen size
-		const fontSize = 14 / scale;
-		const below = marker.textPlacement === 'below';
-		const offset = (below ? 1 : -1) * (fontSize * 0.6);
+		const pos = zoneLabelPosition(marker);
+		// Divide by scale so the label keeps a constant on-screen size; textScale
+		// (1.0 = 100%) is the per-zone "Text size" override.
+		const fontSize = (14 * (marker.textScale ?? 1)) / scale;
+		const custom = !!marker.labelOffset;
 
-		const label = createSvg('text', {
-			// Array, not a space-separated string: createSvg passes cls to
-			// classList.add, which rejects tokens containing whitespace.
-			cls: textVis === 'hover' ? ['ttrpgmap-zone-label', 'ttrpgmap-zone-label--hover'] : ['ttrpgmap-zone-label'],
-		});
-		label.setAttribute('x', String(centroid.x * sx));
-		label.setAttribute('y', String(centroid.y * sy + offset));
+		const cls = ['ttrpgmap-zone-label'];
+		if (textVis === 'hover') cls.push('ttrpgmap-zone-label--hover');
+		// A custom-placed label is a drag handle, so it must take pointer events.
+		if (custom && !inert) cls.push('ttrpgmap-zone-label--draggable');
+		// Array form: createSvg passes cls to classList.add, which rejects whitespace.
+		const label = createSvg('text', { cls });
+		label.setAttribute('x', String(pos.x * sx));
+		label.setAttribute('y', String(pos.y * sy));
 		label.setAttribute('font-size', String(fontSize));
 		label.setAttribute('stroke-width', String(3 / scale));
 		label.setAttribute('text-anchor', 'middle');
-		label.setAttribute('dominant-baseline', below ? 'hanging' : 'auto');
+		label.setAttribute('dominant-baseline', 'central');
 		const fontStack = this.getMarkerFont(marker);
 		if (fontStack) label.setAttribute('font-family', fontStack);
 		label.textContent = text;
 		group.appendChild(label);
+
+		if (custom && !inert) this.attachZoneLabelDrag(marker, label);
+	}
+
+	/**
+	 * Drag a custom-placed zone label to reposition it. Uses the interaction
+	 * manager (`dragging-zone-label`) so it can't run alongside panning or other
+	 * drags, and persists the new offset on release — a direct map gesture, like
+	 * dragging a pin, so it commits immediately rather than waiting for an editor.
+	 */
+	private attachZoneLabelDrag(marker: MapMarker, label: SVGTextElement): void {
+		label.addEventListener('mousedown', (e) => {
+			if (e.button !== 0 || !this.state) return;
+			e.preventDefault();
+			e.stopPropagation();
+			if (!this.interaction.tryEnter('dragging-zone-label')) return;
+
+			const { sx, sy } = this.getImageScale();
+			const scale = this.zoom / 100;
+			const startClientX = e.clientX;
+			const startClientY = e.clientY;
+			const startOffset = marker.labelOffset ?? zoneCentroidOffset(marker);
+			let moved = false;
+
+			const onMove = (ev: MouseEvent) => {
+				const dx = (ev.clientX - startClientX) / scale / sx;
+				const dy = (ev.clientY - startClientY) / scale / sy;
+				moved = true;
+				marker.labelOffset = { x: startOffset.x + dx, y: startOffset.y + dy };
+				const pos = zoneLabelPosition(marker);
+				label.setAttribute('x', String(pos.x * sx));
+				label.setAttribute('y', String(pos.y * sy));
+			};
+			const onUp = () => {
+				activeWindow.removeEventListener('mousemove', onMove);
+				activeWindow.removeEventListener('mouseup', onUp);
+				this.interaction.exit();
+				// Only persist if the label actually moved, so a stray click is a no-op.
+				if (moved && this.state) this.plugin.dataManager.saveMapState(this.config.id, this.state);
+			};
+			activeWindow.addEventListener('mousemove', onMove);
+			activeWindow.addEventListener('mouseup', onUp);
+		});
 	}
 
 	/**

@@ -84,6 +84,12 @@ export interface MapMarker {
 	 * natural image pixels, so moving a zone only has to update `x`/`y`.
 	 */
 	points?: MapPoint[];
+	/**
+	 * Hot zone label position, relative to the marker's `x`/`y` anchor in natural
+	 * image pixels. When absent the label is centred on the zone; when set the
+	 * label is custom-placed (draggable on the map).
+	 */
+	labelOffset?: MapPoint | null;
 	scale: number | null;
 	scaleToZoom: boolean | null;
 	textScale: number | null;

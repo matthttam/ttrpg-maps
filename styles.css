@@ -1865,6 +1865,13 @@ button.ttrpgmap-btn-warning:disabled {
 	opacity: 1;
 }
 
+/* A custom-placed label is a drag handle, so it opts back into pointer events
+   (the base label sets none so it never blocks the fill's clicks). */
+.ttrpgmap-zone-label--draggable {
+	pointer-events: auto;
+	cursor: move;
+}
+
 /* ── Drawing preview ── */
 .ttrpgmap-zone-draw-shape {
 	fill: var(--interactive-accent);
